@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚔️ نبرد جاودانگان و تسخیر آسمان — Grimhaven</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #131826; --panel2: #1a2135; --ink: #e8e3d5;
+    --gold: #d4af37; --jade: #3ddc97; --crimson: #ff5470; --mist: #8fa3c8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: radial-gradient(1200px 800px at 70% -10%, #1b2440 0%, var(--bg) 60%);
+    color: var(--ink); font-family: "Segoe UI", Tahoma, "Vazirmatn", sans-serif;
+    min-height: 100vh; display: flex; justify-content: center;
+  }
+  .shell { width: min(720px, 100vw); display: flex; flex-direction: column; height: 100vh; }
+  header {
+    padding: 14px 18px; border-bottom: 1px solid #2a3352;
+    display: flex; align-items: center; gap: 12px; background: rgba(19,24,38,.7);
+  }
+  header h1 { font-size: 16px; margin: 0; color: var(--gold); font-weight: 600; letter-spacing: .4px; }
+  header small { color: var(--mist); }
+  .persona { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .persona input { width: 90px; background: var(--panel2); color: var(--ink); border: 1px solid #2a3352;
+    border-radius: 8px; padding: 6px 8px; }
+  .persona button { background: var(--panel2); color: var(--gold); border: 1px solid var(--gold);
+    padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+  #feed { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { max-width: 96%; white-space: pre-wrap; line-height: 1.9; font-size: 14.5px;
+    background: var(--panel); border: 1px solid #26304f; border-radius: 14px; padding: 14px 16px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.35); animation: rise .25s ease; }
+  .msg.gold { border-color: rgba(212,175,55,.5); }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
+  #keys { padding: 12px 18px 18px; display: flex; flex-direction: column; gap: 8px;
+    border-top: 1px solid #2a3352; background: rgba(19,24,38,.7); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .k {
+    flex: 1; min-width: 140px; background: var(--panel2); color: var(--ink);
+    border: 1px solid #33406a; padding: 10px 8px; border-radius: 10px; cursor: pointer;
+    font-size: 13.5px; transition: all .12s;
+  }
+  .k:hover { border-color: var(--gold); color: var(--gold); transform: translateY(-1px); }
+  .banner { color: var(--jade); font-size: 12px; padding: 0 18px 8px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <span style="font-size:22px">⚔️</span>
+    <div>
+      <h1>نبرد جاودانگان و تسخیر آسمان</h1>
+      <small>War of the Immortals: Conquest of Heaven — live demo (same engine as the Telegram bot)</small>
+    </div>
+    <div class="persona">
+      <input id="uid" type="number" value="1" title="user id">
+      <button onclick="join(true)">🌱 New Soul</button>
+    </div>
+  </header>
+  <div id="feed"></div>
+  <div class="banner" id="banner"></div>
+  <div id="keys"></div>
+</div>
+<script>
+const feed = document.getElementById("feed");
+const keys = document.getElementById("keys");
+const banner = document.getElementById("banner");
+let uid = 1;
+
+function add(text, gold) {
+  const d = document.createElement("div");
+  d.className = "msg" + (gold ? " gold" : "");
+  d.textContent = text;
+  feed.appendChild(d);
+  feed.scrollTop = feed.scrollHeight;
+}
+function drawKeyboard(rows) {
+  keys.innerHTML = "";
+  (rows || []).forEach(row => {
+    const r = document.createElement("div"); r.className = "row";
+    row.forEach(b => {
+      const btn = document.createElement("button");
+      btn.className = "k"; btn.textContent = b.label;
+      btn.onclick = () => act(b.data);
+      r.appendChild(btn);
+    });
+    keys.appendChild(r);
+  });
+}
+function parseData(data) {
+  const i = data.indexOf(":");
+  return i === -1 ? [data, ""] : [data.slice(0, i), data.slice(i + 1)];
+}
+async function api(path, body) {
+  const res = await fetch(path, { method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body) });
+  return res.json();
+}
+async function act(data) {
+  const [action, arg] = parseData(data || "menu");
+  const out = await api("/api/action", { user_id: uid, action, arg });
+  if (out.settle && out.settle.gained > 0) banner.textContent = `⏳ +${out.settle.gained} Qi gathered while you were away…`;
+  add(out.text, true);
+  drawKeyboard(out.keyboard);
+}
+async function join(fresh) {
+  uid = parseInt(document.getElementById("uid").value || "1", 10);
+  if (fresh) uid = Math.floor(Math.random() * 1e9);
+  const res = await api("/api/join", { user_id: uid, language: "fa" });
+  feed.innerHTML = "";
+  add(res.created
+    ? "🌩 A new soul descends into the mortal realm… (id: " + uid + ")"
+    : "🌀 Welcome back, cultivator. (id: " + uid + ")");
+  await act("menu");
+}
+join(false);
+</script>
+</body>
+</html>
