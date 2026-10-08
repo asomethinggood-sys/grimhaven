@@ -1,14 +1,13 @@
-"""Shared handler context: user loading, AFK settlement, world boost, admin."""
+"""Shared handler context: user loading/migration, AFK settlement, world boost."""
 from __future__ import annotations
 
 import datetime as dt
 
 from ...db.storage import Storage
 from ...engine.cultivation import CultivationEngine
-from ...engine.models import new_user_doc, parse_iso, utcnow
-from ...render import profile_text
-from ..keyboards import main_menu, back_to_menu
-from ...engine.models import in_seclusion
+from ...engine.models import ensure_v2, new_user_doc, parse_iso, utcnow
+from ...render import deep_profile_text, profile_text
+from ..keyboards import back_to_menu, deep_kb, main_menu
 
 
 class Ctx:
@@ -36,9 +35,10 @@ class Ctx:
     def get_or_create_user(self, tg_user) -> tuple[dict, bool]:
         doc = self.storage.get_user(tg_user.id)
         if doc:
+            ensure_v2(doc)
             return doc, False
         username = tg_user.username or tg_user.first_name or f"cultivator_{tg_user.id}"
-        doc = new_user_doc(tg_user.id, username)
+        doc = ensure_v2(new_user_doc(tg_user.id, username))
         self.storage.save_user(doc)
         return doc, True
 
@@ -52,13 +52,15 @@ class Ctx:
         return user_id in self.admin_ids
 
     def profile_reply(self, user: dict, now: dt.datetime | None = None):
-        """(text, keyboard) for the destiny scroll panel."""
+        """(text, keyboard) for the streamlined destiny-scroll panel."""
         now = now or utcnow()
         text = profile_text(self.storage, user, world_boost=self.world_boost(now), now=now)
-        keyboard = main_menu(user["account"]["language"],
-                             user["cultivation"]["meditating"],
-                             in_seclusion(user, now))
+        keyboard = main_menu(user["account"]["language"], user)
         return text, keyboard
+
+    def deep_reply(self, user: dict):
+        lang = user["account"]["language"]
+        return deep_profile_text(lang, user), deep_kb(lang)
 
     def back_reply(self, user: dict, text: str):
         return text, back_to_menu(user["account"]["language"])

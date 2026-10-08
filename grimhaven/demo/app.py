@@ -13,9 +13,12 @@ from fastapi.staticfiles import StaticFiles
 
 from ..bot.handlers.callbacks import _dispatch
 from ..bot.handlers.common import Ctx
+from ..core.data_loader import bootstrap as bootstrap_data
+from ..core.middleware import callback_blocked
 from ..db.storage import Storage, bootstrap_world
-from ..engine.models import new_user_doc, utcnow
+from ..engine.models import ensure_v2, new_user_doc, utcnow
 from ..config import settings
+from ..localization import t
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -25,6 +28,7 @@ DEMO_ADMINS = {7777}  # the demo persona with God-Mode access
 def create_app(database_path: Path | None = None) -> FastAPI:
     storage = Storage(database_path or settings.database_path)
     bootstrap_world(storage)
+    bootstrap_data()
     ctx = Ctx(storage, admin_ids=DEMO_ADMINS | settings.admin_ids)
 
     app = FastAPI(title="Grimhaven — War of the Immortals", docs_url="/api/docs")
@@ -42,8 +46,8 @@ def create_app(database_path: Path | None = None) -> FastAPI:
         user = storage.get_user(uid)
         created = False
         if not user:
-            user = new_user_doc(uid, data.get("username") or f"cultivator_{uid}",
-                                data.get("language") or "fa")
+            user = ensure_v2(new_user_doc(uid, data.get("username") or f"cultivator_{uid}",
+                                          data.get("language") or "fa"))
             storage.save_user(user)
             created = True
         return {"user_id": uid, "created": created, "language": user["account"]["language"]}
@@ -54,13 +58,17 @@ def create_app(database_path: Path | None = None) -> FastAPI:
         uid = int(data.get("user_id") or 1)
         user = storage.get_user(uid)
         if not user:
-            user = new_user_doc(uid, f"cultivator_{uid}")
+            user = ensure_v2(new_user_doc(uid, f"cultivator_{uid}"))
             storage.save_user(user)
-        settle_res = ctx.settle(user, now=utcnow())
         act = data.get("action") or "menu"
         arg = data.get("arg") or ""
-        # demo-only: admin drops via button works through the normal dispatcher
-        text, kb = _dispatch(ctx, user, act, arg, settle_res)
+        raw = f"{act}:{arg}" if arg else act
+        alert_key = callback_blocked(user, raw)
+        if alert_key:
+            return JSONResponse({"text": t(user["account"]["language"], alert_key),
+                                 "alert": True, "keyboard": [], "settle": {"gained": 0, "events": []}})
+        settle_res = ctx.settle(user, now=utcnow())
+        text, kb = _dispatch(ctx, user, act, arg, settle_res, now=utcnow())
         ctx.save(user)
         keyboard = []
         if kb is not None:

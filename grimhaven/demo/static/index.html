@@ -58,7 +58,7 @@
       <button onclick="join(true)">🌱 New Soul</button>
     </div>
   </header>
-  <div id="feed"></div>
+  <div id="feed" dir="auto"></div>
   <div class="banner" id="banner"></div>
   <div id="keys"></div>
 </div>
@@ -97,12 +97,33 @@ async function api(path, body) {
     body: JSON.stringify(body) });
   return res.json();
 }
+let lastText = "";
 async function act(data) {
   const [action, arg] = parseData(data || "menu");
   const out = await api("/api/action", { user_id: uid, action, arg });
-  if (out.settle && out.settle.gained > 0) banner.textContent = `⏳ +${out.settle.gained} Qi gathered while you were away…`;
-  add(out.text, true);
+  if (out.alert) { toast(out.text); return; }   // FSM guard: scold, keep the screen
+  if (out.settle && out.settle.gained > 0) {
+    banner.textContent = `⏳ +${out.settle.gained} Qi gathered while you were away…`;
+  } else if (out.settle && (out.settle.events || []).length) {
+    banner.textContent = "⏳ " + out.settle.events.join(" · ");
+  } else {
+    banner.textContent = "";
+  }
+  if (out.text === lastText) {
+    const last = feed.lastElementChild; if (last) { last.style.animation = "none"; last.offsetHeight; last.style.animation = ""; }
+  } else add(out.text, true);
+  lastText = out.text;
   drawKeyboard(out.keyboard);
+}
+function toast(text) {
+  const old = document.getElementById("toast"); if (old) old.remove();
+  const d = document.createElement("div");
+  d.id = "toast"; d.textContent = text;
+  d.style.cssText = "position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:9;" +
+    "background:#2a1220;border:1px solid var(--crimson);color:var(--crimson);padding:10px 18px;" +
+    "border-radius:12px;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.5);animation:rise .2s ease;max-width:80vw;white-space:pre-wrap";
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 2600);
 }
 async function join(fresh) {
   uid = parseInt(document.getElementById("uid").value || "1", 10);

@@ -1,0 +1,441 @@
+{
+ "beasts": [
+  {
+   "enemy_id": "wild_boar",
+   "name": "گورچ جنگل",
+   "name_en": "Bristled Forest Boar",
+   "guard_level": 1,
+   "hp": 78,
+   "atk": 11,
+   "def": 7,
+   "sdef": 6,
+   "speed": 8,
+   "loot": {
+    "stones": [
+     1,
+     2
+    ],
+    "qi": [
+     20,
+     45
+    ],
+    "drop": {
+     "mat_wolf_fang": 0.08
+    }
+   }
+  },
+  {
+   "enemy_id": "hungry_wolf",
+   "name": "گرگ گرسنه",
+   "name_en": "Famished Grey Wolf",
+   "guard_level": 1,
+   "hp": 88,
+   "atk": 12,
+   "def": 6,
+   "sdef": 6,
+   "speed": 12,
+   "loot": {
+    "stones": [
+     1,
+     2
+    ],
+    "qi": [
+     22,
+     50
+    ],
+    "drop": {
+     "mat_wolf_fang": 0.15,
+     "talisman_gale_blade": 0.05
+    }
+   }
+  },
+  {
+   "enemy_id": "rock_serpent",
+   "name": "مار صخره‌ای",
+   "name_en": "Rock-Back Serpent",
+   "guard_level": 2,
+   "hp": 150,
+   "atk": 19,
+   "def": 14,
+   "sdef": 10,
+   "speed": 13,
+   "loot": {
+    "stones": [
+     2,
+     4
+    ],
+    "qi": [
+     50,
+     110
+    ],
+    "drop": {
+     "mat_serpent_scale": 0.18
+    }
+   }
+  },
+  {
+   "enemy_id": "mist_panther",
+   "name": "پلنگ مه",
+   "name_en": "Mist-Stalking Panther",
+   "guard_level": 2,
+   "hp": 130,
+   "atk": 24,
+   "def": 9,
+   "sdef": 12,
+   "speed": 19,
+   "loot": {
+    "stones": [
+     2,
+     5
+    ],
+    "qi": [
+     55,
+     120
+    ],
+    "drop": {
+     "talisman_gale_blade": 0.12,
+     "herb_wild_ginseng": 0.1
+    }
+   }
+  },
+  {
+   "enemy_id": "blood_croc",
+   "name": "تمساح خون",
+   "name_en": "Blood Marsh Crocodile",
+   "guard_level": 3,
+   "hp": 320,
+   "atk": 40,
+   "def": 26,
+   "sdef": 18,
+   "speed": 12,
+   "loot": {
+    "stones": [
+     3,
+     8
+    ],
+    "qi": [
+     130,
+     260
+    ],
+    "drop": {
+     "mat_serpent_scale": 0.25,
+     "talisman_crimson_thunder": 0.12
+    }
+   }
+  },
+  {
+   "enemy_id": "marsh_wraith",
+   "name": "ارواح باتلاق",
+   "name_en": "Marsh Wraith",
+   "guard_level": 3,
+   "hp": 240,
+   "atk": 52,
+   "def": 12,
+   "sdef": 40,
+   "speed": 22,
+   "loot": {
+    "stones": [
+     4,
+     9
+    ],
+    "qi": [
+     150,
+     300
+    ],
+    "drop": {
+     "talisman_seal_flame": 0.2
+    }
+   }
+  },
+  {
+   "enemy_id": "spring_serpent_king",
+   "name": "شاه‌مار چشمه بهشتی",
+   "name_en": "Spring Serpent King",
+   "guard_level": 4,
+   "hp": 620,
+   "atk": 78,
+   "def": 44,
+   "sdef": 40,
+   "speed": 20,
+   "loot": {
+    "stones": [
+     8,
+     16
+    ],
+    "qi": [
+     350,
+     700
+    ],
+    "drop": {
+     "talisman_crimson_thunder": 0.3,
+     "mat_thunder_wood": 0.25
+    }
+   }
+  },
+  {
+   "enemy_id": "jade_guardian",
+   "name": "نگهبان یشم",
+   "name_en": "Jade Statue Guardian",
+   "guard_level": 4,
+   "hp": 880,
+   "atk": 66,
+   "def": 70,
+   "sdef": 46,
+   "speed": 11,
+   "loot": {
+    "stones": [
+     9,
+     18
+    ],
+    "qi": [
+     380,
+     720
+    ],
+    "drop": {
+     "pill_marrow_wash": 0.15
+    }
+   }
+  },
+  {
+   "enemy_id": "thunder_roc",
+   "name": "رعد طائر صاعقه",
+   "name_en": "Thunderclap Roc",
+   "guard_level": 7,
+   "hp": 2600,
+   "atk": 260,
+   "def": 130,
+   "sdef": 120,
+   "speed": 44,
+   "loot": {
+    "stones": [
+     30,
+     60
+    ],
+    "qi": [
+     2500,
+     4500
+    ],
+    "drop": {
+     "mat_thunder_wood": 0.5,
+     "acc_thunder_pearl": 0.06
+    }
+   }
+  },
+  {
+   "enemy_id": "storm_qilin",
+   "name": "قیلین طوفان",
+   "name_en": "Storm-Qilin Sovereign",
+   "guard_level": 7,
+   "hp": 4200,
+   "atk": 310,
+   "def": 180,
+   "sdef": 160,
+   "speed": 38,
+   "loot": {
+    "stones": [
+     45,
+     90
+    ],
+    "qi": [
+     3200,
+     6000
+    ],
+    "drop": {
+     "wpn_thunder_awl": 0.1,
+     "nat_ancient_bell": 0.02
+    }
+   }
+  }
+ ],
+ "guardians": [
+  {
+   "enemy_id": "guardian_1",
+   "name": "سپاهدار دهانه دره",
+   "name_en": "Gorge Wardensprite",
+   "guard_level": 1,
+   "hp": 150,
+   "atk": 16,
+   "def": 10,
+   "sdef": 8,
+   "speed": 12,
+   "loot": {
+    "stones": [
+     2,
+     5
+    ],
+    "qi": [
+     40,
+     90
+    ],
+    "drop": {}
+   }
+  },
+  {
+   "enemy_id": "guardian_2",
+   "name": "سپاهدار بامبو",
+   "name_en": "Bamboo Grove Sentinel",
+   "guard_level": 2,
+   "hp": 420,
+   "atk": 38,
+   "def": 26,
+   "sdef": 20,
+   "speed": 16,
+   "loot": {
+    "stones": [
+     5,
+     11
+    ],
+    "qi": [
+     150,
+     320
+    ],
+    "drop": {
+     "talisman_gale_blade": 0.25
+    }
+   }
+  },
+  {
+   "enemy_id": "guardian_3",
+   "name": "نگهبان باتلاق خون",
+   "name_en": "Blood Marsh Watcher",
+   "guard_level": 3,
+   "hp": 980,
+   "atk": 74,
+   "def": 52,
+   "sdef": 40,
+   "speed": 20,
+   "loot": {
+    "stones": [
+     10,
+     22
+    ],
+    "qi": [
+     420,
+     820
+    ],
+    "drop": {
+     "talisman_crimson_thunder": 0.3
+    }
+   }
+  },
+  {
+   "enemy_id": "guardian_4",
+   "name": "نگهبان چشمه بهشت",
+   "name_en": "Heaven-Spring Warden",
+   "guard_level": 4,
+   "hp": 2200,
+   "atk": 140,
+   "def": 96,
+   "sdef": 84,
+   "speed": 24,
+   "loot": {
+    "stones": [
+     18,
+     40
+    ],
+    "qi": [
+     1000,
+     2200
+    ],
+    "drop": {
+     "pill_marrow_wash": 0.3
+    }
+   }
+  },
+  {
+   "enemy_id": "guardian_5",
+   "name": "فرمانده قله مه",
+   "name_en": "Misty-Peak Commander",
+   "guard_level": 5,
+   "hp": 4600,
+   "atk": 250,
+   "def": 160,
+   "sdef": 140,
+   "speed": 28,
+   "loot": {
+    "stones": [
+     30,
+     60
+    ],
+    "qi": [
+     2600,
+     5200
+    ],
+    "drop": {
+     "robe_cloud_step": 0.12
+    }
+   }
+  },
+  {
+   "enemy_id": "guardian_6",
+   "name": "کیشور رگه آسمانی",
+   "name_en": "Sky-Vein Kshantaka",
+   "guard_level": 6,
+   "hp": 9800,
+   "atk": 430,
+   "def": 280,
+   "sdef": 250,
+   "speed": 33,
+   "loot": {
+    "stones": [
+     48,
+     95
+    ],
+    "qi": [
+     6000,
+     12000
+    ],
+    "drop": {
+     "ring_mind_jade": 0.08
+    }
+   }
+  },
+  {
+   "enemy_id": "guardian_7",
+   "name": "فرشته داوری فلات رعد",
+   "name_en": "Plateau Judgement Herald",
+   "guard_level": 7,
+   "hp": 21000,
+   "atk": 760,
+   "def": 480,
+   "sdef": 430,
+   "speed": 40,
+   "loot": {
+    "stones": [
+     80,
+     150
+    ],
+    "qi": [
+     14000,
+     28000
+    ],
+    "drop": {
+     "wpn_dawnbreaker": 0.1,
+     "elixir_soul_anchor": 0.25
+    }
+   }
+  }
+ ],
+ "rival": {
+  "enemy_id": "rival_cultivator",
+  "name": "مرید رقیب سرگردان",
+  "name_en": "Wandering Rival Disciple",
+  "guard_level": 0,
+  "hp": 220,
+  "atk": 30,
+  "def": 18,
+  "sdef": 16,
+  "speed": 15,
+  "loot": {
+   "stones": [
+    0,
+    0
+   ],
+   "qi": [
+    0,
+    0
+   ],
+   "drop": {}
+  }
+ }
+}

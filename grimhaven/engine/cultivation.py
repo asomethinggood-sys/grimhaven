@@ -24,6 +24,7 @@ from .constants import (
     SUCCESS_CLAMP_MIN,
     TRIBULATION_DAMAGE_RANGE,
 )
+from .models import tribulation_mitigation
 from .models import (
     afk_hourly_rate,
     iso,
@@ -32,6 +33,7 @@ from .models import (
     recompute_visible_stats,
     utcnow,
 )
+from ..core.state_machine import UserStatus, set_status, paralysis_active, is_injured
 
 
 class CultivationEngine:
@@ -47,7 +49,9 @@ class CultivationEngine:
             return {"status": "ALREADY_MEDITATING"}
         if CultivationEngine._seclusion_remaining(user, now):
             return {"status": "IN_SECLUSION"}
-        cul["meditating"] = True
+        if paralysis_active(user, now) or user["combat"].get("session"):
+            return {"status": "BLOCKED"}
+        set_status(user, UserStatus.MEDITATING)
         cul["meditation_started_at"] = iso(now)
         cul["last_afk_timestamp"] = iso(now)
         return {"status": "OK"}
@@ -59,7 +63,7 @@ class CultivationEngine:
         if not cul["meditating"]:
             return {"status": "NOT_MEDITATING"}
         result = CultivationEngine.settle_afk(user, now=now)
-        cul["meditating"] = False
+        set_status(user, UserStatus.IDLE)
         cul["meditation_started_at"] = None
         result["status"] = "STOPPED"
         return result
@@ -154,6 +158,10 @@ class CultivationEngine:
             return {"status": "ALREADY_IN_SECLUSION"}
         if meridians_sealed(user, now):
             return {"status": "MERIDIANS_SEALED"}
+        if user["combat"].get("session"):
+            return {"status": "IN_COMBAT"}
+        if paralysis_active(user, now) or is_injured(user, now):
+            return {"status": "INJURED"}
         realm = cul["current_realm_index"]
         stage = cul["current_stage"]
         stages = REALM_STAGES[realm]
@@ -174,7 +182,7 @@ class CultivationEngine:
             target_realm, target_stage = realm + 1, 0
         cul["seclusion_finish_time"] = iso(now + dt.timedelta(minutes=minutes))
         cul["seclusion_target"] = {"realm": target_realm, "stage": target_stage}
-        cul["meditating"] = False
+        set_status(user, UserStatus.SECLUSION)
         user["progress"]["breakthrough_attempts"] += 1
         return {"status": "SECLUSION_STARTED", "minutes": minutes,
                 "target_realm": target_realm, "target_stage": target_stage}
@@ -190,9 +198,13 @@ class CultivationEngine:
         base = BASE_CHANCE_REALM_JUMP if is_realm_jump else BASE_CHANCE_LAYER
         dao_heart_bonus = hidden["dao_heart_stability"] * 0.3
         pill_bonus = 0.0
-        if cul.get("active_pill") and cul["active_pill"] in PILLS:
-            pill_bonus = PILLS[cul["active_pill"]]["bonus"]
-        if user["inventory"].get("herbs", {}).get("lotus_seven") and realm == 3:
+        from ..core.data_loader import data_registry
+        active_pill = cul.get("active_pill")
+        if active_pill:
+            item = data_registry.get_consumable(active_pill)
+            if item and item.action == "breakthrough_bonus":
+                pill_bonus = float(item.value)
+        if user["inventory"].get("items", {}).get("lotus_seven") and realm == 3:
             pill_bonus += 20.0  # seven-colour lotus stabilises the Golden Core
         luck_bonus = hidden["karmic_luck"] * 0.2
         corruption_penalty = hidden["demonic_corruption"] * 0.5
@@ -223,13 +235,17 @@ class CultivationEngine:
         roll = rng.uniform(0, 100)
         consumed_pill = cul.get("active_pill")
         cul["active_pill"] = None
-        if user["inventory"].get("herbs", {}).get("lotus_seven") and \
+        if user["inventory"].get("items", {}).get("lotus_seven") and \
                 cul["current_realm_index"] == 3:
-            user["inventory"]["herbs"].pop("lotus_seven", None)
+            user["inventory"]["items"].pop("lotus_seven", None)
 
         lightning = int(rng.uniform(*TRIBULATION_DAMAGE_RANGE))
         if cul["alignment"] == "demonic":
             lightning = int(lightning * 1.5)  # karmic fire amplifies tribulation
+        mitigation = tribulation_mitigation(user)
+        if mitigation:
+            lightning = max(1, int(lightning * (1 - mitigation)))
+        set_status(user, UserStatus.IDLE)
 
         if roll <= rate:
             CultivationEngine._apply_advance(user, target)

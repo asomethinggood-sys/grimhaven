@@ -96,17 +96,21 @@ def test_demonic_sacrifice_boosts_and_corrupts():
 # ── shop / equipment ─────────────────────────────────────────────────────────
 
 def test_shop_purchase_and_equip_cycle():
+    from grimhaven.core.data_loader import bootstrap
+    bootstrap()
     u = user(realm=2)
-    u["inventory"]["spirit_stones"]["low"] = 200
-    assert items.shop_locked(u) is False
-    res = items.buy(u, "weapon_heaven")  # costs 900 — must refuse
+    entries = {e["shop_id"]: e for e in items.shop_entries(u)}
+    shop_id = "equip:wpn_iron_leaf"
+    assert shop_id in entries, f"{shop_id} not in shop"
+    u["inventory"]["spirit_stones"]["low"] = 1  # too poor
+    res = items.buy(u, shop_id)
     assert res["status"] == "NOT_ENOUGH_STONES"
-    assert u["inventory"]["spirit_stones"]["low"] == 200  # nothing charged
-    # with enough funds the equip cycle must work
-    u["inventory"]["spirit_stones"]["low"] = 1000
-    assert items.buy(u, "weapon_heaven")["status"] == "OK"
-    assert items.equip(u, "gear_weapon_heaven")["status"] == "OK"
-    assert u["equipment"]["weapon"]["tier"] == "heaven"
+    assert u["inventory"]["spirit_stones"]["low"] == 1  # nothing charged
+    u["inventory"]["spirit_stones"]["low"] = 5000
+    assert items.buy(u, shop_id)["status"] == "OK"
+    assert "wpn_iron_leaf" in u["inventory"]["gear"]
+    assert items.equip(u, "wpn_iron_leaf")["status"] == "OK"
+    assert u["equipment"]["weapon"] is not None
     assert items.unequip(u, "weapon")["status"] == "OK"
     assert u["equipment"]["weapon"] is None
 
@@ -114,10 +118,11 @@ def test_shop_purchase_and_equip_cycle():
 def test_cannot_afford():
     u = user(realm=2)
     u["inventory"]["spirit_stones"]["low"] = 1
-    assert items.buy(u, "doll_substitute")["status"] == "NOT_ENOUGH_STONES"
+    priced = [e for e in items.shop_entries(u) if e["price"] > 1]
+    assert priced, "shop has goods"
+    assert items.buy(u, priced[0]["shop_id"])["status"] == "NOT_ENOUGH_STONES"
+    assert u["inventory"]["spirit_stones"]["low"] == 1
 
-
-# ── Dao choice ───────────────────────────────────────────────────────────────
 
 def test_dao_choice_gated_and_irreversible():
     u = user(realm=1, stage=5)
@@ -137,23 +142,32 @@ def test_blood_dao_forces_demonic():
 # ── combat ───────────────────────────────────────────────────────────────────
 
 def test_hunt_victory_rewards():
+    from grimhaven.core.data_loader import bootstrap
+    bootstrap()
     u = user(realm=2)
     u["stats"]["visible"]["physique_hp"] = 900
     u["stats"]["visible"]["max_hp"] = 900
     u["combat"]["loadout"] = ["basic_strike", "iron_guard", "element_burst", None]
-    res = combat.hunt_monster(u, 1, "wild_boar", rng=random.Random(11))
+    enemy = combat.make_beast("wild_boar", random.Random(11))
+    res = combat.instant_settle(u, enemy, rng=random.Random(11))
     assert res["won"] is True
-    assert res["stones"] >= 1 and u["inventory"]["spirit_stones"]["low"] >= 1
+    assert u["inventory"]["spirit_stones"]["low"] >= 1
+    assert res["reward"]["qi"] >= 0
+    assert u["combat"]["wins"] == 1
 
 
 def test_duel_deterministic_with_seed():
-    u1 = user(realm=2)
-    u2 = user(realm=2)
-    m1 = combat.make_monster("hungry_wolf", 1, random.Random(5))
-    m2 = combat.make_monster("hungry_wolf", 1, random.Random(5))
-    r1 = combat.duel(u1, m1, rng=random.Random(9))
-    r2 = combat.duel(u2, m2, rng=random.Random(9))
-    assert r1["won"] == r2["won"] and r1["turns"] == r2["turns"]
+    from grimhaven.core import combat_engine as engine
+    from grimhaven.core.data_loader import bootstrap
+    bootstrap()
+    results = []
+    for _ in range(2):
+        u = user(realm=2)
+        m = engine.make_beast("hungry_wolf", random.Random(5))
+        engine.start_session(u, m, "hunt")
+        outcome, _summary, snapshot = engine.simulate(u, rng=random.Random(9))
+        results.append((outcome, snapshot.get("round"), snapshot.get("player", {}).get("hp")))
+    assert results[0] == results[1]
 
 
 def test_mercy_raises_karma_plunder_drops_it():

@@ -45,10 +45,23 @@ to *Dao Sovereign*:
   Body Tempering, Five Elements, Blood & Soul-Devouring (ch. 6)
 - **Equipment** — 7 tiers (Mortal→Divine) across 6 slots (weapon, robe,
   spatial ring, talisman, companion, soul-bound natal artifact) (ch. 7)
-- **Martial arts** — 7 internal methods (tech ×1.0–10.0) + 4-slot combat
-  loadout with ultimates costing 50% of the Dantian (ch. 7)
+- **Martial arts** — 7 internal methods (tech ×1.0–10.0) + a live combat deck
+  (3 slots at Qi Condensation → 6 by Soul Formation, +1 from relic rings) with
+  ultimates costing 50% of the Dantian; manuals bought at the Pavilion
+  auto-fill empty slots (ch. 7)
 - **World map** — 7 zones with spirit-vein densities, travel realm gates,
   guardian **conquest battles**, monster hunts with mercy/plunder choices (ch. 1–2)
+- **Live turn-based battles** — per-round views with HP/Qi bars, status effects
+  (burn, stun, evasion, wards…), cooldowns, technique/item/flee keys,
+  ⏩ fast-forward simulation, comeback miracle & true-death penalties
+  (paralysis coma), rival-challenge follow-ups and vein-conquest flag-planting
+- **Meditation state machine** — MEDITATING locks travel/battle/trade (enforced
+  by middleware in both bot and demo); claiming Qi renders a **Meditation
+  Chronicle** of 1–4 seeded offline events (ch. 5, overhaul §2–3)
+- **Spatial ring** — 12 stack-slots (+equipment bonuses): bag tabs for gear /
+  consumables / materials, inspect-use-equip-sell-repair loop with durability
+- **Persistent quick-key dock** — Telegram ReplyKeyboard (🧘⚡️🗺🎒📜🏛⚔️⛩) with
+  contextual inline menus per screen (overhaul §3)
 - **Sects** — join 3 NPC sects at Foundation; found your own at Void
   Refinement (ch. 2)
 - **Trade Pavilion** shop priced in spirit stones (ch. 2)
@@ -73,6 +86,8 @@ grimhaven/
 │   ├── config.py            # env/.env settings
 │   ├── localization.py      # key-based bilingual text + Persian digits
 │   ├── render.py            # every screen renderer (doc ch. 8 mockups)
+│   ├── core/                # live battle resolver, FSM locks, data registry,
+│   │                        # offline-adventure engine, handler middleware
 │   ├── engine/              # pure game logic, fully unit-tested
 │   │   ├── constants.py     # all numbers straight from the design doc
 │   │   ├── models.py        # user JSON document + derived stats
@@ -83,7 +98,9 @@ grimhaven/
 │   ├── db/storage.py        # SQLite document store (Mongo-style)
 │   ├── bot/                 # python-telegram-bot layer (handlers, keyboards)
 │   └── demo/                # FastAPI chat-console sharing the same engine
-├── tests/                   # 31 tests anchored to the design doc
+├── data/                    # martial arts / enemies / equipment / consumables /
+│                            # offline-events JSON (validated by data registry)
+├── tests/                   # 40 tests anchored to the design doc
 ├── deploy/                  # Dockerfile, docker-compose, render.yaml, systemd
 └── docs/                    # master prompt + hosting guide
 ```
@@ -96,7 +113,7 @@ pip install -r requirements.txt
 cp .env.example .env            # put the @BotFather token + your admin id in
 python run_bot.py               # the bot goes live on @Grimheaven_bot
 python run_demo.py              # or open the browser demo → http://localhost:8000
-pytest                          # 31 passing tests
+pytest                          # 40 passing tests
 ```
 
 > The sandbox this repo was built in has **no route to api.telegram.org**, so
