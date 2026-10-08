@@ -1,0 +1,82 @@
+# ── Grimhaven: self-hosting on GitHub Actions ───────────────────────────────
+# The Telegram bot (@Grimheaven_bot) runs here via long-polling — no external
+# hosting account needed. Scheduled every 5 minutes; each run hosts the bot
+# for up to ~5.5 hours, then hands over to the next run. The concurrency
+# group guarantees exactly ONE bot instance at a time, and the game database
+# is saved to artifacts every 45 minutes (and on shutdown) so player progress
+# survives restarts.
+name: Grimhaven Bot
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: grimhaven-bot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Skip if another bot instance is already running
+        id: guard
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          running=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/bot.yml/runs?status=in_progress&per_page=10" \
+            | python3 -c "
+          import sys, json, os
+          runs = json.load(sys.stdin).get('workflow_runs', [])
+          others = [r for r in runs if r['id'] != $GITHUB_RUN_ID]
+          print(len(others))")
+          if [ "$running" -gt 0 ]; then
+            echo "another instance is live — this run bows out"
+            echo "skip=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore world state
+        if: steps.guard.outputs.skip == 'no'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash deploy/gha_state.sh restore
+
+      - name: Host the bot (long-polling, up to 5.5 hours)
+        if: steps.guard.outputs.skip == 'no'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
+          DATABASE_PATH: data/grimhaven.db
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # background saver: snapshot the world every 45 minutes
+          ( while true; do sleep 2700; bash deploy/gha_state.sh save || true; done ) &
+          SAVER_PID=$!
+          trap 'kill $SAVER_PID 2>/dev/null || true' EXIT
+          timeout --signal=TERM --kill-after=60 330m python run_bot.py || true
+
+      - name: Final world-state save
+        if: steps.guard.outputs.skip == 'no'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash deploy/gha_state.sh save || true

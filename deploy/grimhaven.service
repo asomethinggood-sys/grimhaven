@@ -1,0 +1,17 @@
+# systemd unit for a VPS (Ubuntu/Debian):
+#   sudo cp grimhaven.service /etc/systemd/system/
+#   sudo systemctl enable --now grimhaven
+[Unit]
+Description=Grimhaven Telegram Bot — War of the Immortals
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/grimhaven
+EnvironmentFile=/opt/grimhaven/.env
+ExecStart=/opt/grimhaven/.venv/bin/python run_bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

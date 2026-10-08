@@ -1,0 +1,26 @@
+services:
+  grimhaven-bot:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    volumes:
+      - grimhaven-data:/app/data
+
+  grimhaven-demo:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: python run_demo.py
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      - DEMO_PORT=8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - grimhaven-data:/app/data
+
+volumes:
+  grimhaven-data:
