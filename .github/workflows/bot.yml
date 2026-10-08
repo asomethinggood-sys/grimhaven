@@ -2,14 +2,19 @@
 # The Telegram bot (@Grimheaven_bot) runs here via long-polling — no external
 # hosting account needed. Scheduled every 5 minutes; each run hosts the bot
 # for up to ~5.5 hours, then hands over to the next run. The concurrency
-# group guarantees exactly ONE bot instance at a time, and the game database
-# is saved to artifacts every 45 minutes (and on shutdown) so player progress
-# survives restarts.
+# group + guard step guarantee exactly ONE bot instance at a time, and the
+# game database is saved to artifacts every 45 minutes (and on shutdown) so
+# player progress survives restarts.
+#
+# Required secret: TELEGRAM_BOT_TOKEN  (Settings → Secrets and variables → Actions)
+# Optional secret: ADMIN_IDS           (comma-separated Telegram user ids)
 name: Grimhaven Bot
 
 on:
   schedule:
     - cron: '*/5 * * * *'
+  push:
+    branches: [main]
   workflow_dispatch: {}
 
 concurrency:
@@ -44,7 +49,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/bot.yml/runs?status=in_progress&per_page=10" \
             | python3 -c "
-          import sys, json, os
+          import sys, json
           runs = json.load(sys.stdin).get('workflow_runs', [])
           others = [r for r in runs if r['id'] != $GITHUB_RUN_ID]
           print(len(others))")
@@ -55,14 +60,34 @@ jobs:
             echo "skip=no" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Restore world state
+      - name: Check bot token secret
+        id: token_check
         if: steps.guard.outputs.skip == 'no'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "has=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "has=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Waiting for TELEGRAM_BOT_TOKEN secret
+        if: steps.guard.outputs.skip == 'no' && steps.token_check.outputs.has == 'no'
+        run: |
+          echo "⏳ The hosting pipeline is live, but the bot token secret is missing."
+          echo "   GitHub → grimhaven → Settings → Secrets and variables → Actions"
+          echo "   → New repository secret → Name: TELEGRAM_BOT_TOKEN → paste the @BotFather token."
+          echo "   The next scheduled run (every 5 minutes) picks it up automatically."
+
+      - name: Restore world state
+        if: steps.guard.outputs.skip == 'no' && steps.token_check.outputs.has == 'yes'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash deploy/gha_state.sh restore
 
       - name: Host the bot (long-polling, up to 5.5 hours)
-        if: steps.guard.outputs.skip == 'no'
+        if: steps.guard.outputs.skip == 'no' && steps.token_check.outputs.has == 'yes'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
@@ -76,7 +101,7 @@ jobs:
           timeout --signal=TERM --kill-after=60 330m python run_bot.py || true
 
       - name: Final world-state save
-        if: steps.guard.outputs.skip == 'no'
+        if: steps.guard.outputs.skip == 'no' && steps.token_check.outputs.has == 'yes'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash deploy/gha_state.sh save || true
