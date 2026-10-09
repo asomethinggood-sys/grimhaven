@@ -1,8 +1,10 @@
-# Secrets & local state — NEVER commit
+# Secrets & local state — NEVER commit (game content in data/*.json IS committed)
 .env
 *.db
 *.sqlite3
-data/
+data/*.db
+data/*.db-journal
+data/*.sqlite3
 __pycache__/
 *.py[cod]
 .venv/

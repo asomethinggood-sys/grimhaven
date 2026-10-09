@@ -1,0 +1,491 @@
+[
+ {
+  "id": 1,
+  "type": "combat",
+  "icon": "⚔️",
+  "text": "در حال مدیتیشن زیر آبشار، یک افعی چی‌خوار به شما حمله کرد؛ با یک ضربه شمشیر آن را دو نیم کردید.",
+  "text_en": "While meditating under the waterfall, a Qi-devouring viper struck — you cleaved it in a single flash of the blade.",
+  "effect": {
+   "bonus_qi": 25
+  }
+ },
+ {
+  "id": 2,
+  "type": "encounter",
+  "icon": "👣",
+  "text": "عابر مرموزی از کنارتان رد شد و یک قرص روح درجه پایین در جیب ردایتان انداخت.",
+  "text_en": "A mysterious traveler brushed past you and slipped a low-grade spirit pill into your robe.",
+  "effect": {
+   "item_id": "pill_spirit_gather_low",
+   "item_name_fa": "قرص روح درجه پایین"
+  }
+ },
+ {
+  "id": 3,
+  "type": "hazard",
+  "icon": "⚡️",
+  "text": "ناگهان رعد آسمانی غرید و تمرکزتان به هم ریخت؛ قلب دائو شما ۲٪ متزلزل شد.",
+  "text_en": "The sky thundered without warning and your focus shattered; your Dao Heart wavered by 2%.",
+  "effect": {
+   "dao_heart": -2
+  }
+ },
+ {
+  "id": 4,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "نسیم کوهستان بوی شکوفه‌های معنوی را آورد؛ ریه‌هایتان سرشار از خنکای چی شد.",
+  "text_en": "The mountain breeze carried the scent of spirit blossoms; your lungs filled with cool, clean Qi.",
+  "effect": {
+   "bonus_qi": 15
+  }
+ },
+ {
+  "id": 5,
+  "type": "encounter",
+  "icon": "👣",
+  "text": "میمون معنوی بازیگوشی از درخت پایین آمد، دو سنگ روح جلویتان انداخت و در شاخه‌ها گم شد.",
+  "text_en": "A playful spirit monkey dropped from the canopy, tossed two spirit stones at your feet, and vanished into the branches.",
+  "effect": {
+   "spirit_stones": 2
+  }
+ },
+ {
+  "id": 6,
+  "type": "hazard",
+  "icon": "⚡️",
+  "text": "جرقه‌ای از صاعقه سرگردان کالبدتان را گزید؛ عضلاتتان اندکی بی‌حس شد.",
+  "text_en": "A stray lightning spark bit through your flesh; your muscles went numb for a moment.",
+  "effect": {
+   "hp": -10
+  }
+ },
+ {
+  "id": 7,
+  "type": "insight",
+  "icon": "💡",
+  "text": "صدای زمزمه باد را شنیدید؛ برای لحظه‌ای به درک عمیق‌تری از گردش چی در مریدین‌ها رسیدید.",
+  "text_en": "You heard the wind's whisper — for an instant you perceived the deeper current of Qi through your meridians.",
+  "effect": {
+   "bonus_qi": 40
+  }
+ },
+ {
+  "id": 8,
+  "type": "combat",
+  "icon": "⚔️",
+  "text": "عقاب پرآهنینی قصد غافلگیری شما را داشت؛ با شلیک یک موج چی آن را فراری دادید.",
+  "text_en": "An iron-feathered eagle tried to ambush you; a burst of Qi sent it fleeing.",
+  "effect": {
+   "bonus_qi": 10
+  }
+ },
+ {
+  "id": 9,
+  "type": "encounter",
+  "icon": "👣",
+  "text": "در شکاف صخره پشت سرتان، ریشه یک جینسنگ ده‌ساله خودرو را برداشتید.",
+  "text_en": "In the rock fissure behind you, you unearthed the root of a wild ten-year ginseng.",
+  "effect": {
+   "item_id": "herb_wild_ginseng",
+   "item_name_fa": "جینسنگ وحشی"
+  }
+ },
+ {
+  "id": 10,
+  "type": "hazard",
+  "icon": "⚡️",
+  "text": "یک تهذیب‌گر شیطانی از دور شما را پایید، اما با دیدن ثبات هاله شما منصرف شد و رد شد.",
+  "text_en": "A demonic cultivator spied you from afar, but turned away when he saw the steadiness of your aura.",
+  "effect": {
+   "dao_heart": 1
+  }
+ },
+ {
+  "id": 11,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "شبنم سحرگاهی بر مژه‌هایتان یخ بست؛ مقاومت کالبدتان در برابر سرمای استخوان‌سوز آزموده شد.",
+  "text_en": "Dawn frost crystallized on your lashes; your body's resistance to the bone-deep cold was quietly tested.",
+  "effect": {
+   "bonus_qi": 15
+  }
+ },
+ {
+  "id": 12,
+  "type": "insight",
+  "icon": "💡",
+  "text": "صدای ناقوس کهن معبدی از فرسنگ‌ها دورتر در دره طنین انداخت؛ ذهن آشفته‌تان به آرامش محض رسید.",
+  "text_en": "The ancient temple bell tolled across the valley; your troubled mind settled into perfect stillness.",
+  "effect": {
+   "dao_heart": 3
+  }
+ },
+ {
+  "id": 13,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "سوسک کریستالی درخشانی روی زانویتان نشست؛ با نوازش چی به آرامی آن را به سمت گل‌ها هدایت کردید.",
+  "text_en": "A luminous crystal beetle landed on your knee; you coaxed it gently toward the flowers with a thread of Qi.",
+  "effect": {}
+ },
+ {
+  "id": 14,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "پرتوهای آفتاب نیمروزی با تنفس شما همگام شدند؛ سرعت جذب انرژی برای مدتی دوچندان شد.",
+  "text_en": "The midday sun synced with your breathing; your absorption rate doubled for a while.",
+  "effect": {
+   "bonus_qi": 30
+  }
+ },
+ {
+  "id": 15,
+  "type": "insight",
+  "icon": "💡",
+  "text": "یاد خاطره‌ای دور از دوران فانی افتادید؛ قطره اشکی ریختید اما عزم دان‌تیان شما پولادین‌تر شد.",
+  "text_en": "A distant memory from your mortal days surfaced; one tear fell, and your resolve hardened like tempered steel.",
+  "effect": {
+   "dao_heart": 2
+  }
+ },
+ {
+  "id": 16,
+  "type": "encounter",
+  "icon": "👣",
+  "text": "روباه روحی سه دم از کنارتان گذشت، نگاهی ژرف به دان‌تیان شما انداخت و در مه ناپدید شد.",
+  "text_en": "A three-tailed spirit fox passed by, gazed deep into your Dantian, and dissolved into the mist.",
+  "effect": {}
+ },
+ {
+  "id": 17,
+  "type": "combat",
+  "icon": "⚔️",
+  "text": "زنبورهای زهرآگین به دور سرتان حلقه زدند؛ با شعله‌ور کردن هاله معنوی همه را خاکستر کردید.",
+  "text_en": "Venom wasps swarmed around your head; you ignited your spiritual aura and burned them all to ash.",
+  "effect": {
+   "bonus_qi": 20
+  }
+ },
+ {
+  "id": 18,
+  "type": "hazard",
+  "icon": "⚡️",
+  "text": "سنگریزه‌ای از فراز دیواره سقوط کرد و به شانه‌تان کوبید؛ زره پوست برنزی شما آن را خرد کرد.",
+  "text_en": "A cascade of gravel struck your shoulder — your bronze-skin armor shattered it to dust.",
+  "effect": {}
+ },
+ {
+  "id": 19,
+  "type": "encounter",
+  "icon": "👣",
+  "text": "بوی خون از بیشه آمد؛ بقایای نبرد دو درنده معنوی را دیدید و یک هسته جانوری شکسته یافتید.",
+  "text_en": "Blood hung in the air; among the remains of two slain spirit beasts you found a cracked beast core.",
+  "effect": {
+   "item_id": "mat_beast_core_broken",
+   "item_name_fa": "هسته نیمه‌جانور"
+  }
+ },
+ {
+  "id": 20,
+  "type": "insight",
+  "icon": "💡",
+  "text": "ریتم چک‌چک آب در غار با ضربان قلبتان میزان شد؛ دان‌تیان تحتانی شما گرمایی مطبوع یافت.",
+  "text_en": "The drip of the cave aligned with your heartbeat; your lower Dantian warmed with a pleasant heat.",
+  "effect": {
+   "bonus_qi": 25
+  }
+ },
+ {
+  "id": 21,
+  "type": "encounter",
+  "icon": "👣",
+  "text": "هیزم‌شکن فانی که از بیراهه می‌گذشت با دیدن هاله‌تان تعظیم کرد و سبدی قارچ وحشی پیشکش گذاشت.",
+  "text_en": "A mortal woodcutter glimpsed your aura, bowed in awe, and left a basket of wild mushrooms as an offering.",
+  "effect": {
+   "item_id": "herb_mountain_mushroom",
+   "item_name_fa": "قارچ کوهی"
+  }
+ },
+ {
+  "id": 22,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "نسیم داغی از جنوب وزید و دانه‌های چی آتشین را در مدار رگ‌هایتان به گردش درآورد.",
+  "text_en": "A hot wind from the south set fire-grain Qi spinning through your meridians.",
+  "effect": {
+   "bonus_qi": 15
+  }
+ },
+ {
+  "id": 23,
+  "type": "insight",
+  "icon": "💡",
+  "text": "گره‌ای در مریدین دست راست باز شد؛ خروجی انرژی دستانتان سبک‌تر و روان‌تر حس می‌شود.",
+  "text_en": "A knot in your right meridian burst open; your hands feel lighter and your output flows freer.",
+  "effect": {
+   "bonus_qi": 35
+  }
+ },
+ {
+  "id": 24,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "بارانی از چی زلال باریدن گرفت؛ قطرات آن غبار آلودگی دنیا را از ردایتان شست.",
+  "text_en": "A rain of limpid Qi fell, washing the dust of the world from your robes.",
+  "effect": {
+   "dao_heart": 1
+  }
+ },
+ {
+  "id": 25,
+  "type": "combat",
+  "icon": "⚔️",
+  "text": "مار پنهان در خارزار پای شما را هدف گرفت؛ با یک ضربه سریع انگشت سرش را شکافتید.",
+  "text_en": "A snake coiled in the brambles struck at your ankle; a flick of two fingers crushed its skull.",
+  "effect": {
+   "bonus_qi": 15
+  }
+ },
+ {
+  "id": 26,
+  "type": "hazard",
+  "icon": "⚡️",
+  "text": "شیاطین باطن وسوسه‌تان کردند که راه میانبر گزینید؛ با ذکر مانترای ارتدوکس آن‌ها را راندید.",
+  "text_en": "Inner demons whispered of shortcuts; you recited the orthodox mantra and dispersed them.",
+  "effect": {
+   "dao_heart": -1
+  }
+ },
+ {
+  "id": 27,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "ترکیدن شاخه‌ای پوسیده سکوت را شکست؛ حس الهی شما فوراً تا شعاع صد متری گسترش یافت.",
+  "text_en": "The crack of a rotting branch broke the silence — your divine sense instantly spread to a hundred meters.",
+  "effect": {}
+ },
+ {
+  "id": 28,
+  "type": "insight",
+  "icon": "💡",
+  "text": "ماهی نقره‌ای از آب زلال پرید؛ پیچ‌وتاب تن آن الهام‌بخش درک گام‌های سبک‌بال شد.",
+  "text_en": "A silver fish leapt from clear water; its twist and turn inspired a lighter footwork.",
+  "effect": {
+   "bonus_qi": 30
+  }
+ },
+ {
+  "id": 29,
+  "type": "hazard",
+  "icon": "⚡️",
+  "text": "سرمای سیاه نیمه‌شب به مغز استخوانتان زد؛ ناچار شدید بخشی از چی ذخیره را صرف گرما کنید.",
+  "text_en": "The black cold of midnight bit to the bone; you burned stored Qi just to keep warm.",
+  "effect": {
+   "bonus_qi": -20
+  }
+ },
+ {
+  "id": 30,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "ردپای عمیق حیوانی کهن را نزدیک خیمه‌تان دیدید؛ دریافتید هنوز در این دنیا بسیار خردید.",
+  "text_en": "Ancient tracks near your camp reminded you: in this world you are still very small.",
+  "effect": {
+   "dao_heart": 1
+  }
+ },
+ {
+  "id": 31,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "عطر خاک خیس و بوی علف تازه روحتان را از رخوت تمرین مداوم پیراست.",
+  "text_en": "The smell of wet earth and cut grass scrubbed the lethargy of endless practice from your soul.",
+  "effect": {}
+ },
+ {
+  "id": 32,
+  "type": "encounter",
+  "icon": "👣",
+  "text": "خنجری زنگارگرفته در بستر جویبار پیدا کردید که متعلق به تهذیب‌گری ناشناس در قرون گذشته بود.",
+  "text_en": "In the stream bed you found a rusted dagger — the relic of some unknown cultivator from centuries past.",
+  "effect": {
+   "item_id": "wpn_rusty_spirit_dagger",
+   "item_name_fa": "خنجر کهنه معنوی"
+  }
+ },
+ {
+  "id": 33,
+  "type": "combat",
+  "icon": "⚔️",
+  "text": "پشه‌های خون‌خوار هجوم آوردند؛ با یک شوک معنوی ناگهانی توده‌ای از آن‌ها را بر زمین ریختید.",
+  "text_en": "Bloodthirsty mosquitoes descended; a spiritual shock dropped their swarm in a heap.",
+  "effect": {
+   "bonus_qi": 10
+  }
+ },
+ {
+  "id": 34,
+  "type": "combat",
+  "icon": "⚔️",
+  "text": "عقرب قهوه‌ای از زیر تخته‌سنگ بیرون تاخت؛ با تیغه پای خود آن را به دو نیم کردید.",
+  "text_en": "A brown scorpion lunged from under a stone; you split it with the edge of your boot.",
+  "effect": {
+   "bonus_qi": 15
+  }
+ },
+ {
+  "id": 35,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "ماه کامل درخشید و یین شب با مدار تنفس شما تلفیق شد؛ جریان روانی از سرمای ناب چشیدید.",
+  "text_en": "The full moon rose; night-Yin merged with your breath cycle, and a current of pristine cold flowed through you.",
+  "effect": {
+   "bonus_qi": 40
+  }
+ },
+ {
+  "id": 36,
+  "type": "hazard",
+  "icon": "⚡️",
+  "text": "غرش بهمنی دوردست صخره‌ها را لرزاند؛ برای ثانیه‌ای بند ناف تمرکزتان پاره شد.",
+  "text_en": "A distant avalanche shook the cliffs; for one second the umbilical of your concentration tore.",
+  "effect": {
+   "dao_heart": -1
+  }
+ },
+ {
+  "id": 37,
+  "type": "encounter",
+  "icon": "👣",
+  "text": "کیسه‌ای پارچه‌ای پوسیده میان ریشه‌ها یافتید که چند سکه مسی دوران فانی در آن بود.",
+  "text_en": "Among the roots you found a rotted cloth pouch holding a few mortal-dynasty copper coins.",
+  "effect": {}
+ },
+ {
+  "id": 38,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "پرنده‌ای با پرهای فسفری لحظاتی بر سرتان نشست و آوازی ماورایی سر داد؛ خستگی ذهنتان پرید.",
+  "text_en": "A phosphorescent bird perched above you and sang another world away; your weariness lifted.",
+  "effect": {
+   "dao_heart": 2
+  }
+ },
+ {
+  "id": 39,
+  "type": "hazard",
+  "icon": "⚡️",
+  "text": "رگه گاز سمی از شکاف زمین زوزه کشید؛ ناچار شدید سه فرسنگ جای اقامت را تغییر دهید.",
+  "text_en": "A vein of toxic gas hissed from a fissure; you moved your dwelling three leagues downwind.",
+  "effect": {
+   "bonus_qi": -10
+  }
+ },
+ {
+  "id": 40,
+  "type": "combat",
+  "icon": "⚔️",
+  "text": "روحی سرگردان سعی در دست‌اندازی به ذهن داشت؛ با پرتوافکنی نور طلایی دان‌تیان آن را سوزاندید.",
+  "text_en": "A wandering wraith clawed at your mind; you incinerated it with golden light from your Dantian.",
+  "effect": {
+   "bonus_qi": 25
+  }
+ },
+ {
+  "id": 41,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "از آب خنک چشمه معنوی نوشیدید؛ گلویتان چون بلور شفاف گشت.",
+  "text_en": "You drank from the spirit spring; your throat turned clear as crystal.",
+  "effect": {
+   "hp": 15
+  }
+ },
+ {
+  "id": 42,
+  "type": "encounter",
+  "icon": "👣",
+  "text": "خرس قهوه‌ای غول‌پیکری با استشمام بوی چی شما وحشت‌زده فرار کرد؛ لبخندی از قدرت زدید.",
+  "text_en": "A colossal brown bear scented your Qi and fled in terror — you smiled at your own power.",
+  "effect": {}
+ },
+ {
+  "id": 43,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "شفق سرخ شامگاهی انرژی یانگ بی‌بدیلی به رگ‌های کالبد تزریق کرد.",
+  "text_en": "A crimson twilight aurora injected peerless Yang energy into the meridians of your body.",
+  "effect": {
+   "bonus_qi": 20
+  }
+ },
+ {
+  "id": 44,
+  "type": "insight",
+  "icon": "💡",
+  "text": "ریتم چی در دان‌تیان به مرز جوشش رسید؛ حس کردید دیواره لایه کنونی اندکی نازک‌تر شد.",
+  "text_en": "The Qi in your Dantian reached a roaring pitch; the wall of your current layer felt thinner.",
+  "effect": {
+   "bonus_qi": 50
+  }
+ },
+ {
+  "id": 45,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "طوفانی شدید کلاه ردایتان را ربود؛ به شکوه بی‌انتهای طبیعت و مسیر بی‌پایان دائو نگریستید.",
+  "text_en": "A storm tore your hat away; you watched the endless majesty of nature and the endless road of the Dao.",
+  "effect": {
+   "dao_heart": 2
+  }
+ },
+ {
+  "id": 46,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "وزغی بلورین در برکه آواز سر داد؛ ارتعاش صدایش بر مریدین‌های گوش میانی طنین انداخت.",
+  "text_en": "A glass frog sang in the pond; its resonance vibrated through the meridians of your inner ear.",
+  "effect": {}
+ },
+ {
+  "id": 47,
+  "type": "encounter",
+  "icon": "👣",
+  "text": "برگی زرین از درختی باستانی روی دستتان فرود آمد و در تماس با پوست به ذره‌ای چی خالص بدل شد.",
+  "text_en": "A golden leaf from an ancient tree landed on your palm and melted into a mote of pure Qi.",
+  "effect": {
+   "bonus_qi": 30
+  }
+ },
+ {
+  "id": 48,
+  "type": "combat",
+  "icon": "⚔️",
+  "text": "راهزنی بی‌خبر از دنیا قصد جیب‌بری داشت؛ با یک تلنگر انگشت او را ده متر به عقب پرت کردید.",
+  "text_en": "A bandit blind to the world reached for your purse; a flick of your finger launched him ten meters back.",
+  "effect": {
+   "spirit_stones": 1
+  }
+ },
+ {
+  "id": 49,
+  "type": "insight",
+  "icon": "💡",
+  "text": "در سکوت وهم‌آلود نیمه‌شب، ضربان نبض خود را هم‌راستای کیهان یافتید؛ ادراکتان صیقل خورد.",
+  "text_en": "In the uncanny hush of midnight your pulse aligned with the cosmos; perception honed to a razor.",
+  "effect": {
+   "dao_heart": 3
+  }
+ },
+ {
+  "id": 50,
+  "type": "nature",
+  "icon": "🍃",
+  "text": "عطر ملایم عود و چوب سوخته از دره به مشام رسید؛ آرامشی ژرف بر تن و روان خسته‌تان سایه افکند.",
+  "text_en": "Faint incense and woodsmoke drifted up the valley; deep peace covered your weary body and mind.",
+  "effect": {
+   "bonus_qi": 20
+  }
+ }
+]

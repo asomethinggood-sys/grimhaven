@@ -1,0 +1,2446 @@
+[
+ {
+  "art_id": "art_moonlight_sword",
+  "name": "شمشیر مهتاب شب‌زنده‌دار",
+  "name_en": "Moonlight Nightwalker Sword",
+  "element": "فلز و نور یین",
+  "element_en": "Metal & Yin Light",
+  "family": "sword",
+  "required_realm": 1,
+  "price_stones": 220,
+  "techniques": [
+   {
+    "id": "moon_slash",
+    "name": "پرتو نقره‌ای هلال",
+    "name_en": "Crescent Silver Beam",
+    "qi_cost": 15,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.25,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "تیغه با درخشش سردی هوا را شکافت و خطی نقره‌ای بر سینه {target} نشاند (+{damage}).",
+     "crit": "نور مهتاب چشمان حریف را کور کرد؛ شمشیر تا دسته در نقطه حیاتی {target} فرو رفت (+{damage})!",
+     "grazed": "{target} نیم‌گام عقب نشست؛ پرتو شمشیر تنها تار و پود ردایش را برید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Moonlit steel flashes — Crescent Silver Beam slices {target} for {damage} damage.",
+     "crit": "Critical! Crescent Silver Beam detonates a vital point; the moon itself seems to fall — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Crescent Silver Beam; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "lunar_mist",
+    "name": "رقص غبار ماه",
+    "name_en": "Moon Dust Waltz",
+    "qi_cost": 25,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "غبار درخشانی پیرامون میدان چرخید و دید {target} را تار کرد (+{damage}).",
+     "crit": "هزاران ذره نور چون سوزن بر چشم و پوست {target} بارید و رگ‌هایش را گداخت (+{damage})!",
+     "grazed": "{target} آستین خود را سپر کرد و ذرات نور به زمین ریختند (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Moonlit steel flashes — Moon Dust Waltz slices {target} for {damage} damage.",
+     "crit": "Critical! Moon Dust Waltz detonates a vital point; silver drowns the field — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Moon Dust Waltz; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "zenith_eclipse",
+    "name": "خسوف کامل شمشیر",
+    "name_en": "Total Sword Eclipse",
+    "qi_cost": 45,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "نور صحنه برای ثانیه‌ای خاموش شد و تیغه در تاریکی ضربه سنگینی به {target} زد (+{damage}).",
+     "crit": "سایه تیغ تاریکی را درید؛ ضربه‌ای مرگبار مغز استخوان {target} را منجمد کرد (+{damage})!",
+     "grazed": "{target} با غریزه حیوانی شمشیر را سد کرد، ولی شوک ضربه او را لرزاند (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A cold arc of light — Total Sword Eclipse slices {target} for {damage} damage.",
+     "crit": "Critical! Total Sword Eclipse detonates a vital point; the moon itself seems to fall — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Total Sword Eclipse; it grazes — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_crimson_thunder_fist",
+  "name": "مشت آذرخش سرخ",
+  "name_en": "Crimson Thunder Fist",
+  "element": "آتش و صاعقه",
+  "element_en": "Fire & Lightning",
+  "family": "fist",
+  "required_realm": 2,
+  "price_stones": 900,
+  "techniques": [
+   {
+    "id": "thunder_strike",
+    "name": "کوبش صاعقه سرخ",
+    "name_en": "Crimson Thunder Slam",
+    "qi_cost": 18,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.15,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.25,
+     "turns": 2,
+     "dot_pct": 0.035
+    },
+    "descriptions": {
+     "normal": "مشتت با جرقه سرخ بر دنده‌های {target} کوبیده شد (+{damage}).",
+     "crit": "انفجار کرکننده آتش و رعد! قفسه سینه {target} ترک خورد و به عقب پرتاب شد (+{damage})!",
+     "grazed": "{target} بازویش را حایل کرد؛ جرقه‌ها موهای دستش را سوزاندند (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The ground cracks under your step — Crimson Thunder Slam hammers {target} for {damage} damage.",
+     "crit": "Critical! Crimson Thunder Slam detonates a vital point; red lightning arcs — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Crimson Thunder Slam; it skids off — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "plasma_wave",
+    "name": "موج پلاسما دان‌تیان",
+    "name_en": "Dantian Plasma Wave",
+    "qi_cost": 30,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.45,
+     "turns": 2,
+     "dot_pct": 0.035
+    },
+    "descriptions": {
+     "normal": "موجی از آتش مذاب و الکتریسیته تنفس {target} را برید (+{damage}).",
+     "crit": "امواج سرخ مریدین‌های {target} را در هم شکست و فریادش را به هوا برد (+{damage})!",
+     "grazed": "{target} به پهلو غلتید؛ موج حرارت تنها پوستش را سرخ کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Heat blooms off the guard — Dantian Plasma Wave hammers {target} for {damage} damage.",
+     "crit": "Critical! Dantian Plasma Wave detonates a vital point; red lightning arcs — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Dantian Plasma Wave; it skids off — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "hell_thunderstorm",
+    "name": "طوفان دهشتناک اخگر",
+    "name_en": "Ember Hell Thunderstorm",
+    "qi_cost": 50,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.5,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.25,
+     "turns": 3,
+     "dot_pct": 0.06
+    },
+    "descriptions": {
+     "normal": "آسمان کوچک بالای سرتان سرخ شد و زنجیره‌ای از صاعقه‌ها بر {target} فرود آمد (+{damage}).",
+     "crit": "صاعقه دوزخی مستقیماً بر تارک {target} کوبید و زمین زیر پایش شکافت (+{damage})!",
+     "grazed": "{target} با حرکتی زیگزاگی بخش عمده ضربات را رد کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Knuckles crack like a whip-crack — Ember Hell Thunderstorm hammers {target} for {damage} damage.",
+     "crit": "Critical! Ember Hell Thunderstorm detonates a vital point; thunder walks the marrow — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Ember Hell Thunderstorm; it skids off — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_autumn_gale_blade",
+  "name": "تیغ باد خزان",
+  "name_en": "Autumn Gale Blade",
+  "element": "باد و پژمردگی",
+  "element_en": "Wind & Wither",
+  "family": "blade",
+  "required_realm": 1,
+  "price_stones": 180,
+  "techniques": [
+   {
+    "id": "falling_leaf_cut",
+    "name": "برش برگ ریزان",
+    "name_en": "Falling Leaf Sever",
+    "qi_cost": 12,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.25,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "حرکت تیغ چون برگ پاییزی لغزید و خراشی ژرف بر تن {target} انداخت (+{damage}).",
+     "crit": "باد تیزی چون چاقوی جراحی از میان گارد {target} گذشت و شاهرگش را گزید (+{damage})!",
+     "grazed": "باد وزید اما تیغه تنها به گوشه زره {target} ساییده شد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Leaves scatter along the edge — Falling Leaf Sever slices {target} for {damage} damage.",
+     "crit": "Critical! Falling Leaf Sever detonates a vital point; wither follows the edge — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Falling Leaf Sever; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "whirlwind_vortex",
+    "name": "گرداب خشک برگ‌ها",
+    "name_en": "Withered Leaf Vortex",
+    "qi_cost": 28,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.45,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "گردبادی پر از تیغه‌های باد دور {target} چرخید و لباسش را شرحه‌شرحه کرد (+{damage}).",
+     "crit": "گردباد گردابی خونین به پا کرد و کالبد {target} را معلق ساخت (+{damage})!",
+     "grazed": "{target} خود را به زمین کوبید تا از مرکز گردباد فرار کند (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Leaves scatter along the edge — Withered Leaf Vortex slices {target} for {damage} damage.",
+     "crit": "Critical! Withered Leaf Vortex detonates a vital point; wither follows the edge — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Withered Leaf Vortex; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "autumn_desolation",
+    "name": "غمنامه سرمای زرد",
+    "name_en": "Dirge of Yellow Frost",
+    "qi_cost": 42,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.5,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.6,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "وزش بادی سوزناک چی حیات {target} را سست و پژمرده کرد (+{damage}).",
+     "crit": "سرمای خشک مریدین‌های {target} را منجمد کرد و او را به زانو درآورد (+{damage})!",
+     "grazed": "{target} با متمرکز کردن انرژی باطنی مانع از نفوذ سرمای پاییز شد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The flat hums — Dirge of Yellow Frost slices {target} for {damage} damage.",
+     "crit": "Critical! Dirge of Yellow Frost detonates a vital point; wither follows the edge — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Dirge of Yellow Frost; it grazes — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_abyssal_dragon_spear",
+  "name": "نیزه اژدهای مغاک",
+  "name_en": "Abyssal Dragon Spear",
+  "element": "آب سنگین و تاریکی",
+  "element_en": "Deep Water & Darkness",
+  "family": "spear",
+  "required_realm": 2,
+  "price_stones": 980,
+  "techniques": [
+   {
+    "id": "abyss_thrust",
+    "name": "رخنه آب سیاه",
+    "name_en": "Blackwater Breach",
+    "qi_cost": 16,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "نوک نیزه هاله‌ای از آب سنگین گرفت و در زره {target} فرورفت (+{damage}).",
+     "crit": "فشار آب اعماق اقیانوس دنده‌های {target} را در هم شکست (+{damage})!",
+     "grazed": "نیزه لغزید و قطرات پرفشار آب شانه {target} را کبود کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Water beads off the shaft — Blackwater Breach skewers {target} for {damage} damage.",
+     "crit": "Critical! Blackwater Breach detonates a vital point; tide-crush through the guard — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Blackwater Breach; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "dragon_coil",
+    "name": "پیچش اژدهای تاریک",
+    "name_en": "Dark Dragon Coil",
+    "qi_cost": 32,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "جریانی از آب تیره دور تن {target} پیچید و تحرکش را گرفت (+{damage}).",
+     "crit": "اژدهای سایه گلوی {target} را فشرد و جریان چی او را مسدود کرد (+{damage})!",
+     "grazed": "{target} با پیچش بدن از حلقه آب سیاه بیرون پرید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A point finds the seam — Dark Dragon Coil skewers {target} for {damage} damage.",
+     "crit": "Critical! Dark Dragon Coil detonates a vital point; the abyss answers — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Dark Dragon Coil; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "depths_maelstrom",
+    "name": "گرداب ورطه خاموش",
+    "name_en": "Maelstrom of the Silent Deep",
+    "qi_cost": 48,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.4,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "زمین زیر پای دو مبارز مثل باتلاق شد و نیزه ضربه سهمگینی زد (+{damage}).",
+     "crit": "شکافی از قعر دریا باز شد و ضربه کوبنده نیزه {target} را مدفون ساخت (+{damage})!",
+     "grazed": "{target} با جهش روی تخته‌سنگی از بلعیده شدن نجات یافت (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Water beads off the shaft — Maelstrom of the Silent Deep skewers {target} for {damage} damage.",
+     "crit": "Critical! Maelstrom of the Silent Deep detonates a vital point; tide-crush through the guard — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Maelstrom of the Silent Deep; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_blazing_lotus_palm",
+  "name": "کف‌دست نیلوفر سوزان",
+  "name_en": "Blazing Lotus Palm",
+  "element": "آتش و چوب",
+  "element_en": "Fire & Wood",
+  "family": "palm",
+  "required_realm": 1,
+  "price_stones": 240,
+  "techniques": [
+   {
+    "id": "lotus_touch",
+    "name": "شکوفایی گلبرگ آتشین",
+    "name_en": "Petal Ignition",
+    "qi_cost": 14,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.25,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.25,
+     "turns": 2,
+     "dot_pct": 0.035
+    },
+    "descriptions": {
+     "normal": "کف دستت با طرحی از گلبرگ مشتعل به سینه {target} نشست (+{damage}).",
+     "crit": "نیلوفر آتشین در گوشت {target} شکفت و گوشت و پوستش را کباب کرد (+{damage})!",
+     "grazed": "{target} با چرخش بالاتنه تنها حرارت سوزاننده ضربه را حس کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The palm presses softly — — Petal Ignition sends qi through {target} for {damage} damage.",
+     "crit": "Critical! Petal Ignition detonates a vital point; flame floods the meridians — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Petal Ignition; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "root_ignition",
+    "name": "رگه‌های ریشه افروخته",
+    "name_en": "Kindled Root Veins",
+    "qi_cost": 26,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.45,
+     "turns": 2,
+     "dot_pct": 0.035
+    },
+    "descriptions": {
+     "normal": "شاخه‌هایی از انرژی چوب گرگرفتند و مریدین‌های {target} را داغ کردند (+{damage}).",
+     "crit": "آتش در رگ‌های خونی {target} ریشه دواند و چی او را به جوشش انداخت (+{damage})!",
+     "grazed": "{target} با رهاسازی چی محافظ شاخه‌ها را پیش از اشتعال شکست (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The palm presses softly — — Kindled Root Veins sends qi through {target} for {damage} damage.",
+     "crit": "Critical! Kindled Root Veins detonates a vital point; flame floods the meridians — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Kindled Root Veins; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "thousand_petal_blast",
+    "name": "انفجار هزار برگ اخگر",
+    "name_en": "Ember Thousand-Petal Blast",
+    "qi_cost": 50,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.4,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.25,
+     "turns": 3,
+     "dot_pct": 0.06
+    },
+    "descriptions": {
+     "normal": "گلبرگ‌های آتشین مثل ترکش فضا را پر کردند و {target} را کوبیدند (+{damage}).",
+     "crit": "فروپاشی کامل نیلوفر! انفجاری مهیب کالبد {target} را در کام خود کشید (+{damage})!",
+     "grazed": "{target} پشت سنگر خاکی پناه گرفت اما دست‌هایش سوخت (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Qi pours like molten glass — Ember Thousand-Petal Blast sends qi through {target} for {damage} damage.",
+     "crit": "Critical! Ember Thousand-Petal Blast detonates a vital point; flame floods the meridians — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Ember Thousand-Petal Blast; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_glacial_wolf_claw",
+  "name": "پنجه گرگ یخبندان",
+  "name_en": "Glacial Wolf Claw",
+  "element": "یخ و جانوری",
+  "element_en": "Ice & Beast",
+  "family": "claw",
+  "required_realm": 1,
+  "price_stones": 260,
+  "techniques": [
+   {
+    "id": "frost_swipe",
+    "name": "چنگال سوزناک کولاک",
+    "name_en": "Snowstorm Talon Rake",
+    "qi_cost": 15,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.25,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "رد پنجه‌های منجمد بر بازوی {target} نشست و زخمی سفید برجا گذاشت (+{damage}).",
+     "crit": "پنجه تیز گوشت {target} را درید و خون در زخم فوراً یخ بست (+{damage})!",
+     "grazed": "تنها نوک تیز قندیل‌ها به زره {target} خط انداختند (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Cold talons arc — Snowstorm Talon Rake rakes {target} for {damage} damage.",
+     "crit": "Critical! Snowstorm Talon Rake detonates a vital point; frost splits the hide — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Snowstorm Talon Rake; it only scores — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "howling_blizzard",
+    "name": "غرش گرگین در مه",
+    "name_en": "Wolfhowl in the Fog",
+    "qi_cost": 28,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.45,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "صدای زوزه یخی حواس {target} را برهم زد و ریتم ضرباتش کند شد (+{damage}).",
+     "crit": "ترس و سرما مریدین قلب {target} را منقبض کرد و خون در رگش ایستاد (+{damage})!",
+     "grazed": "{target} با فریادی جنگی تلاش کرد صدای کولاک را پس بزند (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Fur bristles into steel — Wolfhowl in the Fog rakes {target} for {damage} damage.",
+     "crit": "Critical! Wolfhowl in the Fog detonates a vital point; the pack descends — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Wolfhowl in the Fog; it only scores — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "pack_pounce",
+    "name": "شکار در شب قطبی",
+    "name_en": "Polar Night Hunt",
+    "qi_cost": 44,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.6,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "تصویر سه گرگ یخی به طور هم‌زمان روی سر {target} فرود آمد (+{damage}).",
+     "crit": "شکار بی‌رحمانه! چنگال‌ها گلوی {target} را نشانه رفتند و خرد کردند (+{damage})!",
+     "grazed": "{target} لگدی پرتاب کرد و یکی از ارواح یخی را شکست (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Fur bristles into steel — Polar Night Hunt rakes {target} for {damage} damage.",
+     "crit": "Critical! Polar Night Hunt detonates a vital point; the pack descends — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Polar Night Hunt; it only scores — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_trembling_willow_whip",
+  "name": "شلاق بید لرزان",
+  "name_en": "Trembling Willow Whip",
+  "element": "چوب و انعطاف",
+  "element_en": "Wood & Flexibility",
+  "family": "whip",
+  "required_realm": 1,
+  "price_stones": 160,
+  "techniques": [
+   {
+    "id": "snap_lash",
+    "name": "تازیانه ترکه سبز",
+    "name_en": "Green Switch Crack",
+    "qi_cost": 12,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "صدای شکستن باد بلند شد و شلاق چرمی بر گردن {target} خط انداخت (+{damage}).",
+     "crit": "نوک شلاق مانند تیر پوست و گوشت {target} را پاره کرد (+{damage})!",
+     "grazed": "شلاق تنها با باد خود گونه {target} را خراشید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The tip whips flat — Green Switch Crack lashes {target} for {damage} damage.",
+     "crit": "Critical! Green Switch Crack detonates a vital point; the willow lashes — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Green Switch Crack; it snaps wide — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "entangling_bough",
+    "name": "پیچک‌های اسیرکننده",
+    "name_en": "Capturing Ivy Coils",
+    "qi_cost": 25,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "شلاق دور پای {target} پیچید و تعادلش را کاملاً به هم ریخت (+{damage}).",
+     "crit": "شاخه‌ها ساق پای {target} را در هم فشردند و استخوانش صدا داد (+{damage})!",
+     "grazed": "{target} شلاق را لگد زد و پیش از گره خوردن آزاد شد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The lash cracks — Capturing Ivy Coils lashes {target} for {damage} damage.",
+     "crit": "Critical! Capturing Ivy Coils detonates a vital point; the willow lashes — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Capturing Ivy Coils; it snaps wide — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "willow_dance_fury",
+    "name": "رقص طوفانی شاخسار",
+    "name_en": "Stormdance of the Willows",
+    "qi_cost": 40,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.5,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "رگباری از تازیانه‌ها سراسر کالبد {target} را کبود کرد (+{damage}).",
+     "crit": "ده‌ها ضربه پی‌درپی مریدین‌های حرکتی {target} را فلج ساخت (+{damage})!",
+     "grazed": "{target} با سپرش نیمی از ضربات ترکه را دفع کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The tip whips flat — Stormdance of the Willows lashes {target} for {damage} damage.",
+     "crit": "Critical! Stormdance of the Willows detonates a vital point; the willow lashes — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Stormdance of the Willows; it snaps wide — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_mountain_axe",
+  "name": "تبر شکافنده صخره",
+  "name_en": "Mountain-Splitting Axe",
+  "element": "خاک سنگین",
+  "element_en": "Heavy Earth",
+  "family": "axe",
+  "required_realm": 1,
+  "price_stones": 280,
+  "techniques": [
+   {
+    "id": "heavy_cleave",
+    "name": "تبر سنگین زمین",
+    "name_en": "Earthen Heavy Cleave",
+    "qi_cost": 20,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "armor_break",
+     "chance": 0.2,
+     "turns": 2,
+     "def_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "تبر با وزن کوهستان فرود آمد و دفاع {target} را پس زد (+{damage}).",
+     "crit": "ضربه سهمگین زره {target} را خرد کرد و او را در خاک نشاند (+{damage})!",
+     "grazed": "تیغه تبر به سنگ خورد و ترکش سنگ به پای {target} آسیب زد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The earth shudders — Earthen Heavy Cleave cleaves {target} for {damage} damage.",
+     "crit": "Critical! Earthen Heavy Cleave detonates a vital point; the mountainside gives — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Earthen Heavy Cleave; it skips — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "ground_fissure",
+    "name": "شکاف سنگی ناغافل",
+    "name_en": "Sudden Rock Fissure",
+    "qi_cost": 34,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.65,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "armor_break",
+     "chance": 0.4,
+     "turns": 2,
+     "def_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "کوبش تبر بر زمین شکافی ایجاد کرد که تعادل {target} را ربود (+{damage}).",
+     "crit": "زمین دهان باز کرد و پای {target} لای صخره‌های خردکننده له شد (+{damage})!",
+     "grazed": "{target} با پرشی سبک از روی دهانه شکاف رد شد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Chips fly from the haft — Sudden Rock Fissure cleaves {target} for {damage} damage.",
+     "crit": "Critical! Sudden Rock Fissure detonates a vital point; the mountainside gives — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Sudden Rock Fissure; it skips — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "mountain_collapse",
+    "name": "فروپاشی قله کهن",
+    "name_en": "Collapse of the Ancient Peak",
+    "qi_cost": 55,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "armor_break",
+     "chance": 0.55,
+     "turns": 2,
+     "def_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "حجمی عظیم از انرژی خاکی چون بهمن بر سر {target} آوار شد (+{damage}).",
+     "crit": "فروپاشی مطلق! تنفس و کالبد {target} زیر فشار سنگ‌ها در هم کوبیده شد (+{damage})!",
+     "grazed": "{target} شانه خالی کرد ولی موج ضربه او را پرت کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Shoulders coil, axe falls — Collapse of the Ancient Peak cleaves {target} for {damage} damage.",
+     "crit": "Critical! Collapse of the Ancient Peak detonates a vital point; the mountainside gives — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Collapse of the Ancient Peak; it skips — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_shadow_sword",
+  "name": "شمشیر سایه فریبنده",
+  "name_en": "Deceitful Shadow Sword",
+  "element": "تاریکی و وهم",
+  "element_en": "Darkness & Illusion",
+  "family": "shadow",
+  "required_realm": 2,
+  "price_stones": 950,
+  "techniques": [
+   {
+    "id": "phantom_feint",
+    "name": "فریب شبح‌وار",
+    "name_en": "Phantom Feint",
+    "qi_cost": 14,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.15,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "شمشیر از زاویه‌ای ناممکن در سایه ظاهر شد و بر پهلوی {target} نشست (+{damage}).",
+     "crit": "توهم چشم حریف را فریفت؛ تیغ درست در کلیه {target} فرورفت (+{damage})!",
+     "grazed": "{target} سایه را زد و تیغ واقعی فقط دستش را برید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The figure is not where you struck — Phantom Feint ghosts past {target} for {damage} damage.",
+     "crit": "Critical! Phantom Feint detonates a vital point; the nightmare stays — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Phantom Feint; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "umbra_cloak",
+    "name": "ردای تاریکی رونده",
+    "name_en": "Glide of the Umbral Cloak",
+    "qi_cost": 26,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "evade",
+     "chance": 0.6,
+     "turns": 1,
+     "target": "self"
+    },
+    "descriptions": {
+     "normal": "در میان تاریکی محو شدی و از پشت سر ضربه‌ای بر {target} زدی (+{damage}).",
+     "crit": "حمله غافلگیرانه از پشت! نخاع {target} شوک شدیدی دریافت کرد (+{damage})!",
+     "grazed": "{target} با شنیدن خش‌خش خاک چرخید و ضربه مستقیم نخورد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A blade arrives from the wrong side — Glide of the Umbral Cloak ghosts past {target} for {damage} damage.",
+     "crit": "Critical! Glide of the Umbral Cloak detonates a vital point; the cloak folds over the soul — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Glide of the Umbral Cloak; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "endless_nightmare",
+    "name": "کابوس بی‌پایان تیغ‌ها",
+    "name_en": "Blade-Nightmare Without End",
+    "qi_cost": 45,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.5,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "ده‌ها شبح شمشیرزن هم‌زمان به سمت {target} هجوم بردند (+{damage}).",
+     "crit": "کابوس ذهنی روان {target} را متلاشی کرد و ضربات واقعی تنش را دریدند (+{damage})!",
+     "grazed": "{target} وحشت‌زده شمشیرش را چرخاند و چند شبح را باطل کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A blade arrives from the wrong side — Blade-Nightmare Without End ghosts past {target} for {damage} damage.",
+     "crit": "Critical! Blade-Nightmare Without End detonates a vital point; the nightmare stays — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Blade-Nightmare Without End; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_sky_feather_bow",
+  "name": "کمان پر عقاب طوفان",
+  "name_en": "Storm-Eagle Feather Bow",
+  "element": "باد و سرعت",
+  "element_en": "Wind & Speed",
+  "family": "bow",
+  "required_realm": 1,
+  "price_stones": 250,
+  "techniques": [
+   {
+    "id": "feather_arrow",
+    "name": "تیر شهپر باد",
+    "name_en": "Windfletch Arrow",
+    "qi_cost": 15,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.15,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "زه کمان رها شد و تیر پرسرعت در کتف {target} نشست (+{damage}).",
+     "crit": "پیکان باد گلوی {target} را شکافت و خون از پشت گردنش پاشید (+{damage})!",
+     "grazed": "تیر سرعت بالایی داشت اما تنها گونه {target} را خراش داد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Feathers sing downwind — Windfletch Arrow punches through {target} for {damage} damage.",
+     "crit": "Critical! Windfletch Arrow detonates a vital point; the storm lands at once — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Windfletch Arrow; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "triple_talon_shot",
+    "name": "تیر سه‌گانه چنگال",
+    "name_en": "Triple Talon Flight",
+    "qi_cost": 30,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "سه تیر هم‌زمان شلیک شد و نقاط مختلف تن {target} را دوخت (+{damage}).",
+     "crit": "هر سه تیر در یک نقطه از قلب {target} فرود آمدند (+{damage})!",
+     "grazed": "{target} دو تیر را رد کرد اما سومی به بازویش نشست (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Three breaths, one draw — Triple Talon Flight punches through {target} for {damage} damage.",
+     "crit": "Critical! Triple Talon Flight detonates a vital point; no arrow is seen twice — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Triple Talon Flight; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "storm_barrage",
+    "name": "رگبار پرهای فلزی",
+    "name_en": "Iron Feather Barrage",
+    "qi_cost": 48,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "بارانی از تیرهای بادی روی سر {target} فروریخت (+{damage}).",
+     "crit": "طوفان تیر مانع تنفس {target} شد و تنش چون خارپشت گشت (+{damage})!",
+     "grazed": "{target} زیر تخته‌سنگی چمباتمه زد و کمتر صدمه دید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Three breaths, one draw — Iron Feather Barrage punches through {target} for {damage} damage.",
+     "crit": "Critical! Iron Feather Barrage detonates a vital point; the storm lands at once — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Iron Feather Barrage; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_taiji_yin_yang",
+  "name": "مشت تای‌چی یین و یانگ",
+  "name_en": "Taiji Yin-Yang Fist",
+  "element": "دوگانه یین و یانگ",
+  "element_en": "Duality of Yin & Yang",
+  "family": "taiji",
+  "required_realm": 1,
+  "price_stones": 300,
+  "techniques": [
+   {
+    "id": "yin_deflection",
+    "name": "گردش آب نرم یین",
+    "name_en": "Flow of Soft Yin",
+    "qi_cost": 16,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "guard",
+     "chance": 0.9,
+     "turns": 1,
+     "mitigation": 0.5,
+     "target": "self"
+    },
+    "descriptions": {
+     "normal": "نیروی {target} را به خودش برگرداندی و ضربه‌ای بر چانه‌اش زدی (+{damage}).",
+     "crit": "تضاد درونی! نیروی خود {target} استخوان دستش را شکست (+{damage})!",
+     "grazed": "{target} متوجه انحراف شد و به موقع دستش را کشید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The circle closes — Flow of Soft Yin redirects {target} for {damage} damage.",
+     "crit": "Critical! Flow of Soft Yin detonates a vital point; yin and yang snap shut — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Flow of Soft Yin; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "yang_burst",
+    "name": "انفجار سخت یانگ",
+    "name_en": "Burst of Hard Yang",
+    "qi_cost": 28,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "مشت انفجاری یانگ کالبد {target} را به لرزه درآورد (+{damage}).",
+     "crit": "حرارت و قدرت یانگ دان‌تیان {target} را تکان داد (+{damage})!",
+     "grazed": "{target} عقب پرید و تنها باد گرم مشت به او خورد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Two fishes wheel — Burst of Hard Yang redirects {target} for {damage} damage.",
+     "crit": "Critical! Burst of Hard Yang detonates a vital point; yin and yang snap shut — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Burst of Hard Yang; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "harmony_wheel",
+    "name": "چرخ کیهانی تعادل",
+    "name_en": "Cosmic Wheel of Balance",
+    "qi_cost": 46,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.5,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "regen",
+     "chance": 1.0,
+     "turns": 2,
+     "heal_pct": 0.06,
+     "target": "self"
+    },
+    "descriptions": {
+     "normal": "دایره تای‌چی در فضا شکل گرفت و تعادل چی {target} را به هم ریخت (+{damage}).",
+     "crit": "برخورد دو قطب! انفجار چی درون سینه {target} او را بیهوش کرد (+{damage})!",
+     "grazed": "{target} زانو زد تا از میدان چرخش انرژی خارج شود (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Soft overcomes hard — Cosmic Wheel of Balance redirects {target} for {damage} damage.",
+     "crit": "Critical! Cosmic Wheel of Balance detonates a vital point; yin and yang snap shut — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Cosmic Wheel of Balance; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_drunken_blood_blade",
+  "name": "شمشیر سرمست خون",
+  "name_en": "Drunken Blood Blade",
+  "element": "خون و بی‌نظمی",
+  "element_en": "Blood & Disorder",
+  "family": "blood",
+  "required_realm": 3,
+  "price_stones": 2600,
+  "techniques": [
+   {
+    "id": "stagger_cut",
+    "name": "برش تلوتلوخوران",
+    "name_en": "Stumbling Swig Cut",
+    "qi_cost": 14,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.25,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "با گام‌هایی نامتعادل پیش رفتی و ناگهان تیغ به ران {target} نشست (+{damage}).",
+     "crit": "حرکتی کاملاً پیش‌بینی‌ناپذیر! تیغ سرخرگ ران {target} را شکافت (+{damage})!",
+     "grazed": "{target} شمشیر را دید اما سرعت تاب خوردنت زرهش را برید (+{damage})."
+    },
+    "lifesteal_pct": 0.15,
+    "descriptions_en": {
+     "normal": "Your veins keep the rhythm — Stumbling Swig Cut drinks from {target} for {damage} damage.",
+     "crit": "Critical! Stumbling Swig Cut detonates a vital point; the cup overflows red — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Stumbling Swig Cut; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "blood_toast",
+    "name": "پیاله سرخ مستانه",
+    "name_en": "Crimson Drinker's Toast",
+    "qi_cost": 28,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "با عطر خون حریف سرمست شدی و ضربه‌ای کاری بر پهلویش زدی (+{damage}).",
+     "crit": "خون فوران کرد و با جذب انرژی آن، ضربه‌ات دوچندان مهلک شد (+{damage})!",
+     "grazed": "{target} با دستپاچگی فاصله گرفت و لبه تیغ رد شد (+{damage})."
+    },
+    "lifesteal_pct": 0.2,
+    "descriptions_en": {
+     "normal": "Scarlet steam rises — Crimson Drinker's Toast drinks from {target} for {damage} damage.",
+     "crit": "Critical! Crimson Drinker's Toast detonates a vital point; the drunk blade remembers — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Crimson Drinker's Toast; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "frenzy_carnival",
+    "name": "ضیافت جنون سرخ",
+    "name_en": "Carnival of Red Frenzy",
+    "qi_cost": 48,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "bleed",
+     "chance": 0.6,
+     "turns": 3,
+     "dot_pct": 0.04
+    },
+    "descriptions": {
+     "normal": "رقصی جنون‌آمیز از ضربات شمشیر {target} را در گوشه رینگ گیر انداخت (+{damage}).",
+     "crit": "دیوانگی مطلق! ده زخم خونین عمیق هم‌زمان بر کالبد {target} پدیدار شد (+{damage})!",
+     "grazed": "{target} کورکورانه دفاع کرد و بیشتر ضربات کمانه کردند (+{damage})."
+    },
+    "lifesteal_pct": 0.35,
+    "descriptions_en": {
+     "normal": "Scarlet steam rises — Carnival of Red Frenzy drinks from {target} for {damage} damage.",
+     "crit": "Critical! Carnival of Red Frenzy detonates a vital point; the cup overflows red — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Carnival of Red Frenzy; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_golden_thunder_spear",
+  "name": "نیزه صاعقه زرین",
+  "name_en": "Golden Thunder Spear",
+  "element": "فلز و صاعقه",
+  "element_en": "Metal & Lightning",
+  "family": "spear",
+  "required_realm": 3,
+  "price_stones": 2800,
+  "techniques": [
+   {
+    "id": "golden_pierce",
+    "name": "شکافنده پولادین",
+    "name_en": "Adamantine Piercer",
+    "qi_cost": 17,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "stun",
+     "chance": 0.08,
+     "turns": 1
+    },
+    "descriptions": {
+     "normal": "نیزه طلایی زره {target} را سوراخ کرد و برقی خفیف زد (+{damage}).",
+     "crit": "الکتریسیته فلزی استخوان شانه {target} را ذوب و سوراخ کرد (+{damage})!",
+     "grazed": "نیزه از روی زره لیز خورد ولی شوک برق به بازویش رسید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A point finds the seam — Adamantine Piercer skewers {target} for {damage} damage.",
+     "crit": "Critical! Adamantine Piercer detonates a vital point; tide-crush through the guard — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Adamantine Piercer; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "thunder_discharge",
+    "name": "تخلیه بار آسمانی",
+    "name_en": "Heaven's Discharge",
+    "qi_cost": 32,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.65,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "stun",
+     "chance": 0.15,
+     "turns": 1
+    },
+    "descriptions": {
+     "normal": "آذرخشی طلایی از نوک نیزه به پیشانی {target} شلیک شد (+{damage}).",
+     "crit": "انفجار نور و برق! مغز و حواس {target} برای لحظاتی فلج شد (+{damage})!",
+     "grazed": "{target} سرش را خم کرد و نوک موهایش سوخت (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The haft hums mid-thrust — Heaven's Discharge skewers {target} for {damage} damage.",
+     "crit": "Critical! Heaven's Discharge detonates a vital point; the abyss answers — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Heaven's Discharge; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "heaven_judgment_lance",
+    "name": "نیزه عدل کائنات",
+    "name_en": "Lance of Cosmic Judgement",
+    "qi_cost": 52,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.4,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "stun",
+     "chance": 0.3,
+     "turns": 1
+    },
+    "descriptions": {
+     "normal": "ستونی از نور زرین از آسمان بر نیزه نشست و به {target} کوبیده شد (+{damage}).",
+     "crit": "نزول قهر آسمان! کالبد {target} در گودالی از صاعقه مدفون گشت (+{damage})!",
+     "grazed": "{target} با فدا کردن سپرش از مرگ حتمی جست (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A point finds the seam — Lance of Cosmic Judgement skewers {target} for {damage} damage.",
+     "crit": "Critical! Lance of Cosmic Judgement detonates a vital point; the abyss answers — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Lance of Cosmic Judgement; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_ghost_step",
+  "name": "قدم‌های شبح سرگردان",
+  "name_en": "Wandering Ghost Step",
+  "element": "تاریکی و باد",
+  "element_en": "Darkness & Wind",
+  "family": "shadow",
+  "required_realm": 2,
+  "price_stones": 880,
+  "techniques": [
+   {
+    "id": "vanishing_strike",
+    "name": "ضربه از ناکجا",
+    "name_en": "Blow from Nowhere",
+    "qi_cost": 15,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "پیش از آنکه {target} بفهمد، پشت سرش ظاهر شدی و زدی (+{damage}).",
+     "crit": "ناپدید شدن کامل! لگد سنگین در میان دو کتف {target} نشست (+{damage})!",
+     "grazed": "{target} چرخش هوا را حس کرد و تا حدی جاخالی داد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A blade arrives from the wrong side — Blow from Nowhere ghosts past {target} for {damage} damage.",
+     "crit": "Critical! Blow from Nowhere detonates a vital point; the nightmare stays — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Blow from Nowhere; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "afterimage_dance",
+    "name": "رقص سایه‌های جاودان",
+    "name_en": "Dance of Eternal Afterimages",
+    "qi_cost": 27,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "evade",
+     "chance": 0.45,
+     "turns": 1,
+     "target": "self"
+    },
+    "descriptions": {
+     "normal": "چهار سایه از تو حریف را محاصره کردند و ضرباتی زدند (+{damage}).",
+     "crit": "حریف در محاصره گیج شد و مشت اصلی به شقیقه‌اش کوبید (+{damage})!",
+     "grazed": "{target} به یکی از تصاویر پوچ حمله کرد ولی کمی آسیب دید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A blade arrives from the wrong side — Dance of Eternal Afterimages ghosts past {target} for {damage} damage.",
+     "crit": "Critical! Dance of Eternal Afterimages detonates a vital point; the cloak folds over the soul — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Dance of Eternal Afterimages; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "soul_reaper_stride",
+    "name": "گام روح‌ستان مغاک",
+    "name_en": "Reaper's Abyssal Stride",
+    "qi_cost": 44,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "evade",
+     "chance": 0.75,
+     "turns": 1,
+     "target": "self"
+    },
+    "descriptions": {
+     "normal": "با سرعتی فراتر از چشم فانی از میان بدن {target} رد شدی (+{damage}).",
+     "crit": "انگار روح {target} کشیده شد! تنش سست شد و بر زمین افتاد (+{damage})!",
+     "grazed": "{target} با محافظ چی جلوی رخنه کامل روح را گرفت (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The figure is not where you struck — Reaper's Abyssal Stride ghosts past {target} for {damage} damage.",
+     "crit": "Critical! Reaper's Abyssal Stride detonates a vital point; the nightmare stays — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Reaper's Abyssal Stride; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_solar_eagle_claw",
+  "name": "پنجه عقاب خورشید",
+  "name_en": "Solar Eagle Claw",
+  "element": "آتش و یانگ",
+  "element_en": "Fire & Yang",
+  "family": "claw",
+  "required_realm": 2,
+  "price_stones": 940,
+  "techniques": [
+   {
+    "id": "sun_grip",
+    "name": "چنگال داغ نیمروز",
+    "name_en": "Noontide Scorching Grip",
+    "qi_cost": 15,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.25,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "دستت چون آهن گداخته بازوی {target} را فشرد و سوزاند (+{damage}).",
+     "crit": "گوشت و استخوان بازوی {target} زیر پنجه ذوب شد (+{damage})!",
+     "grazed": "{target} خود را عقب کشید ولی جای سوختگی روی پوستش ماند (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A low growl rises — Noontide Scorching Grip rakes {target} for {damage} damage.",
+     "crit": "Critical! Noontide Scorching Grip detonates a vital point; frost splits the hide — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Noontide Scorching Grip; it only scores — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "solar_flare_dive",
+    "name": "شیرجه از فراز آفتاب",
+    "name_en": "Dive from the Solar Crown",
+    "qi_cost": 30,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "از بالا مانند عقابی مشتعل روی سینه {target} فرود آمدی (+{damage}).",
+     "crit": "ضربه سهمگین تنفس {target} را قطع کرد و خاک پیرامون آتش گرفت (+{damage})!",
+     "grazed": "{target} غلت زد و تنها باد داغ به تنش خورد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Cold talons arc — Dive from the Solar Crown rakes {target} for {damage} damage.",
+     "crit": "Critical! Dive from the Solar Crown detonates a vital point; frost splits the hide — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Dive from the Solar Crown; it only scores — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "supernova_talon",
+    "name": "انفجار پرتو خورشیدی",
+    "name_en": "Supernova Talon Burst",
+    "qi_cost": 50,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.6,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "نوری کورکننده از پنجه‌هایت ساطع شد و {target} را به عقب راند (+{damage}).",
+     "crit": "کور شدن کامل و سوختگی درجه سه در تمام صورت {target} (+{damage})!",
+     "grazed": "{target} دست‌هایش را جلوی چشم گرفت و صدمه کمی دید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A low growl rises — Supernova Talon Burst rakes {target} for {damage} damage.",
+     "crit": "Critical! Supernova Talon Burst detonates a vital point; the pack descends — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Supernova Talon Burst; it only scores — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_bone_frost_needle",
+  "name": "سوزن باران استخوان‌سوز",
+  "name_en": "Bone-Frost Rain Needle",
+  "element": "آب و یخ عمیق",
+  "element_en": "Water & Deep Ice",
+  "family": "needle",
+  "required_realm": 2,
+  "price_stones": 960,
+  "techniques": [
+   {
+    "id": "needle_shot",
+    "name": "پرتاب سوزن بلورین",
+    "name_en": "Crystal Needle Volley",
+    "qi_cost": 13,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.25,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "سوزنی از یخ باریک در مریدین دست {target} نشست (+{damage}).",
+     "crit": "سوزن یخین در مفصل {target} شکست و دستش از کار افتاد (+{damage})!",
+     "grazed": "سوزن از کنار گوش {target} رد شد و لاله‌اش را برید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A rain of slivers — Crystal Needle Volley pierces {target} for {damage} damage.",
+     "crit": "Critical! Crystal Needle Volley detonates a vital point; ice seeds the wounds — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Crystal Needle Volley; it clatters — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "marrow_chill",
+    "name": "انجماد مغز استخوان",
+    "name_en": "Bone-Marrow Freeze",
+    "qi_cost": 28,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.45,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "سرمای سوزن در خون {target} دوید و لرزه‌ای بر تنش انداخت (+{damage}).",
+     "crit": "جریان خون در نیم‌تنه {target} منجمد شد و کبود گشت (+{damage})!",
+     "grazed": "{target} با برانگیختن آتش چی اثر سرما را مهار کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Fingertips flick — Bone-Marrow Freeze pierces {target} for {damage} damage.",
+     "crit": "Critical! Bone-Marrow Freeze detonates a vital point; a thousand points ring — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Bone-Marrow Freeze; it clatters — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "thousand_frost_needles",
+    "name": "رگبار هزار سوزن قندیل",
+    "name_en": "Thousand Icicle Needles",
+    "qi_cost": 46,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.6,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "ابری از سوزن‌های یخی {target} را تیرباران کرد (+{damage}).",
+     "crit": "کالبد {target} مانند آبکش سوراخ‌سوراخ و غرق در خون شد (+{damage})!",
+     "grazed": "{target} شمشیرش را چرخاند و بیشتر سوزن‌ها را شکست (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Fingertips flick — Thousand Icicle Needles pierces {target} for {damage} damage.",
+     "crit": "Critical! Thousand Icicle Needles detonates a vital point; ice seeds the wounds — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Thousand Icicle Needles; it clatters — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_centipede_poison_palm",
+  "name": "کف‌دست هزارپای زهرآگین",
+  "name_en": "Centipede Venom Palm",
+  "element": "سم و خاک",
+  "element_en": "Poison & Earth",
+  "family": "palm",
+  "required_realm": 3,
+  "price_stones": 2700,
+  "techniques": [
+   {
+    "id": "venom_strike",
+    "name": "نیش سبز مرداب",
+    "name_en": "Marsh Green Fang",
+    "qi_cost": 16,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.15,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "poison",
+     "chance": 0.2,
+     "turns": 3,
+     "dot_pct": 0.03
+    },
+    "descriptions": {
+     "normal": "کف دست سیاهت ردی از سم بر گردن {target} نشاند (+{damage}).",
+     "crit": "سم خورنده پوست {target} را تاول زد و به خونش رخنه کرد (+{damage})!",
+     "grazed": "{target} مانع ضربه شد اما بوی سم سرگیجه‌اش داد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Qi pours like molten glass — Marsh Green Fang sends qi through {target} for {damage} damage.",
+     "crit": "Critical! Marsh Green Fang detonates a vital point; a lotus blooms in the chest — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Marsh Green Fang; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "corrosive_mist",
+    "name": "مه اسیدی پوساننده",
+    "name_en": "Acid Rot Mist",
+    "qi_cost": 30,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "poison",
+     "chance": 0.35,
+     "turns": 3,
+     "dot_pct": 0.03
+    },
+    "descriptions": {
+     "normal": "بخار سبزرنگی از آستینت خارج شد و زره {target} را سوزاند (+{damage}).",
+     "crit": "اسید زره {target} را سوراخ کرد و گوشت تنش کباب شد (+{damage})!",
+     "grazed": "{target} نفس خود را حبس کرد و عقب پرید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The palm presses softly — — Acid Rot Mist sends qi through {target} for {damage} damage.",
+     "crit": "Critical! Acid Rot Mist detonates a vital point; a lotus blooms in the chest — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Acid Rot Mist; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "heart_decay_palm",
+    "name": "ضربه پوسیدگی احشاء",
+    "name_en": "Viscera Decay Palm",
+    "qi_cost": 48,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "poison",
+     "chance": 0.55,
+     "turns": 4,
+     "dot_pct": 0.045
+    },
+    "descriptions": {
+     "normal": "کف دستت دان‌تیان {target} را هدف گرفت و سم را تزریق کرد (+{damage}).",
+     "crit": "سم بافت‌های داخلی {target} را سیاه کرد و خون سیاه بالا آورد (+{damage})!",
+     "grazed": "{target} ضربه را با آرنج دفع کرد ولی دستش فلج شد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A luminous palm opens — Viscera Decay Palm sends qi through {target} for {damage} damage.",
+     "crit": "Critical! Viscera Decay Palm detonates a vital point; flame floods the meridians — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Viscera Decay Palm; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_seven_stars_sword",
+  "name": "شمشیر هفت ستاره آسمانی",
+  "name_en": "Seven Heavens Starsword",
+  "element": "نور ستاره و فضا",
+  "element_en": "Starlight & Space",
+  "family": "sword",
+  "required_realm": 4,
+  "price_stones": 6400,
+  "techniques": [
+   {
+    "id": "star_flash",
+    "name": "جرقه ستاره قطبی",
+    "name_en": "Polaris Starflash",
+    "qi_cost": 15,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.25,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "نقطه نوری بر نوک تیغ جهید و سینه‌گاه {target} را شکافت (+{damage}).",
+     "crit": "نور ستاره عمق دفاع {target} را سوراخ کرد و نور از پشتش تابید (+{damage})!",
+     "grazed": "نور تنها برای لحظه‌ای دید {target} را کور کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Moonlit steel flashes — Polaris Starflash slices {target} for {damage} damage.",
+     "crit": "Critical! Polaris Starflash detonates a vital point; silver drowns the field — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Polaris Starflash; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "big_dipper_slash",
+    "name": "صورت فلکی دب اکبر",
+    "name_en": "Big Dipper Constellation Cut",
+    "qi_cost": 32,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "هفت برش پیاپی شکل دب اکبر را روی کالبد {target} کشید (+{damage}).",
+     "crit": "هفت ستاره هم‌راستا شدند و ضربه کاری حریف را خم کرد (+{damage})!",
+     "grazed": "{target} با تغییر جا چهار برش از هفت تا را رد کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The blade sings — Big Dipper Constellation Cut slices {target} for {damage} damage.",
+     "crit": "Critical! Big Dipper Constellation Cut detonates a vital point; the moon itself seems to fall — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Big Dipper Constellation Cut; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "astral_collapse",
+    "name": "سقوط شهاب سنگین",
+    "name_en": "Meteorite Collapse",
+    "qi_cost": 50,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "تیغ مانند شهابی فروزان بر سر {target} فرود آمد (+{damage}).",
+     "crit": "انفجار ستاره‌ای! میدان نبرد لرزید و {target} نقش زمین شد (+{damage})!",
+     "grazed": "{target} با شیرجه‌ای اضطراری از مرکز اصابت دور شد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The blade sings — Meteorite Collapse slices {target} for {damage} damage.",
+     "crit": "Critical! Meteorite Collapse detonates a vital point; silver drowns the field — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Meteorite Collapse; it grazes — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_roaring_quake_mace",
+  "name": "گرز غرش صخره‌ها",
+  "name_en": "Roaring Quake Mace",
+  "element": "زمین و صوت",
+  "element_en": "Earth & Sound",
+  "family": "mace",
+  "required_realm": 4,
+  "price_stones": 6200,
+  "techniques": [
+   {
+    "id": "mace_bash",
+    "name": "کوبش سنگین سنگ",
+    "name_en": "Stoneboulder Bash",
+    "qi_cost": 18,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.15,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "armor_break",
+     "chance": 0.2,
+     "turns": 2,
+     "def_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "گرز بر شانه {target} فرود آمد و صدای مهیبی برخاست (+{damage}).",
+     "crit": "استخوان ترقوه {target} زیر وزن گرز پودر شد (+{damage})!",
+     "grazed": "گرز به زمین خورد و تکه سنگی به پای حریف پرید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Iron greets stone — Stoneboulder Bash batters {target} for {damage} damage.",
+     "crit": "Critical! Stoneboulder Bash detonates a vital point; a fault line answers — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Stoneboulder Bash; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "sonic_tremor",
+    "name": "ارتعاش پرده گوش",
+    "name_en": "Eardrum Quake Resonance",
+    "qi_cost": 28,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "armor_break",
+     "chance": 0.4,
+     "turns": 2,
+     "def_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "کوبش گرز به زره ارتعاشی کرکننده ساخت و {target} را گیج کرد (+{damage}).",
+     "crit": "پرده گوش {target} پاره شد و خون از گوش‌هایش فواره زد (+{damage})!",
+     "grazed": "{target} دندان‌هایش را کلید کرد و ضربه صوتی را تاب آورد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The air thumps — Eardrum Quake Resonance batters {target} for {damage} damage.",
+     "crit": "Critical! Eardrum Quake Resonance detonates a vital point; a fault line answers — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Eardrum Quake Resonance; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "earthshaker_slam",
+    "name": "زلزله در هم شکننده",
+    "name_en": "Earthshatter Concussion",
+    "qi_cost": 52,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "armor_break",
+     "chance": 0.55,
+     "turns": 2,
+     "def_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "گرز با دو دست بر زمین کوبیده شد و ستون‌های سنگ {target} را زدند (+{damage}).",
+     "crit": "زمین لرزید و ضربه مستقیم گرز مغز {target} را تکان داد (+{damage})!",
+     "grazed": "{target} به هوا پرید تا موج انفجار زمین کمتر به او برسد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The air thumps — Earthshatter Concussion batters {target} for {damage} damage.",
+     "crit": "Critical! Earthshatter Concussion detonates a vital point; a fault line answers — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Earthshatter Concussion; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_sandstorm_blade",
+  "name": "تیغ گردباد ریگستان",
+  "name_en": "Sandstorm Blade",
+  "element": "خاک و باد",
+  "element_en": "Earth & Wind",
+  "family": "blade",
+  "required_realm": 2,
+  "price_stones": 920,
+  "techniques": [
+   {
+    "id": "sand_slash",
+    "name": "برش زبر ماسه",
+    "name_en": "Grit Raw Sever",
+    "qi_cost": 14,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.15,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "armor_break",
+     "chance": 0.2,
+     "turns": 2,
+     "def_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "تیغه با جریان ماسه زبر پوست {target} را سایید (+{damage}).",
+     "crit": "ماسه به زخم رخنه کرد و گوشت {target} را شرحه‌شرحه ساخت (+{damage})!",
+     "grazed": "ماسه تنها ردای {target} را خاک‌آلود کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Leaves scatter along the edge — Grit Raw Sever slices {target} for {damage} damage.",
+     "crit": "Critical! Grit Raw Sever detonates a vital point; wither follows the edge — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Grit Raw Sever; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "blinding_dune",
+    "name": "تل ماسه کورکننده",
+    "name_en": "Blinding Dune Veil",
+    "qi_cost": 26,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "armor_break",
+     "chance": 0.4,
+     "turns": 2,
+     "def_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "موجی از شن به صورت {target} پاشید و چشمانش را سوزاند (+{damage}).",
+     "crit": "{target} کاملاً کور شد و ضربه بعدی در شکمش نشست (+{damage})!",
+     "grazed": "{target} آستینش را بالا گرفت و چشمش آسیب ندید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The flat hums — Blinding Dune Veil slices {target} for {damage} damage.",
+     "crit": "Critical! Blinding Dune Veil detonates a vital point; the cut rots the light — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Blinding Dune Veil; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "desert_coffin",
+    "name": "تابوت شن روان",
+    "name_en": "Coffin of the Sinkhole",
+    "qi_cost": 46,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.4,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "armor_break",
+     "chance": 0.55,
+     "turns": 2,
+     "def_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "شن‌های معلق دور تن {target} متراکم شدند و او را فشردند (+{damage}).",
+     "crit": "فشار خردکننده شن! دنده‌های {target} یکی پس از دیگری شکستند (+{damage})!",
+     "grazed": "{target} با انفجار چی ماسه‌ها را پیش از قفل شدن پس زد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A dry wind curls the cut — Coffin of the Sinkhole slices {target} for {damage} damage.",
+     "crit": "Critical! Coffin of the Sinkhole detonates a vital point; wither follows the edge — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Coffin of the Sinkhole; it grazes — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_soul_chime_flute",
+  "name": "نغمه نی‌لبک افسون روح",
+  "name_en": "Soul-Charm Bone Flute",
+  "element": "صوت و روح",
+  "element_en": "Sound & Spirit",
+  "family": "sonic",
+  "required_realm": 3,
+  "price_stones": 2500,
+  "techniques": [
+   {
+    "id": "mournful_tone",
+    "name": "نوای حزن‌انگیز پاییز",
+    "name_en": "Autumn's Sorrowful Air",
+    "qi_cost": 16,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.15,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "confuse",
+     "chance": 0.1,
+     "turns": 1
+    },
+    "descriptions": {
+     "normal": "صدای سوزناک نی تمرکز {target} را ربود و مریدینش را آزرد (+{damage}).",
+     "crit": "صدا مستقیماً به روح {target} خنجر زد؛ چشمانش پر از خون شد (+{damage})!",
+     "grazed": "{target} با ذکر مانترا اثر صدا را اندکی تضعیف کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Harmonics crawl under the skin — Autumn's Sorrowful Air vibrates {target} for {damage} damage.",
+     "crit": "Critical! Autumn's Sorrowful Air detonates a vital point; silence is louder — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Autumn's Sorrowful Air; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "dissonant_screech",
+    "name": "جیغ خراشنده روان",
+    "name_en": "Mind-Rending Screech",
+    "qi_cost": 30,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "confuse",
+     "chance": 0.2,
+     "turns": 1
+    },
+    "descriptions": {
+     "normal": "صدایی تیز پرده گوش و اعصاب {target} را در هم فشرد (+{damage}).",
+     "crit": "شوک روانی سنگین! حریف تعادلش را باخت و زانو زد (+{damage})!",
+     "grazed": "{target} گوش‌هایش را گرفت و صدمه کمی دید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The melody sharpens — Mind-Rending Screech vibrates {target} for {damage} damage.",
+     "crit": "Critical! Mind-Rending Screech detonates a vital point; silence is louder — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Mind-Rending Screech; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "requiem_hymn",
+    "name": "سرود وداع ارواح",
+    "name_en": "Hymn of Parting Souls",
+    "qi_cost": 48,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.4,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "confuse",
+     "chance": 0.32,
+     "turns": 1
+    },
+    "descriptions": {
+     "normal": "نوایی وهم‌آلود روح {target} را به مرز سرگردانی کشاند (+{damage}).",
+     "crit": "فروپاشی حس الهی! هاله {target} فرو ریخت و خون سرفه کرد (+{damage})!",
+     "grazed": "{target} با فریادی بر سر شیاطین باطن مقاومت کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The melody sharpens — Hymn of Parting Souls vibrates {target} for {damage} damage.",
+     "crit": "Critical! Hymn of Parting Souls detonates a vital point; the soul misses a step — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Hymn of Parting Souls; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_phoenix_ash_sword",
+  "name": "شمشیر خاکستر ققنوس",
+  "name_en": "Phoenix Ash Sword",
+  "element": "آتش جاودان",
+  "element_en": "Undying Flame",
+  "family": "sword",
+  "required_realm": 5,
+  "price_stones": 15500,
+  "techniques": [
+   {
+    "id": "cinder_edge",
+    "name": "تیغه اخگر فروزان",
+    "name_en": "Blazing Cinder Blade",
+    "qi_cost": 16,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.15,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.25,
+     "turns": 2,
+     "dot_pct": 0.035
+    },
+    "descriptions": {
+     "normal": "جرقه ققنوس زره {target} را گداخت و بدنش را داغ کرد (+{damage}).",
+     "crit": "آتش مقدس در عمق استخوان {target} زبانه کشید (+{damage})!",
+     "grazed": "تنها خاکستر داغ به گونه {target} پاشید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The blade sings — Blazing Cinder Blade slices {target} for {damage} damage.",
+     "crit": "Critical! Blazing Cinder Blade detonates a vital point; silver drowns the field — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Blazing Cinder Blade; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "wing_sweep_flame",
+    "name": "بال‌زدن پرنده آتشین",
+    "name_en": "Firebird Wing Sweep",
+    "qi_cost": 32,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.45,
+     "turns": 2,
+     "dot_pct": 0.035
+    },
+    "descriptions": {
+     "normal": "هاله‌ای از بال‌های ققنوس فضارا درنوردید و به {target} کوبید (+{damage}).",
+     "crit": "شعله‌های بال کالبد {target} را سوزاند و به عقب پرتاب کرد (+{damage})!",
+     "grazed": "{target} با شیرجه در خاک از حرارت شعله‌ها گریخت (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The blade sings — Firebird Wing Sweep slices {target} for {damage} damage.",
+     "crit": "Critical! Firebird Wing Sweep detonates a vital point; the moon itself seems to fall — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Firebird Wing Sweep; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "rebirth_inferno",
+    "name": "قیام از دل خاکستر",
+    "name_en": "Rising from Ashes Inferno",
+    "qi_cost": 54,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.4,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.25,
+     "turns": 3,
+     "dot_pct": 0.06
+    },
+    "descriptions": {
+     "normal": "انفجار آتشی ستون‌وار برخاست و {target} را در میان گرفت (+{damage}).",
+     "crit": "آتش پاک‌کننده گناه! سپر معنوی {target} تبخیر شد (+{damage})!",
+     "grazed": "{target} با تمام توان به عقب پرید ولی سوختگی کشید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Moonlit steel flashes — Rising from Ashes Inferno slices {target} for {damage} damage.",
+     "crit": "Critical! Rising from Ashes Inferno detonates a vital point; silver drowns the field — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Rising from Ashes Inferno; it grazes — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_ocean_mist_palm",
+  "name": "کف‌دست مه سنگین دریا",
+  "name_en": "Ocean Heavy-Mist Palm",
+  "element": "آب و مه رطوبت",
+  "element_en": "Water & Brine Fog",
+  "family": "palm",
+  "required_realm": 2,
+  "price_stones": 900,
+  "techniques": [
+   {
+    "id": "damp_slap",
+    "name": "سیلی مرطوب موج",
+    "name_en": "Saltwave Smack",
+    "qi_cost": 13,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.25,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "ضربه دستت بوی شوری دریا داد و تنفس {target} را سنگین کرد (+{damage}).",
+     "crit": "فشار موج به دیافراگم {target} کوبید و هوای ریه‌اش تهی شد (+{damage})!",
+     "grazed": "رطوبت دستت تنها روی لباس حریف چکه کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The palm presses softly — — Saltwave Smack sends qi through {target} for {damage} damage.",
+     "crit": "Critical! Saltwave Smack detonates a vital point; flame floods the meridians — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Saltwave Smack; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "obscuring_vapor",
+    "name": "حجاب مه کورکننده",
+    "name_en": "Blinding Brine Shroud",
+    "qi_cost": 26,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.65,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.45,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "مه غلیظی فضای نبرد را پوشاند و ضربه پنهانی به {target} خورد (+{damage}).",
+     "crit": "حریف در مه گیج شد؛ ضربه‌ای سهمگین به گردنش اصابت کرد (+{damage})!",
+     "grazed": "{target} در مه شمشیر چرخاند و ضربه کاری نخورد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Qi pours like molten glass — Blinding Brine Shroud sends qi through {target} for {damage} damage.",
+     "crit": "Critical! Blinding Brine Shroud detonates a vital point; flame floods the meridians — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Blinding Brine Shroud; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "tsunami_thrust",
+    "name": "هجوم امواج خروشان",
+    "name_en": "Onslaught of Roiling Waves",
+    "qi_cost": 45,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "slow",
+     "chance": 0.6,
+     "turns": 2,
+     "speed_pct": -0.25
+    },
+    "descriptions": {
+     "normal": "دیواری از آب فشرده چون سونامی بر سر {target} آوار شد (+{damage}).",
+     "crit": "خرد شدن زیر پای موج! {target} چندین متر بر صخره‌ها کشیده شد (+{damage})!",
+     "grazed": "{target} با چنگ زدن به زمین مانع پرتاب شدنش شد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The palm presses softly — — Onslaught of Roiling Waves sends qi through {target} for {damage} damage.",
+     "crit": "Critical! Onslaught of Roiling Waves detonates a vital point; flame floods the meridians — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Onslaught of Roiling Waves; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_iron_rhino_fist",
+  "name": "مشت کرگدن خارا",
+  "name_en": "Iron Rhino Fist",
+  "element": "فلز و کالبد خاکی",
+  "element_en": "Metal & Earth Body",
+  "family": "fist",
+  "required_realm": 1,
+  "price_stones": 200,
+  "techniques": [
+   {
+    "id": "horn_strike",
+    "name": "شاخ‌زنی پولادین",
+    "name_en": "Adamant Horn Gore",
+    "qi_cost": 17,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.25,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "مشتت چون شاخی آهنین در پهلوی {target} نشست (+{damage}).",
+     "crit": "شکستن دنده با صدایی خشک! {target} از درد نالید (+{damage})!",
+     "grazed": "{target} شانه خالی کرد ولی ضربه به بازویش خورد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Heat blooms off the guard — Adamant Horn Gore hammers {target} for {damage} damage.",
+     "crit": "Critical! Adamant Horn Gore detonates a vital point; red lightning arcs — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Adamant Horn Gore; it skids off — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "unbreakable_stance",
+    "name": "استقامت پوست برنزی",
+    "name_en": "Bronze-Skin Steadfastness",
+    "qi_cost": 25,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "fortify",
+     "chance": 0.85,
+     "turns": 2,
+     "def_pct": 0.5,
+     "target": "self"
+    },
+    "descriptions": {
+     "normal": "عضلاتت منقبض شد و با ضدحمله‌ای محکم به {target} پاسخ دادی (+{damage}).",
+     "crit": "مشت حریف پس زده شد و مشت خارا فکش را جابجا کرد (+{damage})!",
+     "grazed": "ضدحمله به زره محکم حریف برخورد کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Knuckles crack like a whip-crack — Bronze-Skin Steadfastness hammers {target} for {damage} damage.",
+     "crit": "Critical! Bronze-Skin Steadfastness detonates a vital point; thunder walks the marrow — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Bronze-Skin Steadfastness; it skids off — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "stampede_charge",
+    "name": "تاخت گله کرگدن‌ها",
+    "name_en": "Herd of Rhino Stomps",
+    "qi_cost": 46,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.4,
+    "scaling_stat": "physical_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "با وزن سنگین چی به سمت {target} تاختی و او را زیر گرفتی (+{damage}).",
+     "crit": "برخورد قطار باربری! کالبد {target} در هم مچاله شد (+{damage})!",
+     "grazed": "{target} در آخرین لحظه خود را کنار کشید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The ground cracks under your step — Herd of Rhino Stomps hammers {target} for {damage} damage.",
+     "crit": "Critical! Herd of Rhino Stomps detonates a vital point; thunder walks the marrow — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Herd of Rhino Stomps; it skids off — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_meteor_finger",
+  "name": "انگشت شهاب شکافنده",
+  "name_en": "Meteor-Sundering Finger",
+  "element": "آتش و نفوذ فلز",
+  "element_en": "Fire & Piercing Metal",
+  "family": "finger",
+  "required_realm": 1,
+  "price_stones": 290,
+  "techniques": [
+   {
+    "id": "finger_poke",
+    "name": "اشاره اختری",
+    "name_en": "Astral Pointing",
+    "qi_cost": 15,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.15,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.25,
+     "turns": 2,
+     "dot_pct": 0.035
+    },
+    "descriptions": {
+     "normal": "نوک انگشتت بر مریدین بازوی {target} فشرده شد (+{damage}).",
+     "crit": "اشاره مرگبار! جریان چی در دست {target} کاملاً قفل شد (+{damage})!",
+     "grazed": "انگشتت با زره لغزید و اثر کمی گذاشت (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A mote of fire walks — Astral Pointing bores into {target} for {damage} damage.",
+     "crit": "Critical! Astral Pointing detonates a vital point; a star touches down — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Astral Pointing; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "beam_piercer",
+    "name": "باریکه لیزری شهاب",
+    "name_en": "Meteor Laser Piercer",
+    "qi_cost": 30,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.6,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.45,
+     "turns": 2,
+     "dot_pct": 0.035
+    },
+    "descriptions": {
+     "normal": "پرتویی سرخ از انگشتت شلیک شد و شانه {target} را سوراخ کرد (+{damage}).",
+     "crit": "پرتو شانه را شکافت و گوشت پشت سرش را سوزاند (+{damage})!",
+     "grazed": "{target} سر خم کرد و پرتو گوشه کلاهش را برد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The air scorches at the tip — Meteor Laser Piercer bores into {target} for {damage} damage.",
+     "crit": "Critical! Meteor Laser Piercer detonates a vital point; a star touches down — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Meteor Laser Piercer; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "falling_star_core",
+    "name": "فرود هسته اختری",
+    "name_en": "Star-Core Descent",
+    "qi_cost": 50,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.5,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "burn",
+     "chance": 0.25,
+     "turns": 3,
+     "dot_pct": 0.06
+    },
+    "descriptions": {
+     "normal": "توپی از آتش فشرده از نوک انگشتت منفجر شد (+{damage}).",
+     "crit": "اصابت مستقیم گوی نور به قلب {target}! او بی‌هوا پرت شد (+{damage})!",
+     "grazed": "{target} با سپر جلو آمد و موج انفجار را گرفت (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "One finger becomes a falling star — Star-Core Descent bores into {target} for {damage} damage.",
+     "crit": "Critical! Star-Core Descent detonates a vital point; the air is a smoking line — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Star-Core Descent; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_blood_lotus_saber",
+  "name": "شمشیر نیلوفر خونین",
+  "name_en": "Blood Lotus Saber",
+  "element": "خون و فساد شیطانی",
+  "element_en": "Blood & Demonic Rot",
+  "family": "blood",
+  "required_realm": 3,
+  "price_stones": 2650,
+  "techniques": [
+   {
+    "id": "blood_petal_cut",
+    "name": "برش گلبرگ عقیق",
+    "name_en": "Carnelian Petal Sever",
+    "qi_cost": 15,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "تیغه‌ای سرخ خطی خون‌آلود بر سینه {target} کشید (+{damage}).",
+     "crit": "خون از زخم {target} بخار شد و به شمشیرت پیوست (+{damage})!",
+     "grazed": "{target} پرش کرد و تنها نوک تیغ لباسش را برید (+{damage})."
+    },
+    "lifesteal_pct": 0.12,
+    "descriptions_en": {
+     "normal": "Your veins keep the rhythm — Carnelian Petal Sever drinks from {target} for {damage} damage.",
+     "crit": "Critical! Carnelian Petal Sever detonates a vital point; the cup overflows red — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Carnelian Petal Sever; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "crimson_bloom",
+    "name": "شکفتن غنچه سرخ",
+    "name_en": "Bloom of the Red Bud",
+    "qi_cost": 30,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.65,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "مه خونین زخم {target} را تازه کرد و دردش را بالا برد (+{damage}).",
+     "crit": "خون‌ریزی شدید! مریدین‌های {target} تهی از انرژی شدند (+{damage})!",
+     "grazed": "{target} با دست زخم را فشرد و جلوی خون را گرفت (+{damage})."
+    },
+    "lifesteal_pct": 0.2,
+    "descriptions_en": {
+     "normal": "The cup is drained to the dregs — Bloom of the Red Bud drinks from {target} for {damage} damage.",
+     "crit": "Critical! Bloom of the Red Bud detonates a vital point; the cup overflows red — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Bloom of the Red Bud; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "blood_sea_cleave",
+    "name": "شکاف دریای خون",
+    "name_en": "Cleave of the Blood Sea",
+    "qi_cost": 50,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "قوس شمشیر با موجی از خون فشرده به {target} برخورد کرد (+{damage}).",
+     "crit": "تیغه سرخ تا استخوان نشست و نیمی از توان {target} را دزدید (+{damage})!",
+     "grazed": "{target} تیغه را با شمشیرش مهار کرد ولی دستش لرزید (+{damage})."
+    },
+    "lifesteal_pct": 0.3,
+    "descriptions_en": {
+     "normal": "Your veins keep the rhythm — Cleave of the Blood Sea drinks from {target} for {damage} damage.",
+     "crit": "Critical! Cleave of the Blood Sea detonates a vital point; the cup overflows red — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Cleave of the Blood Sea; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_abyssal_serpent_spear",
+  "name": "نیزه افعی ژرفنا",
+  "name_en": "Abyssal Serpent Spear",
+  "element": "آب و سم خورنده",
+  "element_en": "Water & Corrosive Venom",
+  "family": "spear",
+  "required_realm": 5,
+  "price_stones": 15000,
+  "techniques": [
+   {
+    "id": "viper_jab",
+    "name": "نیش مار آبی",
+    "name_en": "Blue Viper Fang-Jab",
+    "qi_cost": 14,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "poison",
+     "chance": 0.2,
+     "turns": 3,
+     "dot_pct": 0.03
+    },
+    "descriptions": {
+     "normal": "نیزه چون مار حمله کرد و نوکش ساق پای {target} را گزید (+{damage}).",
+     "crit": "سم مار آبی پای {target} را بی‌حس و فلج کرد (+{damage})!",
+     "grazed": "نیزه به زمین خورد و کمی آب لجن به حریف پاشید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A point finds the seam — Blue Viper Fang-Jab skewers {target} for {damage} damage.",
+     "crit": "Critical! Blue Viper Fang-Jab detonates a vital point; tide-crush through the guard — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Blue Viper Fang-Jab; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "constricting_tide",
+    "name": "فشار حلقه پیچنده",
+    "name_en": "Coils of the Squeezing Tide",
+    "qi_cost": 28,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "poison",
+     "chance": 0.35,
+     "turns": 3,
+     "dot_pct": 0.03
+    },
+    "descriptions": {
+     "normal": "نیزه به دور اسلحه {target} پیچید و ضربه‌ای به دستش زد (+{damage}).",
+     "crit": "سلاح از دست {target} پرید و نیزه به سینه‌اش فرورفت (+{damage})!",
+     "grazed": "{target} با زور دست سلاحش را محکم نگه داشت (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A point finds the seam — Coils of the Squeezing Tide skewers {target} for {damage} damage.",
+     "crit": "Critical! Coils of the Squeezing Tide detonates a vital point; tide-crush through the guard — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Coils of the Squeezing Tide; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "hydra_venom_thrust",
+    "name": "کوبش زهرآگین افعی نه سر",
+    "name_en": "Nine-Head Venom Thrust",
+    "qi_cost": 46,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "physical_atk",
+    "status_inflict": {
+     "kind": "poison",
+     "chance": 0.55,
+     "turns": 4,
+     "dot_pct": 0.045
+    },
+    "descriptions": {
+     "normal": "چندین ضربه پی‌درپی با هاله سبز-آبی به کالبد {target} خورد (+{damage}).",
+     "crit": "مسمومیت کامل کالبد! {target} از درد فریاد کشید (+{damage})!",
+     "grazed": "{target} به سرعت عقب نشست و ضربات به هوا خورد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "The haft hums mid-thrust — Nine-Head Venom Thrust skewers {target} for {damage} damage.",
+     "crit": "Critical! Nine-Head Venom Thrust detonates a vital point; the abyss answers — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Nine-Head Venom Thrust; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_spring_breeze_fan",
+  "name": "بادبزن نسیم شکوفه‌ها",
+  "name_en": "Cherry-Breeze Fan",
+  "element": "چوب و باد آرام",
+  "element_en": "Wood & Gentle Wind",
+  "family": "fan",
+  "required_realm": 1,
+  "price_stones": 210,
+  "techniques": [
+   {
+    "id": "petal_gust",
+    "name": "وزش گلبرگ بهاری",
+    "name_en": "Spring Petal Gust",
+    "qi_cost": 12,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.2,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "بادبزن نسیمی معطر فرستاد که تن {target} را گزید (+{damage}).",
+     "crit": "گلبرگ‌های برنده چون تیغ گونه {target} را بریدند (+{damage})!",
+     "grazed": "بادبزن تنها گرد و خاک به چشم حریف انداخت (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Petals ride the breeze — Spring Petal Gust fans {target} for {damage} damage.",
+     "crit": "Critical! Spring Petal Gust detonates a vital point; spring burns cold — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Spring Petal Gust; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "soothing_trap",
+    "name": "خلسه بوی بهار",
+    "name_en": "Rapture of Spring Scents",
+    "qi_cost": 24,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.65,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "regen",
+     "chance": 0.9,
+     "turns": 2,
+     "heal_pct": 0.05,
+     "target": "self"
+    },
+    "descriptions": {
+     "normal": "عطر گیاهان خواب‌آلودگی به جان {target} انداخت (+{damage}).",
+     "crit": "حواس {target} کند شد و ضربه بادبزن فکش را جابجا کرد (+{damage})!",
+     "grazed": "{target} خود را نیشگون گرفت تا هوشیار بماند (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Scent before steel — Rapture of Spring Scents fans {target} for {damage} damage.",
+     "crit": "Critical! Rapture of Spring Scents detonates a vital point; the garden closes — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Rapture of Spring Scents; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "blooming_tempest",
+    "name": "طوفان باغ جادویی",
+    "name_en": "Tempest of the Enchanted Garden",
+    "qi_cost": 42,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.45,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "گردبادی پر از شاخه و خار {target} را درنوردید (+{damage}).",
+     "crit": "خارها در سراسر گوشت {target} فرورفتند (+{damage})!",
+     "grazed": "{target} پشت شنلش قایم شد و خارها را گرفت (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Petals ride the breeze — Tempest of the Enchanted Garden fans {target} for {damage} damage.",
+     "crit": "Critical! Tempest of the Enchanted Garden detonates a vital point; the garden closes — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Tempest of the Enchanted Garden; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_phantom_bat_claw",
+  "name": "پنجه بال خفاش شبح‌وار",
+  "name_en": "Phantom Bat Claw",
+  "element": "تاریکی و صوت",
+  "element_en": "Darkness & Sound",
+  "family": "blood",
+  "required_realm": 2,
+  "price_stones": 930,
+  "techniques": [
+   {
+    "id": "sonar_scratch",
+    "name": "چنگال پژواک شب",
+    "name_en": "Night-Echo Talon Rake",
+    "qi_cost": 14,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.15,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "با صدایی فرکانس‌بالا حمله کردی و پنجه بر پهلوی {target} نشست (+{damage}).",
+     "crit": "صوت گوش را آزار داد و پنجه شاهرگ زیر بازوی {target} را زد (+{damage})!",
+     "grazed": "تنها صدای گوش‌خراش به گوش {target} رسید (+{damage})."
+    },
+    "lifesteal_pct": 0.15,
+    "descriptions_en": {
+     "normal": "Your veins keep the rhythm — Night-Echo Talon Rake drinks from {target} for {damage} damage.",
+     "crit": "Critical! Night-Echo Talon Rake detonates a vital point; the drunk blade remembers — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Night-Echo Talon Rake; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "wing_blade_glide",
+    "name": "پرواز بی‌صدای بال",
+    "name_en": "Soundless Wing-Blade Glide",
+    "qi_cost": 28,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.65,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "در تاریکی سر خوردی و لبه بال چرمی صورت {target} را خط انداخت (+{damage}).",
+     "crit": "حمله از نقطه کور! چانه {target} با ضربه بال چرخید (+{damage})!",
+     "grazed": "{target} جاخالی داد و تنها رد باد حس شد (+{damage})."
+    },
+    "lifesteal_pct": 0.22,
+    "descriptions_en": {
+     "normal": "Your veins keep the rhythm — Soundless Wing-Blade Glide drinks from {target} for {damage} damage.",
+     "crit": "Critical! Soundless Wing-Blade Glide detonates a vital point; the drunk blade remembers — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Soundless Wing-Blade Glide; it glances — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "vampiric_screech",
+    "name": "جیغ مکنده جوهره",
+    "name_en": "Essence-Draining Shriek",
+    "qi_cost": 46,
+    "cooldown": 3,
+    "base_damage_multiplier": 2.55,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": null,
+    "descriptions": {
+     "normal": "جیغی دهشتناک چی حیات {target} را تخلیه کرد (+{damage}).",
+     "crit": "وحشت مطلق! {target} خون دماغ شد و بخشی از چی‌اش جذب شد (+{damage})!",
+     "grazed": "{target} با ذکر مانترا گوش‌هایش را پوشاند (+{damage})."
+    },
+    "lifesteal_pct": 0.4,
+    "descriptions_en": {
+     "normal": "Your veins keep the rhythm — Essence-Draining Shriek drinks from {target} for {damage} damage.",
+     "crit": "Critical! Essence-Draining Shriek detonates a vital point; the cup overflows red — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Essence-Draining Shriek; it glances — only {damage} damage gets in."
+    }
+   }
+  ]
+ },
+ {
+  "art_id": "art_heavenly_tribulation_sword",
+  "name": "شمشیر داوری آسمانی",
+  "name_en": "Heavenly Tribulation Judgement",
+  "element": "صاعقه خالص و قوانین کائنات",
+  "element_en": "Pure Lightning & Cosmic Law",
+  "family": "sword",
+  "required_realm": 7,
+  "price_stones": 62000,
+  "techniques": [
+   {
+    "id": "law_decree",
+    "name": "حکم قانون آسمان",
+    "name_en": "Decree of Heavenly Law",
+    "qi_cost": 20,
+    "cooldown": 0,
+    "base_damage_multiplier": 1.15,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "stun",
+     "chance": 0.08,
+     "turns": 1
+    },
+    "descriptions": {
+     "normal": "هاله‌ای از نور بنفش صاعقه بر سینه {target} تازیانه زد (+{damage}).",
+     "crit": "نزول غضب کیهانی! زره و پوست {target} ذوب شد (+{damage})!",
+     "grazed": "{target} زیر غرش آسمان خم شد و آسیب سبکی دید (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "Moonlit steel flashes — Decree of Heavenly Law slices {target} for {damage} damage.",
+     "crit": "Critical! Decree of Heavenly Law detonates a vital point; the moon itself seems to fall — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Decree of Heavenly Law; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "tribulation_bolt",
+    "name": "صاعقه لایه نهم",
+    "name_en": "Ninth Layer Tribulation Bolt",
+    "qi_cost": 38,
+    "cooldown": 2,
+    "base_damage_multiplier": 1.7,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "stun",
+     "chance": 0.15,
+     "turns": 1
+    },
+    "descriptions": {
+     "normal": "صاعقه‌ای مهیب از ابرها به تیغه رسید و بر {target} خالی شد (+{damage}).",
+     "crit": "انفجار محض! موها و ابروهای {target} سوخت و بر زمین کوبیده شد (+{damage})!",
+     "grazed": "{target} با سپر چی بخشی از صاعقه را به زمین منتقل کرد (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A cold arc of light — Ninth Layer Tribulation Bolt slices {target} for {damage} damage.",
+     "crit": "Critical! Ninth Layer Tribulation Bolt detonates a vital point; silver drowns the field — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Ninth Layer Tribulation Bolt; it grazes — only {damage} damage gets in."
+    }
+   },
+   {
+    "id": "heavenly_execution",
+    "name": "تیغ اعدام کائنات",
+    "name_en": "Blade of Cosmic Execution",
+    "qi_cost": 60,
+    "cooldown": 4,
+    "base_damage_multiplier": 2.55,
+    "scaling_stat": "spiritual_atk",
+    "status_inflict": {
+     "kind": "stun",
+     "chance": 0.3,
+     "turns": 1
+    },
+    "descriptions": {
+     "normal": "شمشیر غول‌پیکری از نور بنفش بر سر {target} فرود آمد (+{damage}).",
+     "crit": "حکم قطعی مرگ! زمین تا عمق ده متر شکافت و {target} له گشت (+{damage})!",
+     "grazed": "{target} با سوختن یک طومار نجات توانست از مهلکه فرار کند (+{damage})."
+    },
+    "descriptions_en": {
+     "normal": "A cold arc of light — Blade of Cosmic Execution slices {target} for {damage} damage.",
+     "crit": "Critical! Blade of Cosmic Execution detonates a vital point; the moon itself seems to fall — {damage} damage tears through {target}!",
+     "grazed": "{target} slips the edge of Blade of Cosmic Execution; it grazes — only {damage} damage gets in."
+    }
+   }
+  ]
+ }
+]

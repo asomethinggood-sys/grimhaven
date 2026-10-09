@@ -63,7 +63,7 @@ def test_full_player_journey(ctx):
     # main menu
     text, kb = _dispatch(ctx, user, "menu", "", settle)
     _check_no_raw_keys(text)
-    assert "لوح ثبت سرنوشت" in text
+    assert "لوح سرنوشت" in text
 
     # meditate → stop
     text, kb = _dispatch(ctx, user, "meditate", "", settle)
