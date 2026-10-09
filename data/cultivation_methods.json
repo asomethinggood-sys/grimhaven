@@ -1,0 +1,72 @@
+{
+ "method_breath_mortal": {
+  "tier": "mortal",
+  "tech_mult": 1.0,
+  "qi_mult": 1.0,
+  "key": "METHOD_BREATH_MORTAL",
+  "name": "تنفس بنیادین",
+  "name_en": "Foundational Breathing",
+  "lore": "نفس‌های آگاهانه؛ نخستین پل میان گوشت و چی.",
+  "lore_en": "Conscious breaths — the first bridge between flesh and Qi."
+ },
+ "method_sky_cleaving": {
+  "tier": "earth",
+  "tech_mult": 1.5,
+  "qi_mult": 1.2,
+  "key": "METHOD_SKY_CLEAVING",
+  "name": "شق آسمان",
+  "name_en": "Sky-Cleaving Sutra",
+  "lore": "آوایی که ابرها را می‌درد و چی را صیقل می‌دهد.",
+  "lore_en": "A chant that parts clouds and polishes Qi."
+ },
+ "method_jade_purity": {
+  "tier": "heaven",
+  "tech_mult": 2.5,
+  "qi_mult": 1.4,
+  "key": "METHOD_JADE_PURITY",
+  "name": "خلوص یشم",
+  "name_en": "Jade Purity Canon",
+  "lore": "جرقه‌های درونی را به شعله بدل کن.",
+  "lore_en": "Turn inner sparks into flame."
+ },
+ "method_dragon_vein": {
+  "tier": "spirit",
+  "tech_mult": 4.0,
+  "qi_mult": 1.7,
+  "key": "METHOD_DRAGON_VEIN",
+  "name": "رگ اژدها",
+  "name_en": "Dragon Vein Scripture",
+  "lore": "خون را چون رودی خروشان کن.",
+  "lore_en": "Make the blood a rushing river."
+ },
+ "method_star_field": {
+  "tier": "saint",
+  "tech_mult": 6.5,
+  "qi_mult": 2.0,
+  "key": "METHOD_STAR_FIELD",
+  "name": "میدان ستارگان",
+  "name_en": "Star Field Codex",
+  "lore": "نفس بکش؛ که کهکشان هم نفس می‌کشد.",
+  "lore_en": "Breathe — the galaxy breathes too."
+ },
+ "method_chaos_origin": {
+  "tier": "ancient",
+  "tech_mult": 8.5,
+  "qi_mult": 2.4,
+  "key": "METHOD_CHAOS_ORIGIN",
+  "name": "آغاز آشوب",
+  "name_en": "Chaos Origin Hymn",
+  "lore": "پیش از جدایی آسمان و زمین، یک نفس بود.",
+  "lore_en": "Before heaven and earth split, there was one breath."
+ },
+ "method_heaven_dao": {
+  "tier": "divine",
+  "tech_mult": 10.0,
+  "qi_mult": 3.0,
+  "key": "METHOD_HEAVEN_DAO",
+  "name": "دائوم آسمانی",
+  "name_en": "Heavenly Dao Chant",
+  "lore": "آوازخوانی با خودِ فلک.",
+  "lore_en": "Sing with the Will of Heaven itself."
+ }
+}

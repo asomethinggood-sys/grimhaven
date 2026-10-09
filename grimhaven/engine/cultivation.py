@@ -34,37 +34,78 @@ from .models import (
     utcnow,
 )
 from ..core.state_machine import UserStatus, set_status, paralysis_active, is_injured
+from .models import lifespan_years as models_lifespan
+
+
+def items_mod_consume(user: dict, item_id: str) -> bool:
+    from .items import consume_item
+    return consume_item(user, item_id)
 
 
 class CultivationEngine:
     """Stateless engine: every method mutates the user document in place and
     returns a result dict with locale message codes for the UI layer."""
 
-    # ── meditation / AFK ────────────────────────────────────────────────────
+    # ── meditation / AFK (P6 §1: cultivation is CONTINUOUS — no start/stop) ──
     @staticmethod
-    def start_meditation(user: dict, now: dt.datetime | None = None) -> dict:
+    def hub_state(user: dict, now: dt.datetime | None = None) -> dict:
+        """Read-only snapshot for the Meditation Hub card (spec P6 §1.2)."""
         now = now or utcnow()
         cul = user["cultivation"]
-        if cul["meditating"]:
-            return {"status": "ALREADY_MEDITATING"}
-        if CultivationEngine._seclusion_remaining(user, now):
-            return {"status": "IN_SECLUSION"}
+        last = parse_iso(cul.get("last_afk_timestamp")) or now
+        elapsed_s = max(0.0, (now - last).total_seconds())
+        rate = afk_hourly_rate(user, now=now)
+        room = max(0, cul["qi_capacity"] - cul["qi_current"])
+        unclaimed = min(room, int(rate * elapsed_s / 3600.0))
+        from ..core.data_loader import data_registry
+        m = data_registry.get_method(cul.get("active_method_id") or "")
+        loc = user.get("location", {})
+        lang = user["account"]["language"]
+        zdef = data_registry.get_zone(loc.get("current_zone_id", ""))
+        debuffed = any(b.get("rate_mult") and parse_iso(b.get("until", "")) and
+                       parse_iso(b["until"]) > now for b in (user.get("buffs") or []))
+        return {
+            "location_name": (zdef.name_for(lang) if zdef else loc.get("name", "")) or loc.get("name", ""),
+            "density": float(loc.get("density") or loc.get("vein_density") or 1.0),
+            "mantra_name": m.name_for(lang) if m else "",
+            "mantra_mult": m.qi_mult if m else 1.0,
+            "qi": cul["qi_current"], "max_qi": cul["qi_capacity"],
+            "pct": int(round(100 * cul["qi_current"] / max(1, cul["qi_capacity"]))),
+            "rate": int(round(rate)), "debuffed": debuffed,
+            "elapsed_hours": int(elapsed_s // 3600), "elapsed_minutes": int(elapsed_s % 3600 // 60),
+            "elapsed_s": elapsed_s, "unclaimed": unclaimed,
+        }
+
+    @staticmethod
+    def claim(user: dict, now: dt.datetime | None = None,
+              world_boost: float = 1.0, rng: random.Random | None = None) -> dict:
+        """Extract the whole idle yield + roll the chronicle (spec P6 §2)."""
+        now = now or utcnow()
+        cul = user["cultivation"]
+        anchor = parse_iso(cul.get("last_afk_timestamp")) or now
+        result = CultivationEngine.settle_afk(user, now=now, world_boost=world_boost, rng=rng)
+        from ..core.offline_engine import OfflineAdventureEngine
+        report, details = OfflineAdventureEngine.process_meditation_claim(
+            user, now, result, world_boost=world_boost, rng=rng, start=anchor)
+        result["chronicle"] = report
+        result["details"] = details
+        result["status"] = "CLAIMED"
+        return result
+
+    @staticmethod
+    def start_meditation(user: dict, now: dt.datetime | None = None) -> dict:
+        """Legacy shim — accrual is continuous now; only re-anchors the clock."""
+        now = now or utcnow()
+        cul = user["cultivation"]
         if paralysis_active(user, now) or user["combat"].get("session"):
             return {"status": "BLOCKED"}
-        set_status(user, UserStatus.MEDITATING)
-        cul["meditation_started_at"] = iso(now)
         cul["last_afk_timestamp"] = iso(now)
-        return {"status": "OK"}
+        return {"status": "OK", "continuous": True}
 
     @staticmethod
     def stop_meditation(user: dict, now: dt.datetime | None = None) -> dict:
-        now = now or utcnow()
-        cul = user["cultivation"]
-        if not cul["meditating"]:
-            return {"status": "NOT_MEDITATING"}
-        result = CultivationEngine.settle_afk(user, now=now)
-        set_status(user, UserStatus.IDLE)
-        cul["meditation_started_at"] = None
+        """Legacy alias: stopping == claiming the pending yield."""
+        result = CultivationEngine.claim(user, now=now)
         result["status"] = "STOPPED"
         return result
 
@@ -137,6 +178,153 @@ class CultivationEngine:
             "consumed_stones": consumed_stones,
             "events": events,
         }
+
+    # ── dramatic tribulation (spec P6 §3–4: instant, 3-phase) ──────────────
+    @staticmethod
+    def spec_success_rate(user: dict) -> float:
+        """P6 §3.2 formula, clamped 10–90:
+        Base + DaoHeart×0.25 + PillBonus + Fortune×0.2 − DeviationRisk×0.4 − RealmPenalty."""
+        from .constants import BASE_CHANCE_LAYER, BASE_CHANCE_REALM_JUMP, REALM_PENALTIES
+        from ..core.data_loader import data_registry
+        from .models import combat_profile
+        cul = user["cultivation"]
+        hidden = user["stats"]["hidden"]
+        realm = cul["current_realm_index"]
+        stages = REALM_STAGES[realm]
+        is_realm_jump = cul["current_stage"] >= len(stages) - 1
+        base = BASE_CHANCE_REALM_JUMP if is_realm_jump else BASE_CHANCE_LAYER
+        dao = hidden["dao_heart_stability"]
+        pill_bonus = 0.0
+        active_pill = cul.get("active_pill")
+        if active_pill:
+            item = data_registry.get_consumable(active_pill)
+            if item and item.action == "breakthrough_bonus":
+                pill_bonus = float(item.value)
+        if user["inventory"].get("items", {}).get("lotus_seven") and realm == 3:
+            pill_bonus += 20.0
+        fortune = hidden["karmic_luck"]
+        deviation = combat_profile(user)["qi_deviation_risk"]
+        penalty = REALM_PENALTIES.get(realm, 10)
+        if cul["alignment"] == "demonic":
+            penalty += 5.0  # black lightning & karmic fire make it deadlier
+        rate = base + dao * 0.25 + pill_bonus + fortune * 0.2 - deviation * 0.4 - penalty
+        return max(10.0, min(90.0, rate))
+
+    @staticmethod
+    def tribulation_prep(user: dict, now: dt.datetime | None = None) -> dict:
+        """Pre-flight (qi must be FULL) + the preparation-screen snapshot."""
+        now = now or utcnow()
+        cul = user["cultivation"]
+        if meridians_sealed(user, now):
+            return {"status": "MERIDIANS_SEALED"}
+        if user["combat"].get("session"):
+            return {"status": "IN_COMBAT"}
+        if paralysis_active(user, now):
+            return {"status": "INJURED"}
+        realm, stage = cul["current_realm_index"], cul["current_stage"]
+        stages = REALM_STAGES[realm]
+        if realm >= MAX_REALM and stage >= len(stages) - 1:
+            return {"status": "AT_DAO_SOVEREIGN"}
+        # fold in whatever idle Qi accrued since the last claim before judging
+        CultivationEngine.settle_afk(user, now=now)
+        if cul["qi_current"] < cul["qi_capacity"]:
+            return {"status": "QI_NOT_FULL", "have": cul["qi_current"], "max": cul["qi_capacity"]}
+        if realm == 1 and stage >= len(stages) - 1 and not cul.get("dao_path"):
+            return {"status": "CHOOSE_DAO_FIRST"}
+        target_realm, target_stage = (realm, stage + 1)
+        if target_stage >= len(stages):
+            target_realm, target_stage = realm + 1, 0
+        from ..core.data_loader import data_registry
+        from .models import combat_profile
+        hidden = user["stats"]["hidden"]
+        rate = CultivationEngine.spec_success_rate(user)
+        return {"status": "READY", "rate": round(rate, 1),
+                "qi_deviation_risk": round(combat_profile(user)["qi_deviation_risk"], 1),
+                "dao_heart": hidden["dao_heart_stability"],
+                "target_realm": target_realm, "target_stage": target_stage,
+                "is_realm_jump": target_realm > realm}
+
+    @staticmethod
+    def confirm_tribulation(user: dict, now: dt.datetime | None = None,
+                            rng: random.Random | None = None) -> dict:
+        """The final strike of heaven — instant resolution (no seclusion wait)."""
+        now = now or utcnow()
+        rng = rng or random.Random()
+        prep = CultivationEngine.tribulation_prep(user, now=now)
+        if prep["status"] != "READY":
+            return prep
+        cul = user["cultivation"]
+        from .models import max_slots as _max_slots
+        slots_before = _max_slots(user)
+        vis_before = int(user["stats"]["visible"]["max_hp"])
+        lifespan_before = models_lifespan(user)
+        user["progress"]["breakthrough_attempts"] += 1
+        target = {"realm": prep["target_realm"], "stage": prep["target_stage"]}
+        rate = CultivationEngine.spec_success_rate(user)
+        roll = rng.uniform(0, 100)
+        hidden = user["stats"]["hidden"]
+        consumed_pill = cul.get("active_pill")
+        if consumed_pill:
+            items_mod_consume(user, consumed_pill)
+            cul["active_pill"] = None
+        lightning = int(rng.uniform(*TRIBULATION_DAMAGE_RANGE))
+        if cul["alignment"] == "demonic":
+            lightning = int(lightning * 1.5)
+        if roll <= rate:
+            CultivationEngine._apply_advance(user, target)
+            cul["qi_current"] = 0
+            CultivationEngine._advance_bonuses(user, target)
+            slots_after = _max_slots(user)
+            return {"status": "SUCCESS", "rate": round(rate, 1), "roll": round(roll, 1),
+                    "lightning": lightning, "consumed_pill": consumed_pill,
+                    "new_realm": target["realm"], "new_stage": target["stage"],
+                    "qi_capacity": cul["qi_capacity"],
+                    "bonus_hp": int(user["stats"]["visible"]["max_hp"]) - vis_before,
+                    "bonus_atk": 8 * (target["realm"] - 1) + 3 * target["stage"],
+                    "lifespan_increase": models_lifespan(user) - lifespan_before,
+                    "slot_unlocked": slots_after - slots_before}
+        # karma miracle: the heavens can still be defied once (doc §3.3.1)
+        if roll <= rate + 12 and rng.uniform(0, 100) <= hidden["karmic_luck"]:
+            hidden["karmic_luck"] = max(0, hidden["karmic_luck"] - MIRACLE_LUCK_COST)
+            CultivationEngine._apply_advance(user, target)
+            cul["qi_current"] = 0
+            CultivationEngine._advance_bonuses(user, target)
+            slots_after = _max_slots(user)
+            return {"status": "MIRACLE_SAVED", "rate": round(rate, 1), "roll": round(roll, 1),
+                    "lightning": lightning, "new_realm": target["realm"], "new_stage": target["stage"],
+                    "qi_capacity": cul["qi_capacity"],
+                    "bonus_hp": int(user["stats"]["visible"]["max_hp"]) - vis_before,
+                    "bonus_atk": 8 * (target["realm"] - 1) + 3 * target["stage"],
+                    "lifespan_increase": models_lifespan(user) - lifespan_before,
+                    "slot_unlocked": slots_after - slots_before}
+        # ── failure, exactly per spec P6 §4.2 ──
+        cul["qi_current"] = int(cul["qi_current"] * 0.5)
+        vis = user["stats"]["visible"]
+        vis["physique_hp"] = max(1, int(vis["max_hp"] * 0.20))
+        user["buffs"] = [b for b in (user.get("buffs") or [])
+                         if b.get("id") != "inner_demon_deviation"]
+        user["buffs"].append({"id": "inner_demon_deviation", "kind": "rate_debuff",
+                              "rate_mult": 0.5, "until": iso(now + dt.timedelta(minutes=120)),
+                              "label": "انحراف شیطن درونی"})
+        hidden["dao_heart_stability"] = max(0, hidden["dao_heart_stability"] - 3)
+        user["progress"]["failures_minor"] += 1
+        return {"status": "FAILED", "rate": round(rate, 1), "roll": round(roll, 1),
+                "lightning": lightning,
+                "remaining_hp": vis["physique_hp"], "max_hp": vis["max_hp"],
+                "qi": cul["qi_current"], "debuff_minutes": 120}
+
+    @staticmethod
+    def _advance_bonuses(user: dict, target: dict) -> None:
+        """Permanent stat gifts granted on a successful ascent (spec P6 §4.1)."""
+        cul = user["cultivation"]
+        vis = user["stats"]["visible"]
+        realm = cul["current_realm_index"]
+        stage = cul["current_stage"]
+        gain = 20 + 15 * (realm - 1) + 4 * stage
+        vis["max_hp"] += gain
+        vis["physique_hp"] = vis["max_hp"]
+        vis["spiritual_sense"] += 1 + stage // 2
+        recompute_visible_stats(user)
 
     # ── breakthrough: seclusion → tribulation ──────────────────────────────
     @staticmethod

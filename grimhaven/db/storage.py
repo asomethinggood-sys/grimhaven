@@ -135,7 +135,10 @@ class Storage:
 
 
 def bootstrap_world(storage: Storage) -> None:
-    """Seed zones and NPC sects on first boot."""
+    """One-shot world setup: JSON data registry + zone/sect seed docs
+(zone/sect seeding runs on first boot)."""
+    from ..core.data_loader import bootstrap as _data_bootstrap
+    _data_bootstrap()
     from ..engine.constants import NPC_SECTS, ZONES
 
     for zone_id, zone in ZONES.items():

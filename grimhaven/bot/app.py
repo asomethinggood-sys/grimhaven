@@ -68,6 +68,7 @@ def build_application(settings: Settings, storage: Storage) -> Application:
     app.add_handler(CommandHandler("sect", guarded(cmd_handlers.cmd_sect)))
     app.add_handler(CommandHandler("settings", guarded(cmd_handlers.cmd_settings)))
     app.add_handler(CommandHandler("language", guarded(cmd_handlers.cmd_language)))
+    app.add_handler(CommandHandler("panel", guarded(cmd_handlers.cmd_panel)))
     app.add_handler(CommandHandler("admin", cmd_handlers.cmd_admin))  # admin bypasses the guard
     for name, handler in ADMIN_COMMANDS:
         app.add_handler(CommandHandler(name, handler))

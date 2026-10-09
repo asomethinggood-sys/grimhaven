@@ -1,10 +1,9 @@
-"""Part 1 §2.4 — Telegram handler State Guard / Interceptor.
+"""State guard / interceptor (v2 — spec P6 lock model).
 
-The pure decision functions (`callback_blocked`, `command_blocked`) are shared by
-the bot middleware AND the web-demo API so both layers enforce the same locks.
-While MEDITATING / IN_COMBAT / SECLUSION every state-mutating action outside the
-whitelist is rejected with a contextual alert (`show_alert=True`) before it can
-touch the engine — closing the roam-while-meditating concurrency exploit.
+Cultivation is continuous idle accrual, so the MEDITATING trance lock is
+retired; combat still owns the screen (with a pass-through for the round
+pipeline, which validates its own round tokens), plus safe bag navigation.
+Injury / paralysis locks keep the classic consequences of a true death.
 """
 from __future__ import annotations
 
@@ -13,49 +12,45 @@ from typing import Any
 from .state_machine import UserStatus, get_status, paralysis_active, is_injured
 from ..engine.constants import ZONES
 
-# roots safe to touch in every state (read-only screens & claims)
-_ALWAYS = {"menu", "language", "setlang", "help", "settings", "profile", "deep",
-           "backpack", "start"}
+# roots safe to touch in every state (read-only screens & preferences)
+_ALWAYS = {"profile", "settings", "setlang", "start", "panel", "noop", "help", "admin",
+           "menu", "language", "deep", "backpack"}
 
-_MEDITATING_EXTRA = {"meditate", "stop_meditate", "combat"}
-_SECLUSION_EXTRA = {"check_tribulation", "breakthrough", "meditate", "stop_meditate"}
-
-# bag sub-actions allowed under any lock: navigation + consuming a pill/herb
-# (healing mid-trance is the classic cultivator trope; equip & sell stay gated)
-_BAG_SAFE_SUBS = {"tab", "item", "back", "view", "use"}
+# bag sub-actions allowed under every lock: navigation, inspection, consuming a
+# pill and (re)assigning battle items — equipping & selling stay gated
+_BAG_SAFE_SUBS = {"tab", "inspect", "back", "view", "use"}
+_BAG_SAFE_ACTIONS = {"consume", "assign_battle"}
 
 # blocked while heavily injured & paralysed after a true death
-_PARALYSIS_BLOCKED = {"meditate", "stop_meditate", "travel", "hunt", "conquer",
-                      "breakthrough", "breakthrough_do", "check_tribulation",
-                      "map", "zone", "sect", "combat", "shop", "buy"}
-# blocked while the 3-hour injury debuff runs
-_INJURY_BLOCKED = {"breakthrough", "breakthrough_do", "check_tribulation",
-                   "conquer"}
+_PARALYSIS_BLOCKED = {"travel", "hunt", "conquer", "breakthrough", "map", "sect",
+                      "shop", "buy", "martial"}
+# blocked while the injury debuff runs
+_INJURY_BLOCKED = {"breakthrough", "conquer"}
 
 
 def callback_blocked(user: dict, data: str, now=None) -> str | None:
     """Return the locale key of the alert to show, or None when allowed."""
     status = get_status(user)
     root, _, arg = data.partition(":")
+    subs = arg.split(":") if arg else []
 
     if status is UserStatus.IN_COMBAT:
         if root == "combat":
-            return None
+            return None                     # round token is validated by the handler
+        if root == "bag":
+            sub = subs[0] if subs else "tab"
+            if sub in _BAG_SAFE_SUBS:
+                return None
+            if sub == "action" and len(subs) > 1 and subs[1] in _BAG_SAFE_ACTIONS:
+                return None
         return "GUARD_COMBAT"
 
-    bag_sub = arg.split(":", 1)[0] if arg else "tab"
-    if root in _ALWAYS or (root == "bag" and bag_sub in _BAG_SAFE_SUBS):
+    if root in _ALWAYS or (root == "bag" and subs and subs[0] in _BAG_SAFE_SUBS):
         return None
 
-    if status is UserStatus.MEDITATING:
-        if root in _MEDITATING_EXTRA:
-            return None
-        return "GUARD_MEDITATING"
-
     if status is UserStatus.SECLUSION:
-        if root in _SECLUSION_EXTRA:
-            return None
-        return "GUARD_SECLUSION"
+        # legacy only: an old seclusion timer is treated as idle cultivation
+        return None
 
     if status is UserStatus.HEAVILY_INJURED:
         if paralysis_active(user, now):
@@ -64,9 +59,9 @@ def callback_blocked(user: dict, data: str, now=None) -> str | None:
             return None
         if is_injured(user, now) and root in _INJURY_BLOCKED:
             return "GUARD_INJURED"
-        if is_injured(user, now) and root == "travel" and _zone_is_perilous(arg):
+        if is_injured(user, now) and root == "travel" and _zone_is_perilous(subs[0] if subs else ""):
             return "GUARD_INJURED_PERILOUS"
-        if is_injured(user, now) and root == "conquer":
+        if is_injured(user, now) and (root == "conquer" or "conquer" in subs):
             return "GUARD_INJURED"
         return None
 
@@ -79,12 +74,8 @@ def _zone_is_perilous(zone_id: str) -> bool:
 
 
 # commands players can always use, and meditation-time restrictions
-_RESTRICTED_COMMANDS = {
-    "map", "hunt", "travel", "battle", "fight", "sect", "shop",
-    "breakthrough", "skills", "dao", "sacrifice",
-}
 _ALWAYS_COMMANDS = {"start", "me", "profile", "bag", "help", "settings",
-                    "language", "cultivate", "admin"}
+                    "language", "cultivate", "admin", "panel"}
 
 
 def command_blocked(user: dict, command: str) -> str | None:
@@ -95,12 +86,6 @@ def command_blocked(user: dict, command: str) -> str | None:
         return None
     if status is UserStatus.IN_COMBAT:
         return "GUARD_COMBAT" if cmd not in {"combat", "flee"} else None
-    if status is UserStatus.MEDITATING:
-        return "GUARD_MEDITATING"
-    if status is UserStatus.SECLUSION:
-        if cmd in {"breakthrough", "help", "settings"}:
-            return None
-        return "GUARD_SECLUSION"
     if status is UserStatus.HEAVILY_INJURED:
         if paralysis_active(user):
             return "GUARD_PARALYSIS"

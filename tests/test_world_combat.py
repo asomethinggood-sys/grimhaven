@@ -35,7 +35,7 @@ def user(realm=1, stage=0, alignment="orthodox"):
 def test_travel_updates_vein_density():
     st = TmpStorage()
     u = user(realm=2)
-    res = world.travel(st, u, "zone_misty_peak")
+    res = world.travel(st, u, "zone_mist_peak")
     assert res["status"] == "OK"
     assert u["location"]["vein_density"] == pytest.approx(2.2)
 
@@ -43,16 +43,16 @@ def test_travel_updates_vein_density():
 def test_travel_locked_below_realm():
     st = TmpStorage()
     u = user(realm=1)
-    assert world.travel(st, u, "zone_heaven_spring")["status"] == "ZONE_LOCKED_REALM"
+    assert world.travel(st, u, "zone_heavenly_spring")["status"] == "ZONE_LOCKED_REALM"
 
 
 def test_conquest_ownership():
     st = TmpStorage()
     u = user(realm=2)
-    world.travel(st, u, "zone_misty_peak")
-    res = world.apply_conquest_result(st, u, "zone_misty_peak", won=True)
+    world.travel(st, u, "zone_mist_peak")
+    res = world.apply_conquest_result(st, u, "zone_mist_peak", won=True)
     assert res["status"] == "VICTORY"
-    zone = st.get_zone("zone_misty_peak")
+    zone = st.get_zone("zone_mist_peak")
     assert zone["owner"] == 7 and zone["owner_kind"] == "user"
 
 
@@ -148,7 +148,7 @@ def test_hunt_victory_rewards():
     u["stats"]["visible"]["physique_hp"] = 900
     u["stats"]["visible"]["max_hp"] = 900
     u["combat"]["loadout"] = ["basic_strike", "iron_guard", "element_burst", None]
-    enemy = combat.make_beast("wild_boar", random.Random(11))
+    enemy = combat.make_beast("valley_wolf", random.Random(11))
     res = combat.instant_settle(u, enemy, rng=random.Random(11))
     assert res["won"] is True
     assert u["inventory"]["spirit_stones"]["low"] >= 1
@@ -163,7 +163,7 @@ def test_duel_deterministic_with_seed():
     results = []
     for _ in range(2):
         u = user(realm=2)
-        m = engine.make_beast("hungry_wolf", random.Random(5))
+        m = engine.make_beast("cave_starving_wolf", random.Random(5))
         engine.start_session(u, m, "hunt")
         outcome, _summary, snapshot = engine.simulate(u, rng=random.Random(9))
         results.append((outcome, snapshot.get("round"), snapshot.get("player", {}).get("hp")))

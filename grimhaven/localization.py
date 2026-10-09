@@ -36,6 +36,11 @@ class Locale:
     @staticmethod
     def num(lang: str, value) -> str:
         """Grouped number, with Persian digits for the FA locale."""
+        if isinstance(value, str):
+            try:
+                value = float(value) if ("." in value or "٫" in value) else int(value)
+            except ValueError:
+                return value
         if isinstance(value, float):
             value = int(round(value)) if abs(value - round(value)) < 1e-9 else value
         if isinstance(value, float):

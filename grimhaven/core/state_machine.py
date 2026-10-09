@@ -32,16 +32,17 @@ INJURY_QI_MULT = 0.5
 def get_status(user: dict) -> UserStatus:
     raw = user.get("status")
     if not raw:  # legacy docs without the field — derive
-        cul = user.get("cultivation", {})
-        if cul.get("meditating"):
-            return UserStatus.MEDITATING
         if user.get("combat", {}).get("session"):
             return UserStatus.IN_COMBAT
         return UserStatus.IDLE
     try:
-        return UserStatus(raw)
+        st = UserStatus(raw)
     except ValueError:
         return UserStatus.IDLE
+    # P6: cultivation is continuous — the old trance lock no longer gates anything
+    if st is UserStatus.MEDITATING:
+        return UserStatus.IDLE
+    return st
 
 
 def set_status(user: dict, status: UserStatus) -> None:

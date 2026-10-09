@@ -107,11 +107,24 @@ def new_user_doc(user_id: int, username: str = "", language: str = "fa") -> dict
             "paralysis_until": None,  # coma lock after a true death
             "wins": 0,
             "losses": 0,
+            "item_slots": [],          # battle keyboard row-4 consumables (max 2)
         },
         "location": {
-            "current_zone_id": "zone_mortal_valley",
+            "current_zone_id": "zone_valley_mortals",
+            "zone_id": "zone_valley_mortals",
             "vein_density": 1.0,
+            "density": 1.0,
+            "name": "دره فانی‌ها",
+            "name_en": "Valley of Mortals",
+            "since": iso(),
             "sect_id": None,
+        },
+        "ui": {
+            "active_menu_message_id": None,   # single-window lifecycle (P1)
+            "bag_tab": "gear",
+            "bag_page": 1,
+            "map_page": 1,
+            "shop_page": 1,
         },
         "buffs": [],
         "progress": {
@@ -126,6 +139,7 @@ def new_user_doc(user_id: int, username: str = "", language: str = "fa") -> dict
             "deaths": 0,
             "miracle_escapes": 0,
             "adventures": 0,
+            "last_gather_at": None,
         },
     }
     return doc
@@ -180,12 +194,76 @@ def ensure_v2(doc: dict) -> dict:
         cmb["loadout"] = ["moon_slash", "lunar_mist", "zenith_eclipse"]
     prog = doc.setdefault("progress", {})
     for k, v in (("root_ancient_used", False), ("deaths", 0),
-                 ("miracle_escapes", 0), ("adventures", 0)):
+                 ("miracle_escapes", 0), ("adventures", 0), ("last_gather_at", None)):
         prog.setdefault(k, v)
+    # ── spec P3: zone renames → data/zones.json ids (one-time alias migration)
+    _ZONE_ALIASES = {"zone_mortal_valley": "zone_valley_mortals",
+                     "zone_common_cave": "zone_ordinary_cave",
+                     "zone_misty_peak": "zone_mist_peak",
+                     "zone_heaven_spring": "zone_heavenly_spring"}
+    loc = doc.setdefault("location", {})
+    zid = loc.get("current_zone_id") or loc.get("zone_id") or "zone_valley_mortals"
+    zid = _ZONE_ALIASES.get(zid, zid)
+    from ..core.data_loader import data_registry
+    zdef = data_registry.get_zone(zid) or data_registry.get_zone("zone_valley_mortals")
+    loc["current_zone_id"] = loc["zone_id"] = zid
+    if zdef:
+        loc.setdefault("name", zdef.name)
+        loc.setdefault("name_en", zdef.name_en)
+        loc["vein_density"] = loc["density"] = float(loc.get("density") or zdef.density) if "density" not in loc else loc["density"]
+        loc["vein_density"] = loc.get("density", zdef.density)
+        if not loc.get("density"):
+            loc["density"] = loc["vein_density"]
+    loc.setdefault("since", iso())
+    loc.setdefault("sect_id", None)
+    ui = doc.setdefault("ui", {})
+    for k, v in (("active_menu_message_id", None), ("bag_tab", "gear"),
+                 ("bag_page", 1), ("map_page", 1), ("shop_page", 1)):
+        ui.setdefault(k, v)
+    cmb.setdefault("item_slots", [])
     return doc
 
 
 # ── derived stats ────────────────────────────────────────────────────────────
+
+LIFESPANS: dict[int, int] = {1: 80, 2: 120, 3: 200, 4: 350, 5: 600, 6: 1000, 7: 1800}
+
+
+def meridians_opened(user: dict) -> int:
+    """8 mortal meridians; realms + stages unseal them."""
+    cul = user["cultivation"]
+    return min(8, cul["current_realm_index"] + cul["current_stage"] // 3)
+
+
+def lifespan_years(user: dict) -> int:
+    cul = user["cultivation"]
+    base = LIFESPANS.get(cul["current_realm_index"], 80)
+    bonus = int(user["stats"]["hidden"].get("dao_heart_stability", 50) / 25)
+    return base + bonus * 5
+
+
+def qi_purity(user: dict) -> int:
+    """0–100 refinement of the circulating Qi (active mantra drives it)."""
+    from ..core.data_loader import data_registry
+    cul = user["cultivation"]
+    m = data_registry.get_method(cul.get("active_method_id") or "")
+    mult = m.qi_mult if m else 1.0
+    return max(1, min(100, int(40 + mult * 12 + cul["current_realm_index"] * 3)))
+
+
+def crit_chance(user: dict) -> float:
+    """Percent crit chance — same formula the combat resolver uses."""
+    prof = combat_profile(user)
+    return float(max(5.0, min(60.0, prof["divine_sense"] * 0.5 + prof["crit_bonus"] * 100)))
+
+
+def comprehension(user: dict) -> int:
+    vis = user["stats"]["visible"]
+    hidden = user["stats"]["hidden"]
+    return int(vis.get("spiritual_sense", 10) * 1.5 + hidden.get("dao_heart_stability", 50) * 0.2
+               + user["cultivation"]["current_realm_index"] * 3)
+
+
 
 def stage_cost(user: dict) -> int:
     cul = user["cultivation"]
@@ -267,9 +345,17 @@ def afk_hourly_rate(user: dict, world_boost: float = 1.0,
     """Doc §5 master formula, plus the injury debuff multiplier."""
     now = now or utcnow()
     cul = user["cultivation"]
+    rate_mult = 1.0
     realm = cul["current_realm_index"]
     base = BASE_RATES.get(realm, 100)
-    tech = METHODS.get(cul.get("active_method_id", ""), {}).get("tech_mult", 1.0)
+    from ..core.data_loader import data_registry
+    _m = data_registry.get_method(cul.get("active_method_id", ""))
+    tech = _m.qi_mult if _m else METHODS.get(cul.get("active_method_id", ""), {}).get("tech_mult", 1.0)
+    for _b in user.get("buffs", []) or []:  # timed debuffs (e.g. inner-demon deviation)
+        if _b.get("rate_mult") and _b.get("until"):
+            _u = parse_iso(_b["until"])
+            if _u and _u > now:
+                rate_mult *= float(_b["rate_mult"])
 
     catalyst = 0.0
     stone = cul.get("active_stone")
@@ -287,7 +373,7 @@ def afk_hourly_rate(user: dict, world_boost: float = 1.0,
 
     vein = user["location"].get("vein_density", 1.0)
     luck_bonus = user["stats"]["hidden"]["karmic_luck"] * 0.002
-    rate = base * tech * (1.0 + catalyst) * vein
+    rate = base * tech * (1.0 + catalyst) * vein * rate_mult
     rate *= (1.0 + luck_bonus) * world_boost
     if _meridians_sealed(user, now):
         rate *= 0.5
