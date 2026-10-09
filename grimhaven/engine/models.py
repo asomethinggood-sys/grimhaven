@@ -146,12 +146,62 @@ def new_user_doc(user_id: int, username: str = "", language: str = "fa") -> dict
 
 
 def ensure_v2(doc: dict) -> dict:
-    """Idempotent migration for documents written before the overhaul."""
+    """Idempotent migration for documents written before the overhaul.
+
+    Backfills EVERY field the engines and renderers touch, so even a partial or
+    hand-corrupted document can never KeyError mid-update (a crash there used to
+    leave the player's tap completely unanswered).
+    """
     doc.setdefault("status", "idle")
+    # ── account ──
+    acc = doc.setdefault("account", {})
+    acc.setdefault("username", f"cultivator_{doc.get('user_id', 0)}")
+    acc.setdefault("language", "fa")
+    acc.setdefault("is_banned", False)
+    acc.setdefault("registered_at", iso())
+    acc.setdefault("is_admin", False)
+    # ── cultivation ──
+    cul = doc.setdefault("cultivation", {})
+    cul.setdefault("current_realm_index", 1)
+    cul.setdefault("current_stage", 0)
+    cul.setdefault("qi_current", 0)
+    cul.setdefault("qi_capacity", REALM_STAGES[cul["current_realm_index"]][
+        min(cul["current_stage"], len(REALM_STAGES[cul["current_realm_index"]]) - 1)])
+    cul.setdefault("dao_path", None)
+    cul.setdefault("alignment", "orthodox")
+    cul.setdefault("alignment_locked", False)
+    cul.setdefault("active_method_id", "method_breath_mortal")
+    cul.setdefault("active_stone", None)
+    cul.setdefault("active_pill", None)
+    cul.setdefault("meditating", False)
+    cul.setdefault("meditation_started_at", None)
+    cul.setdefault("seclusion_finish_time", None)
+    cul.setdefault("seclusion_target", None)
+    cul.setdefault("meridian_sealed_until", None)
+    cul.setdefault("last_afk_timestamp", iso())
+    # ── stats ──
+    stats = doc.setdefault("stats", {})
+    vis = stats.setdefault("visible", {})
+    vis.setdefault("physique_hp", 100)
+    vis.setdefault("max_hp", 100)
+    vis.setdefault("spiritual_sense", 10)
+    vis.setdefault("circulation_velocity", 10)
+    hid = stats.setdefault("hidden", {})
+    hid.setdefault("karmic_luck", 50)
+    hid.setdefault("karmic_luck_revealed", False)
+    hid.setdefault("dao_affinity_charisma", 30)
+    hid.setdefault("dao_affinity_revealed", False)
+    hid.setdefault("dao_heart_stability", 70)
+    hid.setdefault("demonic_corruption", 0)
+    doc.setdefault("buffs", [])
     inv = doc.setdefault("inventory", {})
     inv.setdefault("arts", ["art_moonlight_sword"])
     inv.setdefault("methods", ["method_breath_mortal"])
     inv.setdefault("gear", {})
+    # spirit-stone ledger — directly indexed all over the engines
+    stones = inv.setdefault("spirit_stones", {})
+    for grade in ("low", "mid", "high", "heavenly"):
+        stones.setdefault(grade, 0)
     items = inv.setdefault("items", {})
     # merge legacy pills/herbs dicts into the unified item ledger
     for pid, qty in (inv.get("pills") or {}).items():
@@ -174,6 +224,8 @@ def ensure_v2(doc: dict) -> dict:
         else:
             g.setdefault("dur", 100)
     eq = doc.setdefault("equipment", {})
+    for slot in EQUIP_SLOTS:
+        eq.setdefault(slot, None)
     for slot, gear in list(eq.items()):
         if isinstance(gear, dict):
             gear.setdefault("dur", 100)
@@ -193,8 +245,12 @@ def ensure_v2(doc: dict) -> dict:
     if not cmb["loadout"] and "art_moonlight_sword" in inv.get("arts", []):
         cmb["loadout"] = ["moon_slash", "lunar_mist", "zenith_eclipse"]
     prog = doc.setdefault("progress", {})
-    for k, v in (("root_ancient_used", False), ("deaths", 0),
-                 ("miracle_escapes", 0), ("adventures", 0), ("last_gather_at", None)):
+    for k, v in (("qi_total_accumulated", 0), ("breakthrough_attempts", 0),
+                 ("breakthrough_successes", 0), ("failures_minor", 0),
+                 ("failures_deviation", 0), ("failures_annihilation", 0),
+                 ("encounters_found", 0), ("root_ancient_used", False),
+                 ("deaths", 0), ("miracle_escapes", 0), ("adventures", 0),
+                 ("last_gather_at", None)):
         prog.setdefault(k, v)
     # ── spec P3: zone renames → data/zones.json ids (one-time alias migration)
     _ZONE_ALIASES = {"zone_mortal_valley": "zone_valley_mortals",

@@ -44,28 +44,37 @@ def get_ctx(context: ContextTypes.DEFAULT_TYPE) -> Ctx:
 
 
 async def _run(update: Update, context: ContextTypes.DEFAULT_TYPE, data: str) -> None:
-    """Route a reply/dock press or slash command through the dispatch contract."""
+    """Route a reply/dock press or slash command through the dispatch contract.
+
+    The WHOLE pipeline is guarded: any failure (legacy doc, engine bug, Telegram
+    hiccup) must still produce a reply — a silent tap is a lost player.
+    """
     ctx: Ctx = get_ctx(context)
-    user, _created = ctx.get_or_create_user(update.effective_user)
-    lang = user["account"]["language"]
-    if user["account"].get("is_banned"):
-        await update.message.reply_text(t(lang, "ERR_BANNED"))
-        return
-    data = _canon(data, user)
-    blocked = callback_blocked(user, data)
-    if blocked:
-        await update.message.reply_text(t(lang, blocked))
-        return
-    settle_res = ctx.settle(user)
-    action, arg = _split_for(data)
     try:
+        user, _created = ctx.get_or_create_user(update.effective_user)
+        lang = user["account"]["language"]
+        if user["account"].get("is_banned"):
+            await update.message.reply_text(t(lang, "ERR_BANNED"))
+            return
+        data = _canon(data, user)
+        blocked = callback_blocked(user, data)
+        if blocked:
+            await update.message.reply_text(t(lang, blocked))
+            return
+        settle_res = ctx.settle(user)
+        action, arg = _split_for(data)
         text, kb, opts = _dispatch(ctx, user, action, arg, settle_res)
-    except Exception:  # pragma: no cover — safety net
+        await _present(update.message, user, text, kb, opts)
+        ctx.save(user)
+    except Exception:  # pragma: no cover — safety net, never crash the bot
         import traceback
         traceback.print_exc()
-        text, kb, opts = t(lang, "ERR_UNKNOWN"), None, {}
-    await _present(update.message, user, text, kb, opts)
-    ctx.save(user)
+        try:
+            doc = ctx.storage.get_user(update.effective_user.id) or {}
+            lang = (doc.get("account") or {}).get("language", "fa")
+            await update.message.reply_text(t(lang, "ERR_UNKNOWN"))
+        except Exception:
+            pass
 
 
 def _split_for(data: str) -> tuple[str, str]:
@@ -97,18 +106,26 @@ async def _present(message, user: dict, text: str, kb, opts: dict) -> None:
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Minimal onboarding: two-line narrative + ONE inline CTA, then the dock."""
     ctx: Ctx = get_ctx(context)
-    user, created = ctx.get_or_create_user(update.effective_user)
-    if user["account"].get("is_banned"):
-        await update.message.reply_text(t(user["account"]["language"], "ERR_BANNED"))
-        return
-    lang = user["account"]["language"]
-    ctx.settle(user)
-    ctx.save(user)
-    sent = await update.message.reply_text(start_text(lang), reply_markup=start_kb(lang))
-    user.setdefault("ui", {})["active_menu_message_id"] = sent.message_id
-    dock_msg = await update.message.reply_text(t(lang, "DOCK_LANDED"),
-                                               reply_markup=dock_reply_kb(lang))
-    ctx.save(user)
+    try:
+        user, created = ctx.get_or_create_user(update.effective_user)
+        if user["account"].get("is_banned"):
+            await update.message.reply_text(t(user["account"]["language"], "ERR_BANNED"))
+            return
+        lang = user["account"]["language"]
+        ctx.settle(user)
+        ctx.save(user)
+        sent = await update.message.reply_text(start_text(lang), reply_markup=start_kb(lang))
+        user.setdefault("ui", {})["active_menu_message_id"] = sent.message_id
+        dock_msg = await update.message.reply_text(t(lang, "DOCK_LANDED"),
+                                                   reply_markup=dock_reply_kb(lang))
+        ctx.save(user)
+    except Exception:  # pragma: no cover — safety net, never crash the bot
+        import traceback
+        traceback.print_exc()
+        try:
+            await update.message.reply_text(t("fa", "ERR_UNKNOWN"))
+        except Exception:
+            pass
 
 
 async def cmd_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

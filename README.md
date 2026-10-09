@@ -100,7 +100,7 @@ grimhaven/
 │   └── demo/                # FastAPI chat-console sharing the same engine
 ├── data/                    # martial arts / enemies / equipment / consumables /
 │                            # offline-events JSON (validated by data registry)
-├── tests/                   # 40 tests anchored to the design doc
+├── tests/                   # 84 regression tests anchored to the design doc
 ├── deploy/                  # Dockerfile, docker-compose, render.yaml, systemd
 └── docs/                    # master prompt + hosting guide
 ```
@@ -113,7 +113,7 @@ pip install -r requirements.txt
 cp .env.example .env            # put the @BotFather token + your admin id in
 python run_bot.py               # the bot goes live on @Grimheaven_bot
 python run_demo.py              # or open the browser demo → http://localhost:8000
-pytest                          # 40 passing tests
+pytest                          # 84 passing tests
 ```
 
 > The sandbox this repo was built in has **no route to api.telegram.org**, so
