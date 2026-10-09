@@ -1,250 +1,1226 @@
 {
  "beasts": [
   {
-   "enemy_id": "wild_boar",
-   "name": "گورچ جنگل",
-   "name_en": "Bristled Forest Boar",
-   "guard_level": 1,
-   "hp": 78,
-   "atk": 11,
-   "def": 7,
-   "sdef": 6,
-   "speed": 8,
-   "loot": {
-    "stones": [
-     1,
-     2
-    ],
-    "qi": [
-     20,
-     45
-    ],
-    "drop": {
-     "mat_wolf_fang": 0.08
+   "enemy_id": "valley_wolf",
+   "zone_id": "zone_valley_mortals",
+   "name": "گرگ وحشی دره",
+   "tier_title": "وحش فانی",
+   "icon": "🐺",
+   "lore": "گرگی لاغراندام با دندان‌های زرد و تیز که گرسنگی دره او را جسور و بی‌رحم کرده است.",
+   "stats": {
+    "max_hp": 65,
+    "spiritual_atk": 10,
+    "defense": 3,
+    "speed": 14
+   },
+   "rewards": {
+    "exp_qi": 18,
+    "spirit_stones": 1,
+    "loot_drops": [
+     {
+      "item_id": "wolf_pelt",
+      "name": "پوست ضخیم گرگ",
+      "chance_percent": 70
+     },
+     {
+      "item_id": "wolf_fang",
+      "name": "دندان نیش تیز",
+      "chance_percent": 35
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "fang_bite",
+     "name": "گزش خون‌آلود",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "گرگ زوزه‌کشان جهید و دندان‌های تیزش را در بازویت فرو نشاند (-{damage} کالبد).",
+      "crit": "شکار غافلگیرانه! گرگ گلویت را هدف گرفت و شریان را فشرد (-{damage} کالبد)!",
+      "miss": "گرگ به هوا پرید اما تو به موقع کنار کشیدی و دندان‌هایش بر سنگ ساییده شد."
+     },
+     "name_en": "Bloodied Bite",
+     "descriptions_en": {
+      "hit": "The wolf lunges howling, sinking its fangs into your arm (-{damage} body).",
+      "crit": "Ambush kill! The wolf aimed for your throat and crushed the vein (-{damage} body)!",
+      "miss": "It leapt through the air, but you sidestepped in time — its fangs rasped on stone."
+     }
+    },
+    {
+     "action_id": "claw_swipe",
+     "name": "پنجه درنده",
+     "damage_multiplier": 1.2,
+     "descriptions": {
+      "hit": "پنجه خاک‌آلود گرگ خطی سرخ بر سینه‌ات انداخت (-{damage} کالبد).",
+      "crit": "ضربه سهمگین پنجه تعادلت را ربود و ردای رزمت را شکافت (-{damage} کالبد)!",
+      "miss": "با نیم‌گام به عقب، پنجه برنده گرگ تنها هوای خالی را شکافت."
+     },
+     "name_en": "Savage Claw",
+     "descriptions_en": {
+      "hit": "Its dusty claw rakes a red line across your chest (-{damage} body).",
+      "crit": "A devastating claw-sweep steals your balance and rends your robe (-{damage} body)!",
+      "miss": "A half-step back — the cruel claws tear nothing but empty air."
+     }
     }
-   }
+   ],
+   "name_en": "Valley Wolf",
+   "tier_title_en": "Mortal Beast",
+   "lore_en": "A gaunt wolf with yellowed fangs — the valley's hunger made it bold and merciless."
   },
   {
-   "enemy_id": "hungry_wolf",
-   "name": "گرگ گرسنه",
-   "name_en": "Famished Grey Wolf",
-   "guard_level": 1,
-   "hp": 88,
-   "atk": 12,
-   "def": 6,
-   "sdef": 6,
-   "speed": 12,
-   "loot": {
-    "stones": [
-     1,
-     2
-    ],
-    "qi": [
-     22,
-     50
-    ],
-    "drop": {
-     "mat_wolf_fang": 0.15,
-     "talisman_gale_blade": 0.05
+   "enemy_id": "razor_boar",
+   "zone_id": "zone_valley_mortals",
+   "name": "گراز دندان‌خنجری",
+   "tier_title": "وحش فانی تنومند",
+   "icon": "🐗",
+   "lore": "گرازی غول‌پیکر با پوستی پوشیده از گل خشک و دو عاج تیز چون خنجرهای فولادی.",
+   "stats": {
+    "max_hp": 85,
+    "spiritual_atk": 13,
+    "defense": 7,
+    "speed": 9
+   },
+   "rewards": {
+    "exp_qi": 24,
+    "spirit_stones": 2,
+    "loot_drops": [
+     {
+      "item_id": "boar_tusk",
+      "name": "عاج خنجری گراز",
+      "chance_percent": 50
+     },
+     {
+      "item_id": "rough_hide",
+      "name": "چرم خشن کوهستان",
+      "chance_percent": 40
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "tusk_gore",
+     "name": "شاخی با عاج خنجری",
+     "damage_multiplier": 1.1,
+     "descriptions": {
+      "hit": "گراز با تمام وزن عاجش را به پهلویت کوبید (-{damage} کالبد).",
+      "crit": "فرو رفتن عاج تا استخوان! کالبدت با شتاب به تخته‌سنگی پرتاب شد (-{damage} کالبد)!",
+      "miss": "با یک جهش چابک از مسیر تاخت گراز کنار رفتی و عاجش به صخره گیر کرد."
+     },
+     "name_en": "Tusk Gore",
+     "descriptions_en": {
+      "hit": "The boar drives an upturned tusk into your guard (-{damage} body).",
+      "crit": "It lifts and tears — the tusk opens a long wound (-{damage} body)!",
+      "miss": "You sidestepped the charge and the boar plowed past, snorting."
+     }
+    },
+    {
+     "action_id": "heavy_trample",
+     "name": "لگدمال گل‌آلود",
+     "damage_multiplier": 1.3,
+     "descriptions": {
+      "hit": "سم‌های سنگین گراز بر پایت فرود آمد و استخوانت را گزید (-{damage} کالبد).",
+      "crit": "برخورد تمام‌عیار لاشه گراز دنده‌هایت را به لرزه درآورد (-{damage} کالبد)!",
+      "miss": "گراز زمین را شخم زد اما تو پیش از کوبش سم‌هایش به عقب جهیدی."
+     },
+     "name_en": "لگدمال گل‌آلود",
+     "descriptions_en": {
+      "hit": "Razor Tusk Boar lands لگدمال گل‌آلود — {damage} damage.",
+      "crit": "Devastating! لگدمال گل‌آلود from Razor Tusk Boar tears through your guard ({damage} damage)!",
+      "miss": "Razor Tusk Boar throws لگدمال گل‌آلود, but you slip aside untouched."
+     }
     }
-   }
+   ],
+   "name_en": "Razor Tusk Boar",
+   "tier_title_en": "Mortal Beast",
+   "lore_en": "A wild boar whose tusks shave bone. It charges through underbrush without slowing."
+  },
+  {
+   "enemy_id": "earth_viper",
+   "zone_id": "zone_valley_mortals",
+   "name": "افعی خاکستری بوته‌زار",
+   "tier_title": "خزنده گزنده",
+   "icon": "🐍",
+   "lore": "ماری که به رنگ خاک است و بی‌صدا در میان علف‌های هرز کمین می‌کند.",
+   "stats": {
+    "max_hp": 50,
+    "spiritual_atk": 15,
+    "defense": 2,
+    "speed": 16
+   },
+   "rewards": {
+    "exp_qi": 20,
+    "spirit_stones": 1,
+    "loot_drops": [
+     {
+      "item_id": "viper_venom_sac",
+      "name": "کیسه زهر بوته‌زار",
+      "chance_percent": 60
+     },
+     {
+      "item_id": "snake_scale",
+      "name": "پولک نرم خاکی",
+      "chance_percent": 45
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "poison_strike",
+     "name": "نیش برق‌آسا",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "نیش‌های ظریف مار ساق پایت را گزید و سوزشی اسیدی در رگت دوید (-{damage} کالبد).",
+      "crit": "تزریق عمیق زهر! سم رگ‌های مریدینت را سیاه کرد و به سرفه افتادی (-{damage} کالبد)!",
+      "miss": "افعی چون تیر رها شد اما با حرکت تیغه‌ات مسیر سرش منحرف شد."
+     },
+     "name_en": "نیش برق‌آسا",
+     "descriptions_en": {
+      "hit": "Earth Viper lands نیش برق‌آسا — {damage} damage.",
+      "crit": "Devastating! نیش برق‌آسا from Earth Viper tears through your guard ({damage} damage)!",
+      "miss": "Earth Viper throws نیش برق‌آسا, but you slip aside untouched."
+     }
+    },
+    {
+     "action_id": "tail_whip",
+     "name": "تازیانه دُم پولک‌دار",
+     "damage_multiplier": 0.8,
+     "descriptions": {
+      "hit": "دم مار چون تازیانه‌ای شلاقی به مچ پایت پیچید (-{damage} کالبد).",
+      "crit": "پیچش دردناک دم مار پوستت را خراشید و تعادلت را باطل ساخت (-{damage} کالبد)!",
+      "miss": "مار دمش را چرخاند اما با پرشی سبک از فراز آن گذشتی."
+     },
+     "name_en": "تازیانه دُم پولک‌دار",
+     "descriptions_en": {
+      "hit": "Earth Viper lands تازیانه دُم پولک‌دار — {damage} damage.",
+      "crit": "Devastating! تازیانه دُم پولک‌دار from Earth Viper tears through your guard ({damage} damage)!",
+      "miss": "Earth Viper throws تازیانه دُم پولک‌دار, but you slip aside untouched."
+     }
+    }
+   ],
+   "name_en": "Earth Viper",
+   "tier_title_en": "Mortal Beast",
+   "lore_en": "It sleeps under soil like a buried sword and wakes as a flash of fangs."
+  },
+  {
+   "enemy_id": "iron_beak_vulture",
+   "zone_id": "zone_valley_mortals",
+   "name": "کرکس منقارآهنین",
+   "tier_title": "شکارچی آسمان فانی",
+   "icon": "🦅",
+   "lore": "پرنده‌ای مردارخوار با منقاری سیاه و سخت که استخوان را چون چوب خشک می‌شکند.",
+   "stats": {
+    "max_hp": 55,
+    "spiritual_atk": 12,
+    "defense": 4,
+    "speed": 15
+   },
+   "rewards": {
+    "exp_qi": 22,
+    "spirit_stones": 2,
+    "loot_drops": [
+     {
+      "item_id": "vulture_feather",
+      "name": "شاه‌پَر تیره عقاب‌نما",
+      "chance_percent": 55
+     },
+     {
+      "item_id": "iron_beak_shard",
+      "name": "خرده‌منقار محکم",
+      "chance_percent": 30
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "dive_peck",
+     "name": "شیرجه منقار پولادین",
+     "damage_multiplier": 1.2,
+     "descriptions": {
+      "hit": "کرکس از آسمان شیرجه رفت و نوک سختش شانه‌ات را سوراخ کرد (-{damage} کالبد).",
+      "crit": "اصابت کاری نوک به جمجمه! خون چشمانت را تار کرد و سرت گیج رفت (-{damage} کالبد)!",
+      "miss": "باد بال‌های پرنده موهایت را تکان داد اما نوکش به شانه حایل شده نخورد."
+     },
+     "name_en": "شیرجه منقار پولادین",
+     "descriptions_en": {
+      "hit": "Iron-Beak Vulture lands شیرجه منقار پولادین — {damage} damage.",
+      "crit": "Devastating! شیرجه منقار پولادین from Iron-Beak Vulture tears through your guard ({damage} damage)!",
+      "miss": "Iron-Beak Vulture throws شیرجه منقار پولادین, but you slip aside untouched."
+     }
+    },
+    {
+     "action_id": "talon_slash",
+     "name": "چنگال چاک‌دهنده",
+     "damage_multiplier": 0.9,
+     "descriptions": {
+      "hit": "چنگال‌های پرنده پوست بازویت را شرحه‌شرحه کرد (-{damage} کالبد).",
+      "crit": "چنگال‌ها در گوشت گیر کردند و با تکانی شدید زخمی باز گذاشتند (-{damage} کالبد)!",
+      "miss": "با غلتیدن روی زمین، سایه کرکس تنها از روی سرت عبور کرد."
+     },
+     "name_en": "چنگال چاک‌دهنده",
+     "descriptions_en": {
+      "hit": "Iron-Beak Vulture lands چنگال چاک‌دهنده — {damage} damage.",
+      "crit": "Devastating! چنگال چاک‌دهنده from Iron-Beak Vulture tears through your guard ({damage} damage)!",
+      "miss": "Iron-Beak Vulture throws چنگال چاک‌دهنده, but you slip aside untouched."
+     }
+    }
+   ],
+   "name_en": "Iron-Beak Vulture",
+   "tier_title_en": "Mortal Beast",
+   "lore_en": "It circles the valley waiting for what the wolves leave — and what the wolves miss."
+  },
+  {
+   "enemy_id": "stone_ape",
+   "zone_id": "zone_valley_mortals",
+   "name": "میمون صخره‌نشین",
+   "tier_title": "وحش فانی چابک",
+   "icon": "🐒",
+   "lore": "میمونی با عضلات فشرده که با پرتاب قلوه‌سنگ مسافران دره را فراری می‌دهد.",
+   "stats": {
+    "max_hp": 60,
+    "spiritual_atk": 11,
+    "defense": 5,
+    "speed": 13
+   },
+   "rewards": {
+    "exp_qi": 21,
+    "spirit_stones": 1,
+    "loot_drops": [
+     {
+      "item_id": "ape_sinew",
+      "name": "تاندون مقاوم میمون",
+      "chance_percent": 40
+     },
+     {
+      "item_id": "spirit_fruit_core",
+      "name": "هسته میوه نیمه‌رسیده",
+      "chance_percent": 50
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "rock_throw",
+     "name": "پرتاب قلوه‌سنگ سنگین",
+     "damage_multiplier": 1.1,
+     "descriptions": {
+      "hit": "تکه سنگی که میمون پرتاب کرد محکم به قفسه سینه‌ات خورد (-{damage} کالبد).",
+      "crit": "پرتاب دقیق به پیشانی! ضربه سنگ صدای ترق داد و نفست را برید (-{damage} کالبد)!",
+      "miss": "سنگ مماس با گوشت رد شد و بر صخره پشت سرت خرد گشت."
+     },
+     "name_en": "پرتاب قلوه‌سنگ سنگین",
+     "descriptions_en": {
+      "hit": "Stone Ape lands پرتاب قلوه‌سنگ سنگین — {damage} damage.",
+      "crit": "Devastating! پرتاب قلوه‌سنگ سنگین from Stone Ape tears through your guard ({damage} damage)!",
+      "miss": "Stone Ape throws پرتاب قلوه‌سنگ سنگین, but you slip aside untouched."
+     }
+    },
+    {
+     "action_id": "furious_scratch",
+     "name": "خراش خشمگین دست",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "میمون جیغ‌کشان هجوم آورد و ناخن‌هایش صورتت را خراشید (-{damage} کالبد).",
+      "crit": "ناخن‌های تیز گوشه چشمت را دریدند و خون گونه‌ات را پوشاند (-{damage} کالبد)!",
+      "miss": "با ضربه کف دستت مچ میمون را پس زدی و مانع اصابت ناخن شدی."
+     },
+     "name_en": "خراش خشمگین دست",
+     "descriptions_en": {
+      "hit": "Stone Ape lands خراش خشمگین دست — {damage} damage.",
+      "crit": "Devastating! خراش خشمگین دست from Stone Ape tears through your guard ({damage} damage)!",
+      "miss": "Stone Ape throws خراش خشمگین دست, but you slip aside untouched."
+     }
+    }
+   ],
+   "name_en": "Stone Ape",
+   "tier_title_en": "Mortal Beast",
+   "lore_en": "Its knuckles polish boulders. It considers cultivators an interesting new kind of rock."
+  },
+  {
+   "enemy_id": "cave_starving_wolf",
+   "zone_id": "zone_ordinary_cave",
+   "name": "گرگ گرسنه",
+   "tier_title": "حارس غار سطح ۱",
+   "icon": "🐺",
+   "lore": "شکارچی غارهای تاریک که از هوای آغشته به چی تغذیه کرده و چشمانی فسفری دارد.",
+   "stats": {
+    "max_hp": 81,
+    "spiritual_atk": 16,
+    "defense": 6,
+    "speed": 15
+   },
+   "rewards": {
+    "exp_qi": 35,
+    "spirit_stones": 3,
+    "loot_drops": [
+     {
+      "item_id": "cave_wolf_core",
+      "name": "هسته ناخالص جانور غار",
+      "chance_percent": 40
+     },
+     {
+      "item_id": "phosphor_eye",
+      "name": "چشم فسفری شب‌نما",
+      "chance_percent": 30
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "qi_infused_bite",
+     "name": "گزش آغشته به چی وحشی",
+     "damage_multiplier": 1.1,
+     "descriptions": {
+      "hit": "گرگ گرسنه با زوزه‌ای مهیب دندان در گوشت نشاند (-{damage} کالبد).",
+      "crit": "دندان‌های نیش تا مغز استخوان فرورفتند و قطرات چی از تنت مکیده شد (-{damage} کالبد)!",
+      "miss": "با چرخش شمشیرت حائل شدی و پوزه گرگ پس زده شد."
+     },
+     "name_en": "گزش آغشته به چی وحشی",
+     "descriptions_en": {
+      "hit": "Starving Cave Wolf lands گزش آغشته به چی وحشی — {damage} damage.",
+      "crit": "Devastating! گزش آغشته به چی وحشی from Starving Cave Wolf tears through your guard ({damage} damage)!",
+      "miss": "Starving Cave Wolf throws گزش آغشته به چی وحشی, but you slip aside untouched."
+     }
+    },
+    {
+     "action_id": "shadow_pounce",
+     "name": "جهش در سایه غار",
+     "damage_multiplier": 1.3,
+     "descriptions": {
+      "hit": "گرگ از تاریکی پرید و سنگینی تنش کالبدت را لرزاند (-{damage} کالبد).",
+      "crit": "کوبش سنگین کالبد گرگ تو را به کف نمناک غار کوبید (-{damage} کالبد)!",
+      "miss": "شبح گرگ از کنارت لغزید و پنجه‌اش به سنگ مرطوب گیر کرد."
+     },
+     "name_en": "جهش در سایه غار",
+     "descriptions_en": {
+      "hit": "Starving Cave Wolf lands جهش در سایه غار — {damage} damage.",
+      "crit": "Devastating! جهش در سایه غار from Starving Cave Wolf tears through your guard ({damage} damage)!",
+      "miss": "Starving Cave Wolf throws جهش در سایه غار, but you slip aside untouched."
+     }
+    }
+   ],
+   "name_en": "Starving Cave Wolf",
+   "tier_title_en": "Mortal Beast",
+   "lore_en": "Deeper in the cave, wolves hunt in darkness. It has forgotten the sun."
+  },
+  {
+   "enemy_id": "crystal_spider",
+   "zone_id": "zone_ordinary_cave",
+   "name": "عنکبوت بلورین زیرزمینی",
+   "tier_title": "حارس غار سطح ۱",
+   "icon": "🕷️",
+   "lore": "عنکبوتی به اندازه یک سپر جنگی با پشتی پوشیده از خوشه‌های بلور شفاف و پاهای نیزه‌مانند.",
+   "stats": {
+    "max_hp": 75,
+    "spiritual_atk": 18,
+    "defense": 9,
+    "speed": 12
+   },
+   "rewards": {
+    "exp_qi": 40,
+    "spirit_stones": 3,
+    "loot_drops": [
+     {
+      "item_id": "crystal_chitin",
+      "name": "پوسته کیتینی بلورین",
+      "chance_percent": 50
+     },
+     {
+      "item_id": "sticky_web_thread",
+      "name": "تار ابریشم چسبنده غار",
+      "chance_percent": 65
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "crystal_spear_leg",
+     "name": "نیزه‌زنی پای بلورین",
+     "damage_multiplier": 1.1,
+     "descriptions": {
+      "hit": "پای تیز و شیشه‌ای عنکبوت چون نیزه‌ای در رانت فرورفت (-{damage} کالبد).",
+      "crit": "شکستن نوک بلور در گوشت! درد سوزاننده‌ای در پای بریده‌ات پیچید (-{damage} کالبد)!",
+      "miss": "پای عنکبوت در شکاف سنگ فرورفت و آسیبی به تو نرسید."
+     },
+     "name_en": "نیزه‌زنی پای بلورین",
+     "descriptions_en": {
+      "hit": "Crystal Web Spider lands نیزه‌زنی پای بلورین — {damage} damage.",
+      "crit": "Devastating! نیزه‌زنی پای بلورین from Crystal Web Spider tears through your guard ({damage} damage)!",
+      "miss": "Crystal Web Spider throws نیزه‌زنی پای بلورین, but you slip aside untouched."
+     }
+    },
+    {
+     "action_id": "acid_spit",
+     "name": "پرتاب اسید خورنده",
+     "damage_multiplier": 1.25,
+     "descriptions": {
+      "hit": "تف اسیدی سبز بر سینه‌ات پاشید و ردایت دود کرد (-{damage} کالبد).",
+      "crit": "اصابت مستقیم اسید به گوشت تن! بوی سوختگی گوشت برخاست (-{damage} کالبد)!",
+      "miss": "با آستین سپر کردی و توده اسید به دیواره سنگی خورد و جوشید."
+     },
+     "name_en": "پرتاب اسید خورنده",
+     "descriptions_en": {
+      "hit": "Crystal Web Spider lands پرتاب اسید خورنده — {damage} damage.",
+      "crit": "Devastating! پرتاب اسید خورنده from Crystal Web Spider tears through your guard ({damage} damage)!",
+      "miss": "Crystal Web Spider throws پرتاب اسید خورنده, but you slip aside untouched."
+     }
+    }
+   ],
+   "name_en": "Crystal Web Spider",
+   "tier_title_en": "Dense-Realm Horror",
+   "lore_en": "Its web is strung with glass wire. What it catches, it does not forget."
+  },
+  {
+   "enemy_id": "blood_bat",
+   "zone_id": "zone_ordinary_cave",
+   "name": "خفاش خون‌خوار سقف غار",
+   "tier_title": "بیست شبح‌گون سطح ۱",
+   "icon": "🦇",
+   "lore": "خفاشی با بال‌های چرمی به پهنای قد یک انسان که از طاق قندیل‌های غار به پایین شیرجه می‌زند.",
+   "stats": {
+    "max_hp": 60,
+    "spiritual_atk": 17,
+    "defense": 3,
+    "speed": 18
+   },
+   "rewards": {
+    "exp_qi": 32,
+    "spirit_stones": 2,
+    "loot_drops": [
+     {
+      "item_id": "bat_wing_membrane",
+      "name": "غشای نازک بال خفاش",
+      "chance_percent": 60
+     },
+     {
+      "item_id": "blood_essence_drop",
+      "name": "قطره جوهره خون تیره",
+      "chance_percent": 35
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "sonic_shriek",
+     "name": "جیغ ارتعاشی ماورای صوت",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "جیغ کرکننده‌ای پرده گوشت را لرزاند و خون از گوشت چکید (-{damage} کالبد).",
+      "crit": "فروپاشی تمرکز ذهنی! صدای زیر خفاش مریدین سرت را گیج کرد (-{damage} کالبد)!",
+      "miss": "با بستن مسیر تنفس و تمرکز چی، امواج صوت را پس زدی."
+     },
+     "name_en": "جیغ ارتعاشی ماورای صوت",
+     "descriptions_en": {
+      "hit": "Blood Drain Bat lands جیغ ارتعاشی ماورای صوت — {damage} damage.",
+      "crit": "Devastating! جیغ ارتعاشی ماورای صوت from Blood Drain Bat tears through your guard ({damage} damage)!",
+      "miss": "Blood Drain Bat throws جیغ ارتعاشی ماورای صوت, but you slip aside untouched."
+     }
+    },
+    {
+     "action_id": "blood_drain_bite",
+     "name": "گزش مکنده حیات",
+     "damage_multiplier": 1.2,
+     "descriptions": {
+      "hit": "خفاش بر پشتت چسبید و دندان‌هایش خون گرمت را مکید (-{damage} کالبد).",
+      "crit": "مکیدن عمیق رگ شریانی! سرمایی ناگهانی در سرت دوید (-{damage} کالبد)!",
+      "miss": "پیش از نشستن خفاش، با آرنج به بال چرمی‌اش کوبیدی و دورش کردی."
+     },
+     "name_en": "گزش مکنده حیات",
+     "descriptions_en": {
+      "hit": "Blood Drain Bat lands گزش مکنده حیات — {damage} damage.",
+      "crit": "Devastating! گزش مکنده حیات from Blood Drain Bat tears through your guard ({damage} damage)!",
+      "miss": "Blood Drain Bat throws گزش مکنده حیات, but you slip aside untouched."
+     }
+    }
+   ],
+   "name_en": "Blood Drain Bat",
+   "tier_title_en": "Dense-Realm Horror",
+   "lore_en": "It drinks to survive the day. Its squeak is already inside your ears."
+  },
+  {
+   "enemy_id": "iron_centipede",
+   "zone_id": "zone_ordinary_cave",
+   "name": "هزارپای زره‌پوش سنگ‌خوار",
+   "tier_title": "حارس غار سطح ۱ (تنومند)",
+   "icon": "🐛",
+   "lore": "موجودی دراز با ده‌ها پای خنجری و کالبدی از صفحات کیتینی سخت که ضربه تیغ معمولی بر آن کمانه می‌کند.",
+   "stats": {
+    "max_hp": 95,
+    "spiritual_atk": 15,
+    "defense": 12,
+    "speed": 10
+   },
+   "rewards": {
+    "exp_qi": 48,
+    "spirit_stones": 4,
+    "loot_drops": [
+     {
+      "item_id": "iron_carapace",
+      "name": "قطعه زره کیتینی خارا",
+      "chance_percent": 45
+     },
+     {
+      "item_id": "centipede_leg",
+      "name": "پای نیش‌دار هزارپا",
+      "chance_percent": 60
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "mandible_crush",
+     "name": "فشار فک‌های گازانبری",
+     "damage_multiplier": 1.2,
+     "descriptions": {
+      "hit": "آرواره‌های گازانبری هزارپا بر دنده‌هایت قفل شدند (-{damage} کالبد).",
+      "crit": "صدای شکستن استخوان! فک‌های پولادین گوشت را له کردند (-{damage} کالبد)!",
+      "miss": "سرت را به عقب کشیدی و فک‌ها با صدای تقی روی هم خوردند."
+     },
+     "name_en": "فشار فک‌های گازانبری",
+     "descriptions_en": {
+      "hit": "Iron-Plate Centipede lands فشار فک‌های گازانبری — {damage} damage.",
+      "crit": "Devastating! فشار فک‌های گازانبری from Iron-Plate Centipede tears through your guard ({damage} damage)!",
+      "miss": "Iron-Plate Centipede throws فشار فک‌های گازانبری, but you slip aside untouched."
+     }
+    },
+    {
+     "action_id": "centipede_wrap",
+     "name": "حلقه فشردن کالبد",
+     "damage_multiplier": 1.1,
+     "descriptions": {
+      "hit": "بدن دراز و سخت هزارپا دورت چرخید و دنده‌هایت را فشرد (-{damage} کالبد).",
+      "crit": "فشار خردکننده صفحات زرهی هزارپا نفست را حبس کرد (-{damage} کالبد)!",
+      "miss": "با یک لگد سریع به سر هیولا، مانع از بسته شدن حلقه تنش شدی."
+     },
+     "name_en": "حلقه فشردن کالبد",
+     "descriptions_en": {
+      "hit": "Iron-Plate Centipede lands حلقه فشردن کالبد — {damage} damage.",
+      "crit": "Devastating! حلقه فشردن کالبد from Iron-Plate Centipede tears through your guard ({damage} damage)!",
+      "miss": "Iron-Plate Centipede throws حلقه فشردن کالبد, but you slip aside untouched."
+     }
+    }
+   ],
+   "name_en": "Iron-Plate Centipede",
+   "tier_title_en": "Dense-Realm Horror",
+   "lore_en": "A hundred legs of forged links; the cave floor rings like a smithy."
+  },
+  {
+   "enemy_id": "wandering_specter",
+   "zone_id": "zone_ordinary_cave",
+   "name": "شبح سرگردان غار",
+   "tier_title": "موجود ارواح سطح ۱",
+   "icon": "👻",
+   "lore": "بقایای روح تهذیب‌گری فانی که در تاریکی جان باخته و کالبدی مه‌آلود از سرمای یین دارد.",
+   "stats": {
+    "max_hp": 70,
+    "spiritual_atk": 20,
+    "defense": 2,
+    "speed": 16
+   },
+   "rewards": {
+    "exp_qi": 45,
+    "spirit_stones": 3,
+    "loot_drops": [
+     {
+      "item_id": "yin_ghost_dust",
+      "name": "غبار سرمای یین",
+      "chance_percent": 50
+     },
+     {
+      "item_id": "broken_jade_pendant",
+      "name": "تکه آویز یشم شکسته",
+      "chance_percent": 25
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "frost_soul_touch",
+     "name": "لمس منجمدکننده روح",
+     "damage_multiplier": 1.1,
+     "descriptions": {
+      "hit": "دست مه‌آلود شبح از سینه‌ات گذشت و سرمای یین به قلبت زد (-{damage} کالبد).",
+      "crit": "انجماد مستقیم مریدین حیات! خون در رگت ایستاد و لرزیدی (-{damage} کالبد)!",
+      "miss": "با شعله‌ور کردن چی خورشیدی در دان‌تیانت، دست شبح تبخیر شد و گذشت."
+     },
+     "name_en": "لمس منجمدکننده روح",
+     "descriptions_en": {
+      "hit": "Wandering Specter lands لمس منجمدکننده روح — {damage} damage.",
+      "crit": "Devastating! لمس منجمدکننده روح from Wandering Specter tears through your guard ({damage} damage)!",
+      "miss": "Wandering Specter throws لمس منجمدکننده روح, but you slip aside untouched."
+     }
+    },
+    {
+     "action_id": "wailing_curse",
+     "name": "نفرین مویه تاریک",
+     "damage_multiplier": 1.3,
+     "descriptions": {
+      "hit": "شیون شبح دان‌تیانت را متزلزل کرد و شوک روانی بر تو زد (-{damage} کالبد).",
+      "crit": "فروپاشی حس الهی! فریاد شبح عقل و هوشت را به تاریکی کشاند (-{damage} کالبد)!",
+      "miss": "با ذکر مانترای آرامش ذهن، اثر نفرین صدا را خنثی کردی."
+     },
+     "name_en": "نفرین مویه تاریک",
+     "descriptions_en": {
+      "hit": "Wandering Specter lands نفرین مویه تاریک — {damage} damage.",
+      "crit": "Devastating! نفرین مویه تاریک from Wandering Specter tears through your guard ({damage} damage)!",
+      "miss": "Wandering Specter throws نفرین مویه تاریک, but you slip aside untouched."
+     }
+    }
+   ],
+   "name_en": "Wandering Specter",
+   "tier_title_en": "Dense-Realm Horror",
+   "lore_en": "Not every seeker who entered the cave found a way out. This one is still seeking."
   },
   {
    "enemy_id": "rock_serpent",
+   "zone_id": "zone_bamboo_forest",
    "name": "مار صخره‌ای",
    "name_en": "Rock-Back Serpent",
-   "guard_level": 2,
-   "hp": 150,
-   "atk": 19,
-   "def": 14,
-   "sdef": 10,
-   "speed": 13,
-   "loot": {
-    "stones": [
-     2,
-     4
-    ],
-    "qi": [
-     50,
-     110
-    ],
-    "drop": {
-     "mat_serpent_scale": 0.18
+   "tier_title": "حیوان بنیادین",
+   "tier_title_en": "Foundation Beast",
+   "icon": "🐍",
+   "lore": "مار صخره‌ای پشت‌سختی است که پوستهٔ سنگینش تیغ را می‌شکند.",
+   "lore_en": "A heavy-backed serpent whose stone hide snaps blades.",
+   "stats": {
+    "max_hp": 150,
+    "spiritual_atk": 19,
+    "defense": 14,
+    "speed": 13
+   },
+   "rewards": {
+    "exp_qi": 80,
+    "spirit_stones": 3,
+    "loot_drops": [
+     {
+      "item_id": "mat_serpent_scale",
+      "name": "فلس صخره‌ای",
+      "name_en": "Serpent Scale",
+      "chance_percent": 18
+     },
+     {
+      "item_id": "herb_wild_ginseng",
+      "name": "کوه‌گل کوهی",
+      "name_en": "Mountain Ginseng",
+      "chance_percent": 12
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "rock_serpent_a1",
+     "name": "فشار سنگی",
+     "name_en": "Stone Crush",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "تن صخره‌ای چون پتک بر تو فرود آمد (−{damage} کالبد).",
+      "crit": "چرخش ناگهانی! تن سنگین له‌ات کرد (−{damage} کالبد)!",
+      "miss": "پره‌سازی سریع؛ تن سخت مار تنها خاک را شکافت."
+     },
+     "descriptions_en": {
+      "hit": "Its stone body slams down on you (−{damage} body).",
+      "crit": "Sudden coil! The crushing weight bore you down (−{damage} body)!",
+      "miss": "You rolled clear; the serpent split only gravel."
+     }
+    },
+    {
+     "action_id": "rock_serpent_a2",
+     "name": "نیشِ کوه‌بُر",
+     "name_en": "Mountain-Bore Fang",
+     "damage_multiplier": 1.25,
+     "descriptions": {
+      "hit": "دندان‌های صخره‌سایش گاردت را سایید (−{damage} کالبد).",
+      "crit": "نیشِ مرگبار، استخوان را شکافت (−{damage} کالبد)!",
+      "miss": "جاخالی دادی و نیش بر سنگ خورد."
+     },
+     "descriptions_en": {
+      "hit": "Rock-grinding fangs scrape your guard (−{damage} body).",
+      "crit": "Death-fang — it cracks bone (−{damage} body)!",
+      "miss": "You dodged and the fang rasped into stone."
+     }
     }
-   }
+   ]
   },
   {
    "enemy_id": "mist_panther",
+   "zone_id": "zone_bamboo_forest",
    "name": "پلنگ مه",
    "name_en": "Mist-Stalking Panther",
-   "guard_level": 2,
-   "hp": 130,
-   "atk": 24,
-   "def": 9,
-   "sdef": 12,
-   "speed": 19,
-   "loot": {
-    "stones": [
-     2,
-     5
-    ],
-    "qi": [
-     55,
-     120
-    ],
-    "drop": {
-     "talisman_gale_blade": 0.12,
-     "herb_wild_ginseng": 0.1
+   "tier_title": "حیوان بنیادین",
+   "tier_title_en": "Foundation Beast",
+   "icon": "🐆",
+   "lore": "پلنگ مه‌آلود در سکوت سفید ناپدید می‌شود و تنها چنگال‌ها می‌مانند.",
+   "lore_en": "The mist panther vanishes into white silence; only claws remain.",
+   "stats": {
+    "max_hp": 130,
+    "spiritual_atk": 24,
+    "defense": 9,
+    "speed": 19
+   },
+   "rewards": {
+    "exp_qi": 87,
+    "spirit_stones": 3,
+    "loot_drops": [
+     {
+      "item_id": "mat_panther_fang",
+      "name": "نیش پلنگ مه",
+      "name_en": "Panther Fang",
+      "chance_percent": 22
+     },
+     {
+      "item_id": "herb_moon_dew",
+      "name": "شبنم‌گل",
+      "name_en": "Moondew",
+      "chance_percent": 15
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "mist_panther_a1",
+     "name": "چنگال خاموش",
+     "name_en": "Silent Claw",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "از دلِ مه درآمد و چنگالش بر شانه‌ات نشست (−{damage} کالبد).",
+      "crit": "ضربهٔ غافلگیرانه از سایه‌ها؛ پنجه تا استخوان رفت (−{damage} کالبد)!",
+      "miss": "مه کنار رفت و چنگال بر جای خالی خط کشید."
+     },
+     "descriptions_en": {
+      "hit": "Out of the mist it comes; claws rake your shoulder (−{damage} body).",
+      "crit": "Ambush from the shadows — the paw reaches bone (−{damage} body)!",
+      "miss": "You slipped aside; its claws score the air you occupied."
+     }
+    },
+    {
+     "action_id": "mist_panther_a2",
+     "name": "جهشِ مه‌آلود",
+     "name_en": "Mist Pounce",
+     "damage_multiplier": 1.25,
+     "descriptions": {
+      "hit": "پلنگ بر تو جهید و با وزن کامل کوبیدت (−{damage} کالبد).",
+      "crit": "جهش آسمانیِ شکاری! نفس از سینه‌ات برم‌آمد (−{damage} کالبد)!",
+      "miss": "در آخرین لحظه کج شدی و بدنش چون باد از کنارت گذشت."
+     },
+     "descriptions_en": {
+      "hit": "The panther leaps with full weight (−{damage} body).",
+      "crit": "Sky-pounce of a hunter! The wind leaves your chest (−{damage} body)!",
+      "miss": "At the last instant you twisted; it passed like wind."
+     }
     }
-   }
+   ]
   },
   {
    "enemy_id": "blood_croc",
+   "zone_id": "zone_blood_marsh",
    "name": "تمساح خون",
    "name_en": "Blood Marsh Crocodile",
-   "guard_level": 3,
-   "hp": 320,
-   "atk": 40,
-   "def": 26,
-   "sdef": 18,
-   "speed": 12,
-   "loot": {
-    "stones": [
-     3,
-     8
-    ],
-    "qi": [
-     130,
-     260
-    ],
-    "drop": {
-     "mat_serpent_scale": 0.25,
-     "talisman_crimson_thunder": 0.12
+   "tier_title": "وحشت مرداب",
+   "tier_title_en": "Marsh Horror",
+   "icon": "🐊",
+   "lore": "تمساح خون‌آشامِ مرداب؛ فک‌هایش استخوان را خرد می‌کند.",
+   "lore_en": "The marsh's blood-drinker; its jaws crush bone.",
+   "stats": {
+    "max_hp": 320,
+    "spiritual_atk": 40,
+    "defense": 26,
+    "speed": 12
+   },
+   "rewards": {
+    "exp_qi": 195,
+    "spirit_stones": 5,
+    "loot_drops": [
+     {
+      "item_id": "mat_croc_hide",
+      "name": "پوست تمساح",
+      "name_en": "Croc Hide",
+      "chance_percent": 24
+     },
+     {
+      "item_id": "herb_marsh_ginseng",
+      "name": "جینسنگ مرداب",
+      "name_en": "Marsh Ginseng",
+      "chance_percent": 14
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "blood_croc_a1",
+     "name": "فکِ استخوان‌شکن",
+     "name_en": "Bone-Crushing Jaws",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "فک‌هایش بر بازویت بسته شد (−{damage} کالبد).",
+      "crit": "چرخش مرگ! استخوان‌هایت زیر فشار خرد شد (−{damage} کالبد)!",
+      "miss": "فک بر آب کوبید و تو پریدیدی."
+     },
+     "descriptions_en": {
+      "hit": "Its jaws clamp on your arm (−{damage} body).",
+      "crit": "DEATH ROLL! Bone grinds under pressure (−{damage} body)!",
+      "miss": "The jaws slammed the water as you threw clear."
+     }
+    },
+    {
+     "action_id": "blood_croc_a2",
+     "name": "ضربهٔ دم",
+     "name_en": "Tail Slam",
+     "damage_multiplier": 1.25,
+     "descriptions": {
+      "hit": "دم زره‌پوشش چون شلاق به پهلوت خورد (−{damage} کالبد).",
+      "crit": "دمِ سنگین کمر را نشانه رفت (−{damage} کالبد)!",
+      "miss": "دم سوت کشید و گذشت؛ تنها بادش به صورتت خورد."
+     },
+     "descriptions_en": {
+      "hit": "The armored tail lashes your flank (−{damage} body).",
+      "crit": "The heavy tail strikes your spine (−{damage} body)!",
+      "miss": "It whistled past; only its wind stung."
+     }
     }
-   }
+   ]
   },
   {
    "enemy_id": "marsh_wraith",
+   "zone_id": "zone_blood_marsh",
    "name": "ارواح باتلاق",
    "name_en": "Marsh Wraith",
-   "guard_level": 3,
-   "hp": 240,
-   "atk": 52,
-   "def": 12,
-   "sdef": 40,
-   "speed": 22,
-   "loot": {
-    "stones": [
-     4,
-     9
-    ],
-    "qi": [
-     150,
-     300
-    ],
-    "drop": {
-     "talisman_seal_flame": 0.2
+   "tier_title": "وحشت مرداب",
+   "tier_title_en": "Marsh Horror",
+   "icon": "👻",
+   "lore": "روح گرسنهٔ مرداب که نفس‌های آخر را شکار می‌کند.",
+   "lore_en": "A hungry marsh spirit that hunts the last breath.",
+   "stats": {
+    "max_hp": 240,
+    "spiritual_atk": 52,
+    "defense": 12,
+    "speed": 22
+   },
+   "rewards": {
+    "exp_qi": 225,
+    "spirit_stones": 6,
+    "loot_drops": [
+     {
+      "item_id": "mat_soul_ash",
+      "name": "خاکستر روح",
+      "name_en": "Soul Ash",
+      "chance_percent": 30
+     },
+     {
+      "item_id": "herb_blood_lotus",
+      "name": "نیلفر خون",
+      "name_en": "Blood Lotus",
+      "chance_percent": 20
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "marsh_wraith_a1",
+     "name": "بوسهٔ سرد",
+     "name_en": "Cold Kiss",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "لب‌های یخی‌اش چیِ تو را مکید (−{damage} کالبد).",
+      "crit": "فریادش روح را می‌لرزاند؛ سردی تا مغز استخوان (−{damage} کالبد)!",
+      "miss": "دستان شبح‌آسا از میانهٔ تن تو گذشت و جز سرما نبرد."
+     },
+     "descriptions_en": {
+      "hit": "Its frozen lips drink your Qi (−{damage} body).",
+      "crit": "Its shriek shakes the soul; cold gnaws to the bone (−{damage} body)!",
+      "miss": "Spectral hands pass through and take only warmth."
+     }
+    },
+    {
+     "action_id": "marsh_wraith_a2",
+     "name": "زنجیر ارواح",
+     "name_en": "Chain of Souls",
+     "damage_multiplier": 1.25,
+     "descriptions": {
+      "hit": "زنجیری از بخار مچت را بست (−{damage} کالبد).",
+      "crit": "زنجیر پیچید و هولهات را درید (−{damage} کالبد)!",
+      "miss": "زنجیر به مه تبدیل شد و پیش از رسیدن گسست."
+     },
+     "descriptions_en": {
+      "hit": "A vapor chain lashes around you (−{damage} body).",
+      "crit": "It coils and rends your robe (−{damage} body)!",
+      "miss": "The chain turns to fog and unravels short."
+     }
     }
-   }
+   ]
   },
   {
    "enemy_id": "spring_serpent_king",
+   "zone_id": "zone_heavenly_spring",
    "name": "شاه‌مار چشمه بهشتی",
    "name_en": "Spring Serpent King",
-   "guard_level": 4,
-   "hp": 620,
-   "atk": 78,
-   "def": 44,
-   "sdef": 40,
-   "speed": 20,
-   "loot": {
-    "stones": [
-     8,
-     16
-    ],
-    "qi": [
-     350,
-     700
-    ],
-    "drop": {
-     "talisman_crimson_thunder": 0.3,
-     "mat_thunder_wood": 0.25
+   "tier_title": "نگهبان چشمه",
+   "tier_title_en": "Spring Guardian",
+   "icon": "🐉",
+   "lore": "پادشاه اژدهای چشمه؛ نگهبانِ رگه‌های ناب چی.",
+   "lore_en": "Serpent king of the spring, warden of the purest veins.",
+   "stats": {
+    "max_hp": 620,
+    "spiritual_atk": 78,
+    "defense": 44,
+    "speed": 20
+   },
+   "rewards": {
+    "exp_qi": 525,
+    "spirit_stones": 12,
+    "loot_drops": [
+     {
+      "item_id": "mat_king_scale",
+      "name": "فلس شاهانه",
+      "name_en": "King's Scale",
+      "chance_percent": 48
+     },
+     {
+      "item_id": "ore_sunstone",
+      "name": "خورشیدسنگ",
+      "name_en": "Sunstone Ore",
+      "chance_percent": 38
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "spring_serpent_king_a1",
+     "name": "موجِ فلس‌های فولاد",
+     "name_en": "Wave of Steel Scales",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "فلس‌های شاهانه چون تیغ پاره شدند (−{damage} کالبد).",
+      "crit": "خروش اژدها! موج فلس قلب را لرزاند (−{damage} کالبد)!",
+      "miss": "موج از کنارت شکافته شد و آب آرام ماند."
+     },
+     "descriptions_en": {
+      "hit": "Royal scales burst like thorns of shrapnel (−{damage} body).",
+      "crit": "Dragon's roar! The scale-wave shatters your guard (−{damage} body)!",
+      "miss": "The wave broke around you; the water stayed calm."
+     }
+    },
+    {
+     "action_id": "spring_serpent_king_a2",
+     "name": "فشار آب",
+     "name_en": "Spring Pressure",
+     "damage_multiplier": 1.25,
+     "descriptions": {
+      "hit": "فشار چشمه بر شانه‌ات نشست (−{damage} کالبد).",
+      "crit": "آبِ فشرده چون نعلک بر سینه‌ات کوبید (−{damage} کالبد)!",
+      "miss": "حبابِ فشار پیش از رسیدن ترکید."
+     },
+     "descriptions_en": {
+      "hit": "The spring's pressure settles on your shoulders (−{damage} body).",
+      "crit": "Compressed water hammers your chest (−{damage} body)!",
+      "miss": "The pressure-bubble burst before it reached you."
+     }
     }
-   }
+   ]
   },
   {
    "enemy_id": "jade_guardian",
+   "zone_id": "zone_heavenly_spring",
    "name": "نگهبان یشم",
    "name_en": "Jade Statue Guardian",
-   "guard_level": 4,
-   "hp": 880,
-   "atk": 66,
-   "def": 70,
-   "sdef": 46,
-   "speed": 11,
-   "loot": {
-    "stones": [
-     9,
-     18
-    ],
-    "qi": [
-     380,
-     720
-    ],
-    "drop": {
-     "pill_marrow_wash": 0.15
+   "tier_title": "نگهبان چشمه",
+   "tier_title_en": "Spring Guardian",
+   "icon": "🗿",
+   "lore": "مجسمهٔ یشمی که نگهبان چشمهٔ آسمانی است و هرگز نمی‌خوابد.",
+   "lore_en": "A jade statue guarding the heavenly spring; it never sleeps.",
+   "stats": {
+    "max_hp": 880,
+    "spiritual_atk": 66,
+    "defense": 70,
+    "speed": 11
+   },
+   "rewards": {
+    "exp_qi": 550,
+    "spirit_stones": 13,
+    "loot_drops": [
+     {
+      "item_id": "mat_jade_shard",
+      "name": "قطعه یشم ناب",
+      "name_en": "Pure Jade Shard",
+      "chance_percent": 40
+     },
+     {
+      "item_id": "mat_starlight_sand",
+      "name": "شن ستاره‌ای",
+      "name_en": "Starlight Sand",
+      "chance_percent": 30
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "jade_guardian_a1",
+     "name": "مشتِ یشم",
+     "name_en": "Jade Fist",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "مشت یشمین بر تو فرود آمد (−{damage} کالبد).",
+      "crit": "مجسمه زنده شد! مشت کوه‌وار فرو ریخت (−{damage} کالبد)!",
+      "miss": "بازوی یشمی میان دو هوای خالی بسته شد."
+     },
+     "descriptions_en": {
+      "hit": "The jade fist descends upon you (−{damage} body).",
+      "crit": "The statue awakens — a mountain-fall of a punch (−{damage} body)!",
+      "miss": "The jade arm closes on empty air."
+     }
+    },
+    {
+     "action_id": "jade_guardian_a2",
+     "name": "پرتو نگهبان",
+     "name_en": "Warden's Beam",
+     "damage_multiplier": 1.25,
+     "descriptions": {
+      "hit": "چشمانش نورِ سوزان افکند (−{damage} کالبد).",
+      "crit": "قضاوتِ نور: پرتو از میان سایه‌ات گذشت (−{damage} کالبد)!",
+      "miss": "چشم‌هایش چشمک زد و پرتو به زمین خورد."
+     },
+     "descriptions_en": {
+      "hit": "Burning light sears from its eyes (−{damage} body).",
+      "crit": "Verdict of light: the beam pierces your shadow (−{damage} body)!",
+      "miss": "Its eyes blinked; the beam scorched the ground."
+     }
     }
-   }
+   ]
   },
   {
    "enemy_id": "thunder_roc",
+   "zone_id": "zone_thunder_plateau",
    "name": "رعد طائر صاعقه",
    "name_en": "Thunderclap Roc",
-   "guard_level": 7,
-   "hp": 2600,
-   "atk": 260,
-   "def": 130,
-   "sdef": 120,
-   "speed": 44,
-   "loot": {
-    "stones": [
-     30,
-     60
-    ],
-    "qi": [
-     2500,
-     4500
-    ],
-    "drop": {
-     "mat_thunder_wood": 0.5,
-     "acc_thunder_pearl": 0.06
+   "tier_title": "آفت فلات",
+   "tier_title_en": "Plateau Scourge",
+   "icon": "🦅",
+   "lore": "رُخِ صاعقه‌زاد که بال‌هایش طوفان را می‌درد.",
+   "lore_en": "A thunder-born roc whose wings rip storms open.",
+   "stats": {
+    "max_hp": 2600,
+    "spiritual_atk": 260,
+    "defense": 130,
+    "speed": 44
+   },
+   "rewards": {
+    "exp_qi": 3500,
+    "spirit_stones": 45,
+    "loot_drops": [
+     {
+      "item_id": "mat_roc_plume",
+      "name": "پَر صاعقه‌ای",
+      "name_en": "Thunder Plume",
+      "chance_percent": 70
+     },
+     {
+      "item_id": "mat_thunder_stone",
+      "name": "سنگ صاعقه‌زده",
+      "name_en": "Thunder-Forged Stone",
+      "chance_percent": 55
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "thunder_roc_a1",
+     "name": "تیزهٔ صاعقه",
+     "name_en": "Lightning Talon",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "تیزه‌ای آتشین پهلوت را شکافت (−{damage} کالبد).",
+      "crit": "فروقات از ابرِ سیاه؛ چنگال صاعقه‌آسا (−{damage} کالبد)!",
+      "miss": "سایه‌اش از زیرت گذشت؛ پنجه بر کوه خراشید."
+     },
+     "descriptions_en": {
+      "hit": "A burning talon splits your side (−{damage} body).",
+      "crit": "Dive from the black cloud — lightning talons! (−{damage} body)",
+      "miss": "Its shadow swept beneath; claws scored the mountain."
+     }
+    },
+    {
+     "action_id": "thunder_roc_a2",
+     "name": "بال‌های طوفان",
+     "name_en": "Storm Wings",
+     "damage_multiplier": 1.25,
+     "descriptions": {
+      "hit": "بال‌هایش بادی تیغ‌باران ساخت (−{damage} کالبد).",
+      "crit": "طوفان بال، پرستوان را شکافت (−{damage} کالبد)!",
+      "miss": "باد تو را پس راند، بی‌آسیب."
+     },
+     "descriptions_en": {
+      "hit": "Its wings scatter a storm of blades (−{damage} body).",
+      "crit": "The wing-storm tears at your robe (−{damage} body)!",
+      "miss": "The gale shoved you back, unharmed."
+     }
     }
-   }
+   ]
   },
   {
    "enemy_id": "storm_qilin",
+   "zone_id": "zone_thunder_plateau",
    "name": "قیلین طوفان",
    "name_en": "Storm-Qilin Sovereign",
-   "guard_level": 7,
-   "hp": 4200,
-   "atk": 310,
-   "def": 180,
-   "sdef": 160,
-   "speed": 38,
-   "loot": {
-    "stones": [
-     45,
-     90
-    ],
-    "qi": [
-     3200,
-     6000
-    ],
-    "drop": {
-     "wpn_thunder_awl": 0.1,
-     "nat_ancient_bell": 0.02
+   "tier_title": "آفت فلات",
+   "tier_title_en": "Plateau Scourge",
+   "icon": "🦌",
+   "lore": "کایلینِ توفان؛ داوری آهنین بر فلات صاعقه.",
+   "lore_en": "The storm qilin — an iron verdict upon the plateau.",
+   "stats": {
+    "max_hp": 4200,
+    "spiritual_atk": 310,
+    "defense": 180,
+    "speed": 38
+   },
+   "rewards": {
+    "exp_qi": 4600,
+    "spirit_stones": 67,
+    "loot_drops": [
+     {
+      "item_id": "mat_qilin_horn",
+      "name": "شاخهٔ کایلین",
+      "name_en": "Qilin Horn Shard",
+      "chance_percent": 85
+     },
+     {
+      "item_id": "mat_titan_ore",
+      "name": "سنگ تیتان",
+      "name_en": "Titan Ore",
+      "chance_percent": 65
+     }
+    ]
+   },
+   "actions": [
+    {
+     "action_id": "storm_qilin_a1",
+     "name": "سمِ عدالت",
+     "name_en": "Hoof of Judgment",
+     "damage_multiplier": 1.0,
+     "descriptions": {
+      "hit": "سمِ آهنین زمین را شکافت و ترکش به تو خورد (−{damage} کالبد).",
+      "crit": "رعدِ سم! هالهٔ زرین منفجر شد (−{damage} کالبد)!",
+      "miss": "سم بر جای خالی فرود آمد و تو چرخیدی."
+     },
+     "descriptions_en": {
+      "hit": "The iron hoof cracked the earth; shrapnel strikes (−{damage} body).",
+      "crit": "Thunder-hoof! The golden halo detonates (−{damage} body)!",
+      "miss": "The hoof struck empty ground as you spun clear."
+     }
+    },
+    {
+     "action_id": "storm_qilin_a2",
+     "name": "نفسِ رعد",
+     "name_en": "Breath of Thunder",
+     "damage_multiplier": 1.25,
+     "descriptions": {
+      "hit": "بازدمش جرقه‌های آبی بر ردایت ریخت (−{damage} کالبد).",
+      "crit": "آذرخش از دهانش تابید و هاله‌ات را درید (−{damage} کالبد)!",
+      "miss": "برق در موهایت وزوز کرد و خاموش شد."
+     },
+     "descriptions_en": {
+      "hit": "Its exhalation rains blue sparks (−{damage} body).",
+      "crit": "Lightning from its jaws rends your aura (−{damage} body)!",
+      "miss": "The bolts buzzed through your hair and died."
+     }
     }
-   }
+   ]
   }
  ],
  "guardians": [

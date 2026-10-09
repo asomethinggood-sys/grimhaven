@@ -1,27 +1,39 @@
-"""Slash commands + the persistent reply-keyboard router (Part 3 §2)."""
+"""Slash commands + the persistent reply-keyboard router (spec P1 §2–3).
+
+The dock lives at the bottom of the chat forever (is_persistent). Root
+screens follow the single-window lifecycle: the previous root message is
+deleted (or de-weaponized), a fresh one is sent, and its id is stored in
+``user["ui"]["active_menu_message_id"]``. ``/panel`` silently re-attaches
+the dock when Telegram has dropped it.
+"""
 from __future__ import annotations
 
 from telegram import Update
+from telegram.constants import ParseMode
+from telegram.error import BadRequest
+
+MessageNotModified = BadRequest  # PTB v21 surfaces "not modified" as BadRequest
 from telegram.ext import ContextTypes
 
-from ...engine.models import in_seclusion
+from ...core.middleware import callback_blocked
 from ...localization import t
-from ...render import admin_text
-from ..keyboards import REPLY_TO_ACTION, language_kb, reply_kb
-from .callbacks import _dispatch
+from ...render import start_text
+from ..keyboards import REPLY_TO_ACTION, dock_reply_kb, start_kb
+from .callbacks import _canon, _dispatch
 from .common import Ctx
 
-# Part 1/3: BotFather command registry (also pushed via set_my_commands on boot)
+# BotFather command registry (also pushed via set_my_commands on boot)
 BOT_COMMANDS = [
     ("start", "آغاز سفر جاودانگی / Begin the immortal journey"),
+    ("panel", "بازگرداندن پنل ابزار / Restore the persistent tool panel"),
     ("me", "لوح سرنوشت / Destiny scroll (profile)"),
-    ("cultivate", "مدیتیشن و برداشت چی / Manage meditation & claim Qi"),
-    ("breakthrough", "آزمون شکست سد / Attempt realm breakthrough"),
-    ("map", "نقشه، شکار و تسخیر / World map, hunt & conquer"),
+    ("cultivate", "بارگاه مراقبه / Meditation hub & claim"),
+    ("breakthrough", "آزمون شکست سد / Tribulation prep"),
+    ("map", "نقشه و شکار / World map & hunt"),
     ("bag", "کوله و حلقه فضایی / Bag & spatial ring"),
-    ("skills", "طومارها و چیدمان نبرد / Martial arts & combat deck"),
+    ("skills", "تالار طومارها / Martial pavilion & deck"),
     ("shop", "پاویون تجارت / Spirit Pavilion"),
-    ("sect", "فرقه / Sect management"),
+    ("sect", "فرقه / Sect"),
     ("settings", "زبان و تنظیمات / Settings & language"),
     ("help", "راهنما / Guide"),
 ]
@@ -31,124 +43,131 @@ def get_ctx(context: ContextTypes.DEFAULT_TYPE) -> Ctx:
     return context.bot_data["ctx"]
 
 
-async def _run(update: Update, context: ContextTypes.DEFAULT_TYPE, action: str,
-               arg: str = "", fresh_message: bool = True) -> None:
-    """Send a fresh message rendering for a game action (commands & reply keys)."""
+async def _run(update: Update, context: ContextTypes.DEFAULT_TYPE, data: str) -> None:
+    """Route a reply/dock press or slash command through the dispatch contract."""
     ctx: Ctx = get_ctx(context)
     user, _created = ctx.get_or_create_user(update.effective_user)
+    lang = user["account"]["language"]
     if user["account"].get("is_banned"):
-        await update.message.reply_text(t(user["account"]["language"], "ERR_BANNED"))
+        await update.message.reply_text(t(lang, "ERR_BANNED"))
+        return
+    data = _canon(data, user)
+    blocked = callback_blocked(user, data)
+    if blocked:
+        await update.message.reply_text(t(lang, blocked))
         return
     settle_res = ctx.settle(user)
-    lang = user["account"]["language"]
+    action, arg = _split_for(data)
     try:
-        text, kb = _dispatch(ctx, user, action, arg, settle_res)
+        text, kb, opts = _dispatch(ctx, user, action, arg, settle_res)
     except Exception:  # pragma: no cover — safety net
         import traceback
         traceback.print_exc()
-        text, kb = ctx.back_reply(user, t(lang, "ERR_UNKNOWN"))
+        text, kb, opts = t(lang, "ERR_UNKNOWN"), None, {}
+    await _present(update.message, user, text, kb, opts)
     ctx.save(user)
-    if fresh_message:
-        await update.message.reply_text(text, reply_markup=kb)
+
+
+def _split_for(data: str) -> tuple[str, str]:
+    action, _, arg = data.partition(":")
+    return action, arg
+
+
+async def _present(message, user: dict, text: str, kb, opts: dict) -> None:
+    """Single-window lifecycle for command/dock renders."""
+    if opts.get("root", True):
+        menu_id = (user.get("ui") or {}).get("active_menu_message_id")
+        if menu_id:
+            try:
+                await message.bot.delete_message(message.chat_id, menu_id)
+            except BadRequest:
+                pass
+        try:
+            sent = await message.reply_text(text, reply_markup=kb)
+            user.setdefault("ui", {})["active_menu_message_id"] = sent.message_id
+        except BadRequest:
+            pass
     else:
-        await update.message.edit_text(text, reply_markup=kb)
+        try:
+            await message.reply_text(text, reply_markup=kb)
+        except BadRequest:
+            pass
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Minimal onboarding: two-line narrative + ONE inline CTA, then the dock."""
     ctx: Ctx = get_ctx(context)
-    tg_user = update.effective_user
-    user, created = ctx.get_or_create_user(tg_user)
+    user, created = ctx.get_or_create_user(update.effective_user)
     if user["account"].get("is_banned"):
         await update.message.reply_text(t(user["account"]["language"], "ERR_BANNED"))
         return
     lang = user["account"]["language"]
-    if created:
-        await update.message.reply_text(t("fa", "WELCOME_NEW"), reply_markup=language_kb())
-        return
     ctx.settle(user)
     ctx.save(user)
-    text, kb = ctx.profile_reply(user)
-    await update.message.reply_text(text, reply_markup=kb)
-    await update.message.reply_text(t(lang, "DOCK_HINT"), reply_markup=reply_kb(lang))
+    sent = await update.message.reply_text(start_text(lang), reply_markup=start_kb(lang))
+    user.setdefault("ui", {})["active_menu_message_id"] = sent.message_id
+    dock_msg = await update.message.reply_text(t(lang, "DOCK_LANDED"),
+                                               reply_markup=dock_reply_kb(lang))
+    ctx.save(user)
+
+
+async def cmd_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Silent recovery of the persistent keyboard (spec P1 §3)."""
+    ctx: Ctx = get_ctx(context)
+    user, _ = ctx.get_or_create_user(update.effective_user)
+    lang = user["account"]["language"]
+    try:
+        await update.message.delete()
+    except (BadRequest, MessageNotModified):
+        pass
+    sent = await update.message.chat.send_message(t(lang, "PANEL_RESTORED"),
+                                                  reply_markup=dock_reply_kb(lang))
+    user.setdefault("ui", {})["active_menu_message_id"] = sent.message_id
+    ctx.save(user)
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    ctx: Ctx = get_ctx(context)
-    user, _ = ctx.get_or_create_user(update.effective_user)
-    await update.message.reply_text(t(user["account"]["language"], "HELP_TEXT"),
-                                    reply_markup=reply_kb(user["account"]["language"]))
+    await _run(update, context, "settings:help")
 
 
 async def cmd_me(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    ctx: Ctx = get_ctx(context)
-    user, _ = ctx.get_or_create_user(update.effective_user)
-    if user["account"].get("is_banned"):
-        await update.message.reply_text(t(user["account"]["language"], "ERR_BANNED"))
-        return
-    settle_res = ctx.settle(user)
-    ctx.save(user)
-    notes = _settle_notes(user["account"]["language"], settle_res)
-    text, kb = ctx.profile_reply(user)
-    await update.message.reply_text((notes + "\n\n" if notes else "") + text, reply_markup=kb)
-
-
-def _settle_notes(lang: str, res: dict) -> str:
-    if not res or res.get("gained", 0) <= 0 and not res.get("events"):
-        return ""
-    parts = []
-    if res.get("elapsed_hours", 0) >= 0.05 and res.get("gained", 0) > 0:
-        parts.append(t(lang, "AFK_REPORT", hours=res["elapsed_hours"],
-                       gained=res["gained"], rate=res.get("rate", 0)))
-    for event in res.get("events", []):
-        if event["type"] == "TREASURE":
-            parts.append(t(lang, "LUCKY_TREASURE", stones=event["stones"]))
-        elif event["type"] == "AMBUSH":
-            parts.append(t(lang, "BANDIT_AMBUSH", stolen=event["stolen"]))
-    return "\n".join(parts)
+    await _run(update, context, "profile:view:main")
 
 
 async def cmd_cultivate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    ctx: Ctx = get_ctx(context)
-    user, _ = ctx.get_or_create_user(update.effective_user)
-    action = "stop_meditate" if user["cultivation"].get("meditating") else "meditate"
-    await _run(update, context, action)
+    await _run(update, context, "cultivate:view:hub")
 
 
 async def cmd_breakthrough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await _run(update, context, "breakthrough")
+    await _run(update, context, "breakthrough:view:prep")
 
 
 async def cmd_map(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await _run(update, context, "map")
+    await _run(update, context, "map:view:world")
 
 
 async def cmd_bag(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await _run(update, context, "bag", "tab:gear")
+    await _run(update, context, "bag:tab:gear:1")
 
 
 async def cmd_skills(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await _run(update, context, "martial")
+    await _run(update, context, "martial:view:main")
 
 
 async def cmd_shop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await _run(update, context, "shop")
+    await _run(update, context, "shop:view:hub")
 
 
 async def cmd_sect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await _run(update, context, "sect")
+    await _run(update, context, "sect:view:main")
 
 
 async def cmd_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    ctx: Ctx = get_ctx(context)
-    user, _ = ctx.get_or_create_user(update.effective_user)
-    await update.message.reply_text(t(user["account"]["language"], "SETTINGS_TITLE"),
-                                    reply_markup=language_kb())
+    await _run(update, context, "settings:view:main")
 
 
 async def cmd_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    ctx: Ctx = get_ctx(context)
-    user, _ = ctx.get_or_create_user(update.effective_user)
-    await update.message.reply_text("🌐 Language / زبان", reply_markup=language_kb())
+    await _run(update, context, "settings:view:main")
 
 
 async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -159,10 +178,7 @@ async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user, _ = ctx.get_or_create_user(update.effective_user)
     user["account"]["is_admin"] = True
     ctx.save(user)
-    lang = user["account"]["language"]
-    text = admin_text(lang, ctx.storage, ctx.boost_label())
-    from ..keyboards import admin_kb
-    await update.message.reply_text(text, reply_markup=admin_kb(lang))
+    await _run(update, context, "admin:usage:broadcast")
 
 
 async def on_reply_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -170,7 +186,7 @@ async def on_reply_button(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if not update.message or not update.message.text:
         return
     text = update.message.text.strip()
-    action = REPLY_TO_ACTION.get(text)
-    if not action:
+    data = REPLY_TO_ACTION.get(text)
+    if not data:
         return
-    await _run(update, context, action)
+    await _run(update, context, data)

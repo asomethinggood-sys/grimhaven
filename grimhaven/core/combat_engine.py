@@ -30,6 +30,21 @@ from ..engine.models import iso, parse_iso
 
 SESSION_STALE_MINUTES = 15
 
+
+class _NarrDict(dict):
+    """format_map dict that leaves unknown ``{placeholder}`` tokens intact."""
+    def __missing__(self, key):  # pragma: no cover - defensive
+        return "{" + key + "}"
+
+
+def fmt_narrative(template: str, **vals) -> str:
+    """Fill dataset templates ({damage}, {target}, {name}) without KeyErrors."""
+    try:
+        return template.format_map(_NarrDict({k: str(v) for k, v in vals.items()}))
+    except (ValueError, AttributeError, TypeError):
+        return template
+
+
 # outcomes of resolve_round()
 OUT_CONTINUE = "CONTINUE"
 OUT_VICTORY = "VICTORY"
@@ -44,7 +59,11 @@ def make_beast(enemy_id: str, rng: random.Random) -> dict | None:
     proto = data_registry.get_beast(enemy_id)
     if not proto:
         return None
-    jitter = lambda v: max(1, int(v * rng.uniform(0.85, 1.15)))
+    return _snap(proto, rng, 0.85, 1.15)
+
+
+def _snap(proto, rng: random.Random, lo: float, hi: float) -> dict:
+    jitter = lambda v: max(1, int(v * rng.uniform(lo, hi)))
     return {"id": proto.enemy_id, "hp": jitter(proto.hp), "max_hp": jitter(proto.hp),
             "atk": jitter(proto.atk), "def": jitter(proto.def_), "sdef": jitter(proto.sdef),
             "speed": jitter(proto.speed), "guard_level": proto.guard_level}
@@ -56,10 +75,7 @@ def make_guardian(guard_level: int, rng: random.Random) -> dict | None:
         # fall back to the strongest beast of that sector tier
         return make_beast((data_registry.beasts_for_guard(guard_level) or [None])[0].enemy_id
                           if data_registry.beasts_for_guard(guard_level) else "", rng)
-    jitter = lambda v: max(1, int(v * rng.uniform(0.9, 1.1)))
-    return {"id": proto.enemy_id, "hp": jitter(proto.hp), "max_hp": jitter(proto.hp),
-            "atk": jitter(proto.atk), "def": jitter(proto.def_), "sdef": jitter(proto.sdef),
-            "speed": jitter(proto.speed), "guard_level": proto.guard_level}
+    return _snap(proto, rng, 0.9, 1.1)
 
 
 def make_rival(realm: int, rng: random.Random) -> dict:
@@ -69,6 +85,13 @@ def make_rival(realm: int, rng: random.Random) -> dict:
     return {"id": proto.enemy_id, "hp": j(proto.hp), "max_hp": j(proto.hp), "atk": j(proto.atk),
             "def": j(proto.def_), "sdef": j(proto.sdef), "speed": j(proto.speed) + realm * 2,
             "guard_level": 0}
+
+
+def enemy_proto(enemy: dict):
+    """Dataset record backing a live session enemy (spec-schema aware)."""
+    return (data_registry.get_beast(enemy.get("id", ""))
+            or data_registry.get_guardian(enemy.get("guard_level", 0))
+            or data_registry.rival)
 
 
 def enemy_name(enemy: dict, lang: str) -> str:
@@ -98,6 +121,7 @@ def start_session(user: dict, enemy: dict, kind: str, zone_id: str | None = None
         "finished": False,
         "outcome": None,
         "reward": None,
+        "log": {"p": "", "e": ""},
         "started_at": iso(),
         "updated_at": iso(),
     }
@@ -174,10 +198,13 @@ def _flavor(tech, tier: str, target_name: str, damage: int, lang: str) -> str:
             template = getattr(tech.descriptions_en, tier, None) or getattr(tech.descriptions, tier)
         else:
             template = getattr(tech.descriptions, tier)
-        return template.format(target=target_name, damage=f"{damage:,}")
     except (AttributeError, KeyError, ValueError, IndexError):
         from ..localization import t
         return t(lang, "COMBAT_HIT_GENERIC", target=target_name, damage=damage)
+    if template:
+        return fmt_narrative(template, target=target_name, damage=damage, name=target_name)
+    from ..localization import t
+    return t(lang, "COMBAT_HIT_GENERIC", target=target_name, damage=damage)
 
 
 # ── the turn resolver ────────────────────────────────────────────────────────
@@ -227,6 +254,7 @@ def resolve_round(user: dict, action: str, action_id: str | None = None,
             dmg = max(5, int(atk * 0.7 * buff) - e["def"] // 4)
             e["hp"] = max(0, e["hp"] - dmg)
             lines.append(t(lang, "COMBAT_BASIC", damage=dmg, qi=restore))
+            session["log"]["p"] = lines[-1]
             _weapon_specials(user, session, dmg, lines, rng)
         elif action == "combat:tech" and action_id:
             tech = data_registry.get_technique(action_id)
@@ -243,6 +271,7 @@ def resolve_round(user: dict, action: str, action_id: str | None = None,
                 _finish(user, session, lines)
                 return OUT_FLED, lines
             lines.append(t(lang, "COMBAT_FLEE_FAIL"))
+            session["log"]["p"] = lines[-1]
         elif skip_player and lines:
             pass  # stun/confuse message already logged
     elif p["hp"] <= 0:
@@ -261,27 +290,41 @@ def resolve_round(user: dict, action: str, action_id: str | None = None,
         lines.append("🔥")
         return _judge_victory(user, session, lines, rng)
 
-    # ── enemy turn ──
+    # ── enemy turn (dataset action pool + hit/crit/miss narratives, P4 §3.2) ──
     if skip_enemy:
         lines.append(t(lang, "COMBAT_ENEMY_STUNNED", enemy=enemy))
+        session["log"]["e"] = lines[-1]
     else:
         et = enemy_traits(user, e, session)
+        proto = enemy_proto(e)
+        pool = list(proto.actions) if proto else []
         strikes = 2 if (et["double"] and rng.uniform(0, 100) < 15) else 1
         for _ in range(strikes):
             if p["hp"] <= 0:
                 break
+            act = rng.choice(pool) if pool else None
+            mult = act.damage_multiplier if act else 1.0
             eva = max(0, min(40, (prof["meridian_speed"] - e["speed"]) * 1.2 + 5))
             eva += int(_status_mod(session["statuses"]["p"], "evade", "chance", 0.0) * 100)
             if rng.uniform(0, 100) < min(55, eva):
-                lines.append(t(lang, "COMBAT_DODGED", enemy=enemy))
+                miss_line = t(lang, "COMBAT_DODGED", enemy=enemy)
+                if act:
+                    ms = act.desc_for(lang).miss
+                    if ms:
+                        miss_line = fmt_narrative(ms, damage=0, target=t(lang, "COMBAT_YOU"), name=enemy)
+                lines.append(miss_line)
+                session["log"]["e"] = miss_line
                 continue
-            raw = max(1.0, e["atk"] * (1 - _status_mod(session["statuses"]["e"], "atk_cut", "pct")))
+            raw = max(1.0, e["atk"] * mult * (1 - _status_mod(session["statuses"]["e"], "atk_cut", "pct")))
             p_def = prof["physical_def"] * (1 + _status_mod(session["statuses"]["p"], "fortify", "def_pct"))
             red = max(0.0, min(0.75, p_def / (p_def + 100)))
             dmg = raw * (1 - red)
             guard_mit = _status_mod(session["statuses"]["p"], "guard", "mitigation")
             if guard_mit:
                 dmg *= max(0.2, 1 - guard_mit)
+            is_e_crit = rng.uniform(0, 100) < 12
+            if is_e_crit:
+                dmg *= 1.45
             dmg = max(1, int(dmg))
             if session["shield"] > 0:
                 absorbed = min(session["shield"], dmg)
@@ -291,13 +334,24 @@ def resolve_round(user: dict, action: str, action_id: str | None = None,
                     lines.append(t(lang, "COMBAT_SHIELD", absorbed=absorbed))
             if dmg > 0:
                 p["hp"] -= dmg
-                lines.append(t(lang, "COMBAT_ENEMY_HIT", enemy=enemy, damage=dmg))
+                hit_line = t(lang, "COMBAT_ENEMY_HIT", enemy=enemy, damage=dmg)
+                if act:
+                    dset = act.desc_for(lang)
+                    tpl = dset.crit if is_e_crit else dset.hit
+                    if tpl:
+                        hit_line = fmt_narrative(tpl, damage=dmg, target=t(lang, "COMBAT_YOU"), name=enemy)
+                        if is_e_crit:
+                            hit_line = "💢 " + hit_line
+                lines.append(hit_line)
+                session["log"]["e"] = hit_line
 
     # ── lethal check → miracle escape or true death ──
     if p["hp"] <= 0 and not session["finished"]:
         return _judge_death(user, session, lines, prof, rng)
 
     if not session["finished"]:
+        session["log"].setdefault("p", "")
+        session["log"].setdefault("e", "")
         session["round"] += 1
         session["updated_at"] = iso()
         _sync_hp(user, session)
@@ -389,6 +443,7 @@ def _player_technique(user, session, tech, prof, rng, enemy_label: str | None = 
     name = tech.name if lang != "en" else (tech.name_en or tech.name)
     lines.append(t(lang, "COMBAT_SKILL", skill=name))
     lines.append(_flavor(tech, tier, enemy_name(e, lang), dmg, lang))
+    session.setdefault("log", {})["p"] = lines[-1]
 
     if tech.lifesteal_pct:
         heal = max(1, int(dmg * tech.lifesteal_pct))
@@ -438,6 +493,7 @@ def _use_combat_item(user, session, item_id, rng) -> list[str]:
     if not items_mod.consume_item(user, item_id):
         return [t(lang, "ITEM_NONE_LEFT", item=item.name_for(lang))]
     lines = [t(lang, "COMBAT_ITEM_USED", item=item.name_for(lang))]
+    session.setdefault("log", {})["p"] = lines[-1]
     e = session["enemy"]
     if item.action == "instant_damage":
         raw = item.fixed_damage * (1 - min(1.0, item.bypass_defense_percent / 100.0) *
@@ -463,16 +519,21 @@ def _use_combat_item(user, session, item_id, rng) -> list[str]:
 # ── resolution & consequences ────────────────────────────────────────────────
 
 def _apply_victory(user: dict, session: dict, lines: list[str], rng: random.Random) -> None:
+    """Spec P4 §5.2 rewards: fixed exp_qi + spirit_stones, per-drop chance rolls."""
     from ..localization import t
     lang = user["account"]["language"]
     e = session["enemy"]
-    proto = (data_registry.get_beast(e["id"]) or data_registry.get_guardian(e.get("guard_level", 0))
-             or data_registry.rival)
-    loot = (proto.loot if proto else {}) or {}
-    stones_rng = loot.get("stones") or (1, 2)
-    qi_rng = loot.get("qi") or (15, 40)
-    stones = rng.randint(*stones_rng) if stones_rng[1] else 0
-    qi = rng.randint(*qi_rng) if qi_rng[1] else 0
+    proto = enemy_proto(e)
+    rewards = proto.rewards if proto else None
+    if rewards and (rewards.exp_qi or rewards.spirit_stones or rewards.loot_drops):
+        qi = rewards.exp_qi
+        st_lo, st_hi = rewards.spirit_stones, rewards.spirit_stones
+    else:
+        loot = (proto.loot if proto else {}) or {}
+        qi_rng, st_rng = loot.get("qi") or [15, 40], loot.get("stones") or [1, 2]
+        qi = rng.randint(*qi_rng) if len(qi_rng) == 2 else 0
+        st_lo, st_hi = st_rng
+    stones = rng.randint(st_lo, st_hi) if st_hi else 0
     cul = user["cultivation"]
     room = max(0, cul["qi_capacity"] - cul["qi_current"])
     qi_gain = min(qi, room)
@@ -480,14 +541,16 @@ def _apply_victory(user: dict, session: dict, lines: list[str], rng: random.Rand
     user["inventory"]["spirit_stones"]["low"] += stones
 
     drops: list[str] = []
-    for item_id, chance in (loot.get("drop") or {}).items():
-        if rng.uniform(0, 1) < chance:
-            from ..engine.models import add_item, ring_has_room
-            obj = data_registry.get_consumable(item_id) or data_registry.get_equipment(item_id)
-            is_gear = data_registry.get_equipment(item_id) is not None
-            if obj and (is_gear or item_id in user["inventory"]["items"] or ring_has_room(user, item_id)):
-                add_item(user, item_id, 1, is_gear=is_gear)
-                drops.append(obj.name_for(lang))
+    from ..engine.models import add_item, ring_has_room
+    for drop in (rewards.loot_drops if rewards else []):
+        if rng.randint(1, 100) <= drop.chance_percent:
+            obj = data_registry.get_consumable(drop.item_id) or data_registry.get_equipment(drop.item_id)
+            is_gear = data_registry.get_equipment(drop.item_id) is not None
+            if obj and (is_gear or drop.item_id in user["inventory"]["items"] or ring_has_room(user, drop.item_id)):
+                add_item(user, drop.item_id, 1, is_gear=is_gear)
+                drops.append(drop.name_for(lang) or obj.name_for(lang))
+            else:
+                drops.append((drop.name_for(lang) or obj.name_for(lang)) + (" (حلقه پُر)" if lang != "en" else " (ring full)"))
     reward = {"stones": stones, "qi": qi_gain, "drops": drops}
     session["reward"] = reward
     user["combat"]["wins"] += 1
@@ -570,6 +633,31 @@ def _sync_hp(user: dict, session: dict) -> None:
 
 
 # ── fast-forward auto battle ─────────────────────────────────────────────────
+
+def battle_item_sources(user: dict) -> list[str]:
+    """Row-4 sources for the battle keyboard: the two assigned slots, falling
+    back to the first two usable combat items owned (spec P2)."""
+    slots = [s for s in (user.get("combat", {}).get("item_slots") or []) if s]
+    picked = []
+    for iid in slots:
+        item = data_registry.get_consumable(iid)
+        if item and (user["inventory"].get("items", {}).get(iid, 0) > 0):
+            picked.append(iid)
+        if len(picked) == 2:
+            return picked
+    if picked:
+        return picked
+    for iid, qty in sorted(user["inventory"].get("items", {}).items()):
+        item = data_registry.get_consumable(iid)
+        if not item or qty <= 0:
+            continue
+        if item.category in ("disposable_weapon", "talisman", "relic") or \
+           item.action in ("instant_damage", "shield", "enemy_debuff", "heal_hp"):
+            picked.append(iid)
+        if len(picked) == 2:
+            break
+    return picked
+
 
 def auto_pick_action(user: dict, session: dict) -> tuple[str, str | None]:
     loadout = [t for t in user["combat"]["loadout"] if t]

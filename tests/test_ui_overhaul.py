@@ -63,15 +63,17 @@ def test_ring_capacity_is_bounded():
 # ── FSM guard matrix (Part 3 §2) ─────────────────────────────────────────────
 
 def test_guard_blocks_matrix():
+    # P6: continuous cultivation — the old trance lock is retired entirely
     m = doc(status="meditating")
     m["cultivation"]["meditating"] = True
     m["cultivation"]["meditation_started_at"] = utcnow().isoformat()
-    assert callback_blocked(m, "travel:zone_misty_peak") == "GUARD_MEDITATING"
-    assert callback_blocked(m, "hunt:zone_mortal_valley") == "GUARD_MEDITATING"
-    assert callback_blocked(m, "stop_meditate") is None
-    assert callback_blocked(m, "menu") is None
-    assert callback_blocked(m, "bag:use:pill_spirit") is None  # pill-mid-trance is allowed
-    assert callback_blocked(m, "bag:equip:wpn_iron_leaf") == "GUARD_MEDITATING"
+    assert callback_blocked(m, "map:action:settle:zone_mist_peak") is None
+    assert callback_blocked(m, "map:action:hunt:zone_valley_mortals") is None
+    assert callback_blocked(m, "bag:action:consume:pill_spirit") is None
+    assert callback_blocked(m, "bag:action:equip:wpn_iron_leaf") is None
+    # a legacy doc stuck in meditating must behave as plain IDLE
+    from grimhaven.core.state_machine import get_status, UserStatus
+    assert get_status(m) is UserStatus.IDLE
 
     combat = doc(status="in_combat")
     combat["combat"]["session"] = {"round": 1, "battle_id": "x", "updated_at": utcnow().isoformat(),
@@ -79,34 +81,40 @@ def test_guard_blocks_matrix():
                                    "cooldowns": {"p": {}, "e": {}}, "shield": 0,
                                    "enemy": {"hp": 1, "max_hp": 2, "atk": 1, "def": 1, "sdef": 1, "speed": 1},
                                    "player": {"hp": 1, "max_hp": 2, "qi": 0, "max_qi": 1}}
-    assert callback_blocked(combat, "menu") == "GUARD_COMBAT"
-    assert callback_blocked(combat, "combat:basic") is None
+    assert callback_blocked(combat, "profile:view:main") == "GUARD_COMBAT"
+    assert callback_blocked(combat, "combat:act:basic:none:1") is None
     assert callback_blocked(combat, "combat:item:pill_spirit") is None
+    # bag navigation + pill swallowing pass the combat lock (round-2 §P4)
+    assert callback_blocked(combat, "bag:tab:consumables:1") is None
+    assert callback_blocked(combat, "bag:action:consume:pill_spirit") is None
+    assert callback_blocked(combat, "map:view:world") == "GUARD_COMBAT"
 
     injured = doc(status="heavily_injured")
     injured["combat"]["injury"] = {"debuff_id": "severe_meridian_injury",
                                    "expires_at": (utcnow() + dt.timedelta(hours=2)).isoformat()}
-    assert callback_blocked(injured, "breakthrough_do") == "GUARD_INJURED"
+    assert callback_blocked(injured, "breakthrough:action:confirm") == "GUARD_INJURED"
+    assert callback_blocked(injured, "map:action:conquer:zone_blood_marsh") == "GUARD_INJURED"
     assert callback_blocked(injured, "hunt:zone_blood_marsh") is None
-    assert callback_blocked(injured, "bag") is None
+    assert callback_blocked(injured, "bag:tab:gear:1") is None
 
     para = doc(status="heavily_injured")
     para["combat"]["paralysis_until"] = (utcnow() + dt.timedelta(minutes=30)).isoformat()
     para["combat"]["injury"] = {"debuff_id": "severe_meridian_injury",
                                 "expires_at": (utcnow() + dt.timedelta(hours=2)).isoformat()}
-    assert callback_blocked(para, "meditate") == "GUARD_PARALYSIS"
-    assert callback_blocked(para, "bag:tab:consumables") is None
+    assert callback_blocked(para, "cultivate:view:hub") is None  # always-readable screens
+    assert callback_blocked(para, "bag:tab:consumables:1") is None
+    assert callback_blocked(para, "map:view:world") == "GUARD_PARALYSIS"
+    assert callback_blocked(para, "breakthrough:view:prep") == "GUARD_PARALYSIS"
 
 
-def test_seclusion_blocks_claim_actions():
+def test_seclusion_lock_retired():
+    """The tribulation is now instant; an old seclusion doc must not gate play."""
     s = doc(status="seclusion_tribulation")
     s["cultivation"]["seclusion_finish_time"] = (utcnow() + dt.timedelta(minutes=20)).isoformat()
-    assert callback_blocked(s, "hunt:zone_blood_marsh") == "GUARD_SECLUSION"
-    assert callback_blocked(s, "bag:tab:gear") is None  # read-only viewing stays open
-    assert callback_blocked(s, "bag:equip:x") == "GUARD_SECLUSION"
-    assert callback_blocked(s, "check_tribulation") is None
-    assert callback_blocked(s, "breakthrough") is None
-    assert callback_blocked(s, "stop_meditate") is None
+    assert callback_blocked(s, "hunt:zone_blood_marsh") is None
+    assert callback_blocked(s, "bag:tab:gear:1") is None
+    assert callback_blocked(s, "bag:action:equip:x") is None
+    assert callback_blocked(s, "breakthrough:view:prep") is None
 
 
 # ── data registry consistency ────────────────────────────────────────────────
@@ -161,7 +169,7 @@ def test_early_game_balance_sane():
     n = 60
     for i in range(n):
         u = ensure_v2(new_user_doc(100 + i, f"p{i}", "en"))
-        enemy = ce.make_beast("wild_boar", random.Random(i))
+        enemy = ce.make_beast("valley_wolf", random.Random(i))
         ce.start_session(u, enemy, "hunt")
         outcome, _summary, _snap = ce.simulate(u, rng=random.Random(1000 + i))
         wins += outcome == ce.OUT_VICTORY

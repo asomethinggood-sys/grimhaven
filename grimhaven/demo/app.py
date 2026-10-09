@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from ..bot.handlers.callbacks import _dispatch
+from ..bot.keyboards import DOCK_ROWS, REPLY_TO_ACTION
 from ..bot.handlers.common import Ctx
 from ..core.data_loader import bootstrap as bootstrap_data
 from ..core.middleware import callback_blocked
@@ -65,18 +66,28 @@ def create_app(database_path: Path | None = None) -> FastAPI:
         raw = f"{act}:{arg}" if arg else act
         alert_key = callback_blocked(user, raw)
         if alert_key:
-            return JSONResponse({"text": t(user["account"]["language"], alert_key),
-                                 "alert": True, "keyboard": [], "settle": {"gained": 0, "events": []}})
+            lang0 = user["account"]["language"]
+            return JSONResponse({"text": t(lang0, alert_key), "alert": t(lang0, alert_key),
+                                 "keyboard": [], "settle": {"gained": 0, "events": []},
+                                 "dock": [[{"label": lbl, "data": REPLY_TO_ACTION.get(lbl, "menu")}
+                                           for lbl in row]
+                                          for row in DOCK_ROWS.get(lang0, DOCK_ROWS["fa"])]})
         settle_res = ctx.settle(user, now=utcnow())
-        text, kb = _dispatch(ctx, user, act, arg, settle_res, now=utcnow())
+        text, kb, opts = _dispatch(ctx, user, act, arg, settle_res, now=utcnow())
         ctx.save(user)
         keyboard = []
         if kb is not None:
             keyboard = [[{"label": b.text, "data": b.callback_data} for b in row]
                         for row in kb.inline_keyboard]
+        lang = user["account"]["language"]
         return JSONResponse({
             "text": text,
             "keyboard": keyboard,
+            "alert": opts.get("alert"),
+            "toast": opts.get("answer"),
+            "dock": [[{"label": lbl, "data": REPLY_TO_ACTION.get(lbl, "menu")}
+                      for lbl in row]
+                     for row in DOCK_ROWS.get(lang, DOCK_ROWS["fa"])],
             "settle": {"gained": settle_res.get("gained", 0),
                        "events": settle_res.get("events", [])},
         })

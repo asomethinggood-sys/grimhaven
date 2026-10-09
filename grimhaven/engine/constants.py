@@ -167,16 +167,20 @@ TECHNIQUES: dict[str, dict] = {
 # ─────────────────────────────────────────────────────────────────────────────
 # Chapters 1/5 — world zones & spirit veins
 # ─────────────────────────────────────────────────────────────────────────────
-ZONES: dict[str, dict] = {
-    "zone_mortal_valley": {"key": "ZONE_MORTAL_VALLEY", "vein_density": 1.0, "min_realm": 1, "guard": 1},
-    "zone_common_cave":   {"key": "ZONE_COMMON_CAVE",   "vein_density": 1.3, "min_realm": 1, "guard": 1},
-    "zone_bamboo_forest": {"key": "ZONE_BAMBOO_FOREST", "vein_density": 1.8, "min_realm": 2, "guard": 2},
-    "zone_misty_peak":    {"key": "ZONE_MISTY_PEAK",    "vein_density": 2.2, "min_realm": 2, "guard": 2},
-    "zone_blood_marsh":   {"key": "ZONE_BLOOD_MARSH",   "vein_density": 3.0, "min_realm": 3, "guard": 3},
-    "zone_heaven_spring": {"key": "ZONE_HEAVEN_SPRING", "vein_density": 4.5, "min_realm": 4, "guard": 4},
-    "zone_thunder_plateau": {"key": "ZONE_THUNDER_PLATEAU", "vein_density": 5.0, "min_realm": 7, "guard": 7},
-}
-DEFAULT_ZONE = "zone_mortal_valley"
+def _zones_bridge() -> dict[str, dict]:
+    """Legacy-shape view over data/zones.json (the dataset is the source of truth)."""
+    import json as _json
+    from pathlib import Path as _P
+    path = _P(__file__).resolve().parent.parent.parent / "data" / "zones.json"
+    raw = _json.loads(path.read_text(encoding="utf-8"))
+    return {zid: {"key": z["key"], "vein_density": float(z["density"]),
+                  "min_realm": int(z["required_realm_tier"]), "guard": int(z["guard"]),
+                  "icon": z["icon"], "name": z["name"], "name_en": z["name_en"]}
+            for zid, z in raw.items()}
+
+
+ZONES: dict[str, dict] = _zones_bridge()
+DEFAULT_ZONE = "zone_valley_mortals"
 
 # NPC sects joinable from Foundation Establishment (doc §2.3)
 NPC_SECTS: dict[str, dict] = {

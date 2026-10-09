@@ -6,8 +6,8 @@ import datetime as dt
 from ...db.storage import Storage
 from ...engine.cultivation import CultivationEngine
 from ...engine.models import ensure_v2, new_user_doc, parse_iso, utcnow
-from ...render import deep_profile_text, profile_text
-from ..keyboards import back_to_menu, deep_kb, main_menu
+from ...render import hud_text
+from ..keyboards import profile_kb
 
 
 class Ctx:
@@ -43,6 +43,12 @@ class Ctx:
         return doc, True
 
     def settle(self, user: dict, now: dt.datetime | None = None) -> dict:
+        now = now or utcnow()
+        from ...core import combat_engine as ce
+        sess = user["combat"].get("session")
+        # 15-minute staleness rule: an unfinished, forgotten battle dissolves
+        if sess and not sess.get("finished") and ce.session_expired(sess, now):
+            ce.close_session(user)
         return CultivationEngine.settle_afk(user, now=now, world_boost=self.world_boost(now))
 
     def save(self, user: dict) -> None:
@@ -52,15 +58,17 @@ class Ctx:
         return user_id in self.admin_ids
 
     def profile_reply(self, user: dict, now: dt.datetime | None = None):
-        """(text, keyboard) for the streamlined destiny-scroll panel."""
+        """(text, keyboard) for the destiny-scroll HUD."""
         now = now or utcnow()
-        text = profile_text(self.storage, user, world_boost=self.world_boost(now), now=now)
-        keyboard = main_menu(user["account"]["language"], user)
-        return text, keyboard
+        lang = user["account"]["language"]
+        text = hud_text(self.storage, user, world_boost=self.world_boost(now), now=now)
+        return text, profile_kb(lang)
 
     def deep_reply(self, user: dict):
+        from ...render import meridians_text
         lang = user["account"]["language"]
-        return deep_profile_text(lang, user), deep_kb(lang)
+        return meridians_text(lang, user), profile_kb(lang)
 
     def back_reply(self, user: dict, text: str):
-        return text, back_to_menu(user["account"]["language"])
+        from ..keyboards import back_profile_kb
+        return text, back_profile_kb(user["account"]["language"])

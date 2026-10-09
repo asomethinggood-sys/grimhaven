@@ -43,6 +43,11 @@
   }
   .k:hover { border-color: var(--gold); color: var(--gold); transform: translateY(-1px); }
   .banner { color: var(--jade); font-size: 12px; padding: 0 18px 8px; }
+  #dock { display: flex; flex-direction: column; gap: 6px; padding: 10px 18px 4px;
+    border-top: 1px solid rgba(212,175,55,.35); background: rgba(11,14,20,.92); }
+  #dock .row { display: flex; gap: 6px; }
+  #dock .k { background: #10162a; border-color: rgba(212,175,55,.4); font-size: 12.5px; padding: 8px 6px; }
+  #dock .k:hover { background: #17203a; }
 </style>
 </head>
 <body>
@@ -60,6 +65,7 @@
   </header>
   <div id="feed" dir="auto"></div>
   <div class="banner" id="banner"></div>
+  <div id="dock"></div>
   <div id="keys"></div>
 </div>
 <script>
@@ -74,6 +80,20 @@ function add(text, gold) {
   d.textContent = text;
   feed.appendChild(d);
   feed.scrollTop = feed.scrollHeight;
+}
+function drawDock(rows) {
+  const dock = document.getElementById("dock");
+  dock.innerHTML = "";
+  (rows || []).forEach(row => {
+    const r = document.createElement("div"); r.className = "row";
+    row.forEach(b => {
+      const btn = document.createElement("button");
+      btn.className = "k"; btn.textContent = b.label;
+      btn.onclick = () => act(b.data);
+      r.appendChild(btn);
+    });
+    dock.appendChild(r);
+  });
 }
 function drawKeyboard(rows) {
   keys.innerHTML = "";
@@ -101,7 +121,8 @@ let lastText = "";
 async function act(data) {
   const [action, arg] = parseData(data || "menu");
   const out = await api("/api/action", { user_id: uid, action, arg });
-  if (out.alert) { toast(out.text); return; }   // FSM guard: scold, keep the screen
+  drawDock(out.dock);
+  if (out.alert) { toast(out.alert); }          // popup: the screen below still refreshes
   if (out.settle && out.settle.gained > 0) {
     banner.textContent = `⏳ +${out.settle.gained} Qi gathered while you were away…`;
   } else if (out.settle && (out.settle.events || []).length) {
@@ -109,6 +130,7 @@ async function act(data) {
   } else {
     banner.textContent = "";
   }
+  if (out.toast) toast(out.toast);
   if (out.text === lastText) {
     const last = feed.lastElementChild; if (last) { last.style.animation = "none"; last.offsetHeight; last.style.animation = ""; }
   } else add(out.text, true);

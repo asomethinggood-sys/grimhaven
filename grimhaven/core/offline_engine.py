@@ -47,7 +47,8 @@ class OfflineAdventureEngine:
     @classmethod
     def process_meditation_claim(cls, user: dict, now: dt.datetime,
                                  base_report: dict, world_boost: float = 1.0,
-                                 rng: random.Random | None = None) -> tuple[str, dict]:
+                                 rng: random.Random | None = None,
+                                 start: dt.datetime | None = None) -> tuple[str, dict]:
         """Roll idle-adventure events for the meditation just claimed, apply the
         effects to the user document and render the bilingual chronicle.
 
@@ -56,7 +57,7 @@ class OfflineAdventureEngine:
         rng = rng or random
         lang = user["account"]["language"]
         cul = user["cultivation"]
-        start = parse_iso(cul.get("meditation_started_at")) \
+        start = start or parse_iso(cul.get("meditation_started_at")) \
             or parse_iso(cul.get("last_afk_timestamp")) or now
         end = now
         elapsed = max(0.0, (end - start).total_seconds() / 3600.0)

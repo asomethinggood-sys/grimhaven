@@ -410,6 +410,19 @@ def auto_fit_deck(user: dict) -> None:
     _compact(user)
 
 
+def learn_art(user: dict, art_id: str) -> dict:
+    """Free-claim a manual: register ownership + auto-fit the deck."""
+    art = data_registry.get_martial_art(art_id)
+    if not art:
+        return {"status": "UNKNOWN"}
+    arts = user["inventory"].setdefault("arts", [])
+    if art_id in arts:
+        return {"status": "ALREADY_LEARNED"}
+    arts.append(art_id)
+    auto_fit_deck(user)
+    return {"status": "OK", "art": art.name_for(user["account"]["language"])}
+
+
 # ── Dao & alignment ──────────────────────────────────────────────────────────
 
 def choose_dao(user: dict, dao: str, alignment: str | None = None) -> dict:
@@ -449,3 +462,68 @@ def gear_label(user: dict, gear: dict | None) -> tuple[str, str]:
 
 def tier_power(tier: str) -> int:
     return TIER_POWER.get(tier, 0)
+
+
+# ── liberated pavilion free booths & battle slots (spec P5 §4.4–4.6 / P2) ────
+
+BOOTH_CAP_PER_CLAIM = 5
+BOOTH_CATALOGS = {
+    "pills": ["pill_marrow_wash", "pill_spirit_gather_low", "pill_vitality_refine", "pill_guardian"],
+    "gear": ["wpn_rusty_spirit_dagger", "wpn_iron_leaf", "robe_hemp", "ring_canvas"],
+    "talismans": ["talisman_crimson_thunder", "talisman_gale_blade",
+                  "talisman_iron_wall", "talisman_seal_flame"],
+}
+
+
+def booth_entries(user: dict, booth: str) -> list[dict]:
+    """Item list offered by a free testing booth (data-driven, price 0)."""
+    from ..core.data_loader import data_registry
+    out = []
+    for iid in BOOTH_CATALOGS.get(booth, []):
+        item = data_registry.get_consumable(iid) or data_registry.get_equipment(iid)
+        if not item:
+            continue
+        owned = count_item(user, iid) if not data_registry.get_equipment(iid) else \
+            (1 if iid in (user["inventory"].get("gear") or {}) else 0)
+        out.append({"item_id": iid, "name": item.name_for(user.get("account", {}).get("language", "fa")),
+                    "price": 0, "owned": owned})
+    return out
+
+
+def booth_claim(user: dict, item_id: str, cap: int = BOOTH_CAP_PER_CLAIM) -> int:
+    """Free claim, capped per claim to keep ledgers sane. Returns granted qty."""
+    from ..core.data_loader import data_registry
+    if data_registry.get_equipment(item_id):
+        gear = user["inventory"].setdefault("gear", {})
+        if item_id not in gear:
+            gear[item_id] = {"dur": 100}
+            return 1
+        return 0
+    have = int(user["inventory"].get("items", {}).get(item_id, 0))
+    granted = max(0, min(cap, cap * 2 - have))  # top-up to 2×cap ceiling
+    if granted:
+        add_item(user, item_id, granted)
+    return granted
+
+
+def set_battle_item(user: dict, item_id: str) -> str:
+    """Assign a usable item to the battle keyboard's first free slot."""
+    from ..core.data_loader import data_registry
+    item = data_registry.get_consumable(item_id)
+    if not item:
+        return "ERR_UNKNOWN"
+    if not user["combat"].get("item_slots"):
+        user["combat"]["item_slots"] = []
+    slots = user["combat"]["item_slots"]
+    if item_id in slots:
+        return "OK"
+    if len([s for s in slots if s]) >= 2:
+        slots[0] = item_id
+    else:
+        while len(slots) < 2:
+            slots.append(None)
+        for i in range(2):
+            if not slots[i]:
+                slots[i] = item_id
+                break
+    return "OK"
