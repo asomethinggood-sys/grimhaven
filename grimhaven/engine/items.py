@@ -490,9 +490,21 @@ def booth_entries(user: dict, booth: str) -> list[dict]:
     return out
 
 
-def booth_claim(user: dict, item_id: str, cap: int = BOOTH_CAP_PER_CLAIM) -> int:
-    """Free claim, capped per claim to keep ledgers sane. Returns granted qty."""
+def booth_claim(user: dict, item_id: str, cap: int = BOOTH_CAP_PER_CLAIM,
+                booth: str | None = None) -> int:
+    """Free claim, capped per claim to keep ledgers sane. Returns granted qty.
+
+    Only items listed in the booth's catalog (or, when ``booth`` is None, in any
+    booth) may be claimed — otherwise players could mint any shop item for free.
+    """
     from ..core.data_loader import data_registry
+    if not (data_registry.get_equipment(item_id) or data_registry.get_consumable(item_id)):
+        return 0  # unknown item — never mint phantom ring entries
+    if booth is not None:
+        if item_id not in BOOTH_CATALOGS.get(booth, []):
+            return 0
+    elif not any(item_id in ids for ids in BOOTH_CATALOGS.values()):
+        return 0
     if data_registry.get_equipment(item_id):
         gear = user["inventory"].setdefault("gear", {})
         if item_id not in gear:

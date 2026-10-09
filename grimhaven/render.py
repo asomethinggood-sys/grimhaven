@@ -160,7 +160,7 @@ def hud_text(storage, user: dict, world_boost: float = 1.0,
     prof = combat_profile(user, now)
     loc = user["location"]
     zdef = data_registry.get_zone(loc.get("current_zone_id", ""))
-    density = loc.get("density") or loc.get("vein_density") or (zdef.density if zdef else 1.0)
+    density = loc.get("vein_density") or loc.get("density") or (zdef.density if zdef else 1.0)
     rate = afk_hourly_rate(user, world_boost=world_boost, now=now)
 
     # equipped block: active slots only — never render an empty line
@@ -339,8 +339,8 @@ def bag_text(lang: str, user: dict, tab: str = "gear", page: int = 1) -> str:
         empty_key = {"gear": "BAG_EMPTY_GEAR", "consumables": "BAG_EMPTY_PILLS",
                      "materials": "BAG_EMPTY_MATS"}[tab]
         lines.append(t(lang, empty_key))
-    for iid, label in chunk:
-        lines.append(f"▪️ {label}  ·`{iid}`")
+    for _iid, label in chunk:
+        lines.append(f"▪️ {label}")
     lines.append(DIV)
     lines.append(t(lang, "BAG_PAGE", page=page, pages=pages))
     return "\n".join(lines)
@@ -371,11 +371,14 @@ def bag_inspect_text(lang: str, user: dict, item_id: str) -> str:
     else:
         count = items_mod.count_item(user, item_id)
         lines.append(t(lang, "INSPECT_QTY", qty=count))
-    desc = getattr(obj, "description", "") or getattr(obj, "description_en", "") if item else ""
+    desc = ""
     if item:
-        desc = item.description_en if (lang == "en" and getattr(item, "description_en", None)) else getattr(obj, "description", "")
-    if not desc and gear:
-        desc = getattr(gear, "special_effect", "") or ""
+        desc = item.description_en if (lang == "en" and getattr(item, "description_en", None)) \
+            else getattr(obj, "description", "")
+    elif gear:
+        desc = getattr(gear, "description", "") or ""
+        if not desc and lang == "en":
+            desc = getattr(gear, "description_en", "") or ""
     if desc:
         lines.append(t(lang, "INSPECT_LORE", lore=desc))
     effects = _item_effect_lines(lang, obj)
@@ -403,6 +406,11 @@ def _item_effect_lines(lang: str, obj) -> list[str]:
             if field == "crit_rate_bonus":
                 v = int(float(v) * 100)
             out.append(f"• {t(lang, key)}: +{v}")
+    special = getattr(obj, "special_effect", "") or ""
+    if special:
+        # gear specials are stored as internal keys (leech_qi_percent_3, stun_10, …)
+        # and localized via EFF_SPECIAL_<KEY>
+        out.append(f"• {t(lang, 'EFF_SPECIAL_' + special.upper())}")
     action = getattr(obj, "action", "")
     if action in ("heal", "restore_hp"):
         out.append(f"• {t(lang, 'EFF_HEAL')}: +{getattr(obj, 'value', 0)}")
@@ -430,7 +438,7 @@ def map_text(lang: str, user: dict, storage=None) -> str:
     loc = user["location"]
     zdef = data_registry.get_zone(loc.get("current_zone_id", ""))
     cur = zdef.name_for(lang) if zdef else loc.get("name", "")
-    density = loc.get("density") or loc.get("vein_density") or (zdef.density if zdef else 1.0)
+    density = loc.get("vein_density") or loc.get("density") or (zdef.density if zdef else 1.0)
     return (f"{t(lang, 'MAP_TITLE')}\n\n"
             f"{t(lang, 'MAP_HERE', loc=cur, density=density)}\n"
             f"{t(lang, 'MAP_SUB')}\n\n"
@@ -746,7 +754,6 @@ def art_inspect_text(lang: str, user: dict, art_id: str) -> str:
     lines = [
         t(lang, "ARTCARD_TITLE", name=art.name_for(lang)),
         t(lang, "ARTCARD_ELEMENT", element=el),
-        t(lang, "ARTCARD_ID", art_id=art.art_id),
         t(lang, "ARTCARD_SUBS"),
     ]
     for i, tech in enumerate(art.techniques[:3], start=1):

@@ -17,11 +17,9 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ...engine import items as items_mod
-from ...engine.constants import MAX_REALM, REALM_NAMES, REALM_STAGES
+from ...engine.constants import MAX_REALM, METHODS, REALM_NAMES, REALM_STAGES
 from ...engine.models import iso, recompute_visible_stats, utcnow
 from ...localization import t
-from ...render import admin_text
-from ..keyboards import admin_kb
 from .common import Ctx
 
 USAGE = {
@@ -92,8 +90,15 @@ async def cmd_inspect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     cul, vis, hid = target["cultivation"], target["stats"]["visible"], target["stats"]["hidden"]
     realm = cul["current_realm_index"]
     from ...render import realm_stage_label
+    from ...core.data_loader import data_registry
     zone = ctx.storage.get_zone(target["location"]["current_zone_id"])
     sect = ctx.storage.get_sect(target["location"].get("sect_id") or "") if target["location"].get("sect_id") else None
+    # resolve the active method to its display name — never leak the raw id
+    _m = data_registry.get_method(cul.get("active_method_id") or "")
+    if _m is None and cul.get("active_method_id") in METHODS:
+        method_name = t(lang, METHODS[cul["active_method_id"]]["key"])
+    else:
+        method_name = _m.name_for(lang) if _m else (cul.get("active_method_id") or "—")
     text = t(lang, "INSPECT_REPORT",
              name=target["account"]["username"], id=target["user_id"],
              lang=target["account"]["language"],
@@ -103,7 +108,7 @@ async def cmd_inspect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
              qi=cul["qi_current"], cap=cul["qi_capacity"],
              path=cul.get("dao_path") or "—",
              alignment=cul["alignment"],
-             method=cul.get("active_method_id", "—"),
+             method=method_name,
              hp=f"{vis['physique_hp']}/{vis['max_hp']}",
              sense=vis["spiritual_sense"], circ=vis["circulation_velocity"],
              luck=hid["karmic_luck"], charisma=hid["dao_affinity_charisma"],
@@ -176,8 +181,9 @@ async def cmd_grant_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     tier = args[2] if len(args) > 2 else "mortal"
     res = items_mod.grant_item(target, args[1], tier)
     ctx.storage.save_user(target)
+    # grant_item returns a ready display name in "label" — never show the raw id
     await update.message.reply_text(
-        t(lang, "DONE_GRANT_ITEM", item=t(lang, res.get("label_key", args[1])), id=target["user_id"]))
+        t(lang, "DONE_GRANT_ITEM", item=res.get("label") or args[1], id=target["user_id"]))
 
 
 async def cmd_seal_meridians(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

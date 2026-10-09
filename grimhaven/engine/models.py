@@ -210,10 +210,14 @@ def ensure_v2(doc: dict) -> dict:
     if zdef:
         loc.setdefault("name", zdef.name)
         loc.setdefault("name_en", zdef.name_en)
-        loc["vein_density"] = loc["density"] = float(loc.get("density") or zdef.density) if "density" not in loc else loc["density"]
-        loc["vein_density"] = loc.get("density", zdef.density)
-        if not loc.get("density"):
-            loc["density"] = loc["vein_density"]
+        # vein_density is the LIVE field (travel/conquest update it); the legacy
+        # density mirror must follow it — never let a stale value win.
+        vd = loc.get("vein_density")
+        if vd is None:
+            vd = loc.get("density")
+        vd = float(vd) if vd else float(zdef.density)
+        loc["vein_density"] = vd
+        loc["density"] = vd
     loc.setdefault("since", iso())
     loc.setdefault("sect_id", None)
     ui = doc.setdefault("ui", {})
