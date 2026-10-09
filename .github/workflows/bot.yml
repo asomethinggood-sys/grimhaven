@@ -3,8 +3,9 @@
 # hosting account needed. Scheduled every 5 minutes; each run hosts the bot
 # for up to ~5.5 hours, then hands over to the next run. The concurrency
 # group + guard step guarantee exactly ONE bot instance at a time, and the
-# game database is saved to artifacts every 45 minutes (and on shutdown) so
-# player progress survives restarts.
+# game database is saved to artifacts every 45 minutes (plus once at startup
+# and on shutdown) so player progress survives restarts. Saving speaks the
+# @actions/artifact v2 Twirp protocol — see deploy/gha_state.sh.
 #
 # Required secret: TELEGRAM_BOT_TOKEN  (Settings → Secrets and variables → Actions)
 # Optional secret: ADMIN_IDS           (comma-separated Telegram user ids)
@@ -94,6 +95,9 @@ jobs:
           DATABASE_PATH: data/grimhaven.db
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # early smoke-save: proves the artifact pipeline in the first minute
+          # of the run and immediately re-persists the restored world
+          bash deploy/gha_state.sh save || true
           # background saver: snapshot the world every 45 minutes
           ( while true; do sleep 2700; bash deploy/gha_state.sh save || true; done ) &
           SAVER_PID=$!

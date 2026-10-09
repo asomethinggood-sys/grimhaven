@@ -143,42 +143,52 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     ctx = context.bot_data["ctx"]
     data = query.data or "profile:view:main"
     tg_user = update.effective_user
-    user, _ = ctx.get_or_create_user(tg_user)
-    lang = user["account"]["language"]
-    if user["account"].get("is_banned") and not data.startswith(("setlang", "noop")):
-        await query.answer(t(lang, "ERR_BANNED"), show_alert=True)
-        return
-
-    data = _canon(data, user)
-    if data == "noop":
-        await query.answer()
-        return
-
-    blocked = callback_blocked(user, data)
-    if blocked:
-        await query.answer(t(lang, blocked), show_alert=True)
-        return
-
-    settle_res = ctx.settle(user)
-
-    # ── atomic combat pipeline (spec P4 §1) ──
-    if data.startswith("combat:act:"):
-        await _combat_turn(query, ctx, user, data, now := utcnow())
-        return
-
     try:
-        text, keyboard, opts = _route(ctx, user, data, settle_res)
-    except Exception:  # pragma: no cover — safety net, never crash the bot
+        user, _ = ctx.get_or_create_user(tg_user)
+        lang = user["account"]["language"]
+        if user["account"].get("is_banned") and not data.startswith(("setlang", "noop")):
+            await query.answer(t(lang, "ERR_BANNED"), show_alert=True)
+            return
+
+        data = _canon(data, user)
+        if data == "noop":
+            await query.answer()
+            return
+
+        blocked = callback_blocked(user, data)
+        if blocked:
+            await query.answer(t(lang, blocked), show_alert=True)
+            return
+
+        settle_res = ctx.settle(user)
+
+        # ── atomic combat pipeline (spec P4 §1) ──
+        if data.startswith("combat:act:"):
+            await _combat_turn(query, ctx, user, data, now := utcnow())
+            return
+
+        try:
+            text, keyboard, opts = _route(ctx, user, data, settle_res)
+        except Exception:  # pragma: no cover — safety net, never crash the bot
+            import traceback
+            traceback.print_exc()
+            text, keyboard, opts = t(lang, "ERR_UNKNOWN"), None, {}
+        ctx.save(user)
+        if opts.get("tribulation"):
+            await _run_tribulation(query, user, text, keyboard, opts)
+        else:
+            await _apply_render(query, user, text, keyboard, opts)
+        # persist the (possibly new) root anchor set during the render step
+        ctx.save(user)
+    except Exception:  # pragma: no cover — a failed tap must still be answered
         import traceback
         traceback.print_exc()
-        text, keyboard, opts = t(lang, "ERR_UNKNOWN"), None, {}
-    ctx.save(user)
-    if opts.get("tribulation"):
-        await _run_tribulation(query, user, text, keyboard, opts)
-    else:
-        await _apply_render(query, user, text, keyboard, opts)
-    # persist the (possibly new) root anchor set during the render step
-    ctx.save(user)
+        try:
+            doc = ctx.storage.get_user(tg_user.id) or {}
+            lang = (doc.get("account") or {}).get("language", "fa")
+            await query.answer(t(lang, "ERR_UNKNOWN"), show_alert=True)
+        except Exception:
+            pass
 
 
 async def _run_tribulation(query, user: dict, text: str, keyboard, opts: dict) -> None:
@@ -317,28 +327,36 @@ async def _combat_turn(query, ctx, user: dict, data: str, now) -> None:
     """PTB wrapper: toast the guard alerts, de-weaponize the pressed message,
     then run the shared turn."""
     lang = user["account"]["language"]
-    session = user["combat"].get("session")
-    if not session or session.get("finished"):
-        await query.answer(t(lang, "ALERT_NO_COMBAT"), show_alert=False)
-        return
-    parts = data.split(":")
     try:
-        rnd = int(parts[-1])
-    except ValueError:
-        rnd = -1
-    if rnd != session["round"]:
-        await query.answer(t(lang, "ALERT_STALE_TURN"), show_alert=False)
-        return
-    # instant de-weaponization of the trigger message (spec P4 §4.1 step 2)
-    try:
-        await query.edit_message_reply_markup(reply_markup=None)
-    except (MessageNotModified, BadRequest):
-        pass
-    text, keyboard, opts = _combat_step(ctx, user, data, now)
-    if opts.get("no_render"):
-        return
-    await _apply_render(query, user, text, keyboard, opts)
-    ctx.save(user)
+        session = user["combat"].get("session")
+        if not session or session.get("finished"):
+            await query.answer(t(lang, "ALERT_NO_COMBAT"), show_alert=False)
+            return
+        parts = data.split(":")
+        try:
+            rnd = int(parts[-1])
+        except ValueError:
+            rnd = -1
+        if rnd != session["round"]:
+            await query.answer(t(lang, "ALERT_STALE_TURN"), show_alert=False)
+            return
+        # instant de-weaponization of the trigger message (spec P4 §4.1 step 2)
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except (MessageNotModified, BadRequest):
+            pass
+        text, keyboard, opts = _combat_step(ctx, user, data, now)
+        if opts.get("no_render"):
+            return
+        await _apply_render(query, user, text, keyboard, opts)
+        ctx.save(user)
+    except Exception:  # pragma: no cover — a failed battle tap must be answered
+        import traceback
+        traceback.print_exc()
+        try:
+            await query.answer(t(lang, "ERR_UNKNOWN"), show_alert=True)
+        except Exception:
+            pass
 
 
 def _combat_terminal(user: dict, session: dict, snapshot: dict, lines: list[str]):
@@ -829,11 +847,18 @@ def _sect(ctx, user, args, now):
         else:
             res = {"status": "ERR"}
         if res.get("status") in ("OK", None):
-            note = (t(lang, "SECT_JOINED") if act == "join" else
-                    t(lang, "SECT_LEFT") if act == "leave" else t(lang, "SECT_FOUNDED"))
+            # SECT_JOINED / SECT_FOUNDED carry a {sect} placeholder — always
+            # fill it with the localized sect name, never leak the raw token.
+            sect_doc = res.get("sect") or {}
+            sect_name = (t(lang, sect_doc["key"]) if sect_doc.get("key")
+                         else (sect_doc.get("name") or sect_doc.get("sect_id") or ""))
+            note = (t(lang, "SECT_JOINED", sect=sect_name) if act == "join" else
+                    t(lang, "SECT_LEFT") if act == "leave" else
+                    t(lang, "SECT_FOUNDED", sect=sect_name))
         else:
             # engine statuses are SECT_LOCKED / UNKNOWN_SECT / ALIGNMENT_MISMATCH /
-            # SECT_FOUND_LOCKED / ERR — map to SECT_<STATUS> without doubling the prefix
+            # SECT_FOUND_LOCKED / NO_SECT / ERR — map to SECT_<STATUS> without
+            # doubling the prefix
             suffix = str(res.get("status", "ERR")).removeprefix("SECT_")
             note = t(lang, f"SECT_{suffix}")
         return (R.sect_text(lang, user, ctx.storage), kbs.sect_kb(lang, user), {"alert": note})
@@ -932,8 +957,11 @@ def _dao(ctx, user, args, now):
         res = items_mod.choose_dao(user, dao, align) if hasattr(items_mod, "choose_dao") \
             else _choose_dao(user, dao, align)
         if res.get("status") == "OK":
+            # DAO_CHOSEN carries a {dao} placeholder — fill it with the
+            # LOCALIZED path name, not the raw locale key (DAO_SWORD …).
+            dao_name = t(lang, R.DAO_PATHS[dao]["key"]) if dao in R.DAO_PATHS else dao
             return (R.hud_text(ctx.storage, user, ctx.world_boost(now), now),
-                    kbs.profile_kb(lang), {"alert": t(lang, "DAO_CHOSEN", dao=R.DAO_PATHS[dao]["key"])})
+                    kbs.profile_kb(lang), {"alert": t(lang, "DAO_CHOSEN", dao=dao_name)})
         return R.dao_prompt_text(lang, user), kbs.dao_kb(lang, False), {"alert": t(lang, "ERR_UNKNOWN")}
     return R.dao_prompt_text(lang, user), kbs.dao_kb(lang, False), {}
 

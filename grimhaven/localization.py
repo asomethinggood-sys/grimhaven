@@ -19,16 +19,22 @@ class Locale:
             self._tables[lang] = json.loads(path.read_text(encoding="utf-8"))
 
     def t(self, lang: str, key: str, **fmt) -> str:
+        return self.t_map(lang, key, fmt)
+
+    def t_map(self, lang: str, key: str, mapping: dict) -> str:
+        """Same as ``t()`` but the format values arrive as ONE mapping, so a
+        template placeholder may legally be named ``lang``/``key`` (e.g.
+        INSPECT_REPORT's ``{lang}``) without colliding with our parameters."""
         lang = lang if lang in self._tables else "fa"
         table = self._tables[lang]
         text = table.get(key)
         if text is None:  # fall back to the other language, then to the key
             text = self._tables["en" if lang == "fa" else "fa"].get(key, key)
-        if fmt:
-            fmt = {k: self.num(lang, v) if isinstance(v, (int, float)) else v
-                   for k, v in fmt.items()}
+        if mapping:
+            mapping = {k: self.num(lang, v) if isinstance(v, (int, float)) else v
+                       for k, v in mapping.items()}
             try:
-                text = text.format(**fmt)
+                text = text.format(**mapping)
             except (KeyError, IndexError, ValueError):
                 pass
         return text
@@ -58,3 +64,9 @@ locales = Locale()
 
 def t(lang: str, key: str, **fmt) -> str:
     return locales.t(lang, key, **fmt)
+
+
+def t_map(lang: str, key: str, mapping: dict) -> str:
+    """Format a template whose placeholders collide with ``t()``'s own
+    parameter names (``lang``/``key``) — see INSPECT_REPORT."""
+    return locales.t_map(lang, key, mapping)

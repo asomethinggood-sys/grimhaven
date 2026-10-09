@@ -19,7 +19,7 @@ from telegram.ext import ContextTypes
 from ...engine import items as items_mod
 from ...engine.constants import MAX_REALM, METHODS, REALM_NAMES, REALM_STAGES
 from ...engine.models import iso, recompute_visible_stats, utcnow
-from ...localization import t
+from ...localization import t, t_map
 from .common import Ctx
 
 USAGE = {
@@ -99,22 +99,23 @@ async def cmd_inspect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         method_name = t(lang, METHODS[cul["active_method_id"]]["key"])
     else:
         method_name = _m.name_for(lang) if _m else (cul.get("active_method_id") or "—")
-    text = t(lang, "INSPECT_REPORT",
-             name=target["account"]["username"], id=target["user_id"],
-             lang=target["account"]["language"],
-             banned="⛔" if target["account"].get("is_banned") else "—",
-             realm=t(lang, REALM_NAMES[realm]),
-             stage=realm_stage_label(lang, realm, cul["current_stage"]),
-             qi=cul["qi_current"], cap=cul["qi_capacity"],
-             path=cul.get("dao_path") or "—",
-             alignment=cul["alignment"],
-             method=method_name,
-             hp=f"{vis['physique_hp']}/{vis['max_hp']}",
-             sense=vis["spiritual_sense"], circ=vis["circulation_velocity"],
-             luck=hid["karmic_luck"], charisma=hid["dao_affinity_charisma"],
-             daoheart=hid["dao_heart_stability"], corruption=hid["demonic_corruption"],
-             zone=t(lang, zone["key"]) if zone else "—",
-             sect=(t(lang, sect["key"]) if sect and sect.get("key") else (sect or {}).get("name", "—")))
+    text = t_map(lang, "INSPECT_REPORT", {
+        "name": target["account"]["username"], "id": target["user_id"],
+        "lang": target["account"]["language"],
+        "banned": "⛔" if target["account"].get("is_banned") else "—",
+        "realm": t(lang, REALM_NAMES[realm]),
+        "stage": realm_stage_label(lang, realm, cul["current_stage"]),
+        "qi": cul["qi_current"], "cap": cul["qi_capacity"],
+        "path": cul.get("dao_path") or "—",
+        "alignment": cul["alignment"],
+        "method": method_name,
+        "hp": f"{vis['physique_hp']}/{vis['max_hp']}",
+        "sense": vis["spiritual_sense"], "circ": vis["circulation_velocity"],
+        "luck": hid["karmic_luck"], "charisma": hid["dao_affinity_charisma"],
+        "daoheart": hid["dao_heart_stability"], "corruption": hid["demonic_corruption"],
+        "zone": t(lang, zone["key"]) if zone else "—",
+        "sect": (t(lang, sect["key"]) if sect and sect.get("key") else (sect or {}).get("name", "—")),
+    })
     await update.message.reply_text(text)
 
 
