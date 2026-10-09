@@ -136,7 +136,8 @@ DEMONIC_AFK_MULT_CAP = 3.0                 # demonic AFK up to ×3
 # Chapter 7 — item tiers, equipment slots, techniques
 # ─────────────────────────────────────────────────────────────────────────────
 ITEM_TIERS = ("mortal", "earth", "heaven", "spirit", "saint", "ancient", "divine")
-TIER_KEYS = {t: f"TIER_{t.upper()}" for t in ITEM_TIERS}
+# locale files define the keys with a lowercase suffix: TIER_mortal, TIER_earth, …
+TIER_KEYS = {t: f"TIER_{t}" for t in ITEM_TIERS}
 TIER_POWER = {t: i for i, t in enumerate(ITEM_TIERS)}   # 0..6
 TIER_STAT_MULT = {t: 1.0 + i * 0.75 for i, t in enumerate(ITEM_TIERS)}
 

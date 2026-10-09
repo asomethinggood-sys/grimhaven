@@ -57,11 +57,21 @@ def callback_blocked(user: dict, data: str, now=None) -> str | None:
             if root in _PARALYSIS_BLOCKED:
                 return "GUARD_PARALYSIS"
             return None
-        if is_injured(user, now) and root in _INJURY_BLOCKED:
+        if not is_injured(user, now):
+            return None
+        if root in _INJURY_BLOCKED:
             return "GUARD_INJURED"
-        if is_injured(user, now) and root == "travel" and _zone_is_perilous(subs[0] if subs else ""):
+        # v2 namespaces: map:action:settle:<z> / map:action:conquer:<z>
+        if root == "map" and len(subs) >= 3 and subs[0] == "action":
+            verb, zone_id = subs[1], subs[2]
+            if verb == "conquer":
+                return "GUARD_INJURED"
+            if verb == "settle" and _zone_is_perilous(zone_id):
+                return "GUARD_INJURED_PERILOUS"
+        # legacy payloads: travel:<z> / conquer:<z>
+        if root == "travel" and _zone_is_perilous(subs[0] if subs else ""):
             return "GUARD_INJURED_PERILOUS"
-        if is_injured(user, now) and (root == "conquer" or "conquer" in subs):
+        if root == "conquer" or "conquer" in subs:
             return "GUARD_INJURED"
         return None
 

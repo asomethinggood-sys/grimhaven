@@ -66,7 +66,7 @@ class CultivationEngine:
                        parse_iso(b["until"]) > now for b in (user.get("buffs") or []))
         return {
             "location_name": (zdef.name_for(lang) if zdef else loc.get("name", "")) or loc.get("name", ""),
-            "density": float(loc.get("density") or loc.get("vein_density") or 1.0),
+            "density": float(loc.get("vein_density") or loc.get("density") or 1.0),
             "mantra_name": m.name_for(lang) if m else "",
             "mantra_mult": m.qi_mult if m else 1.0,
             "qi": cul["qi_current"], "max_qi": cul["qi_capacity"],

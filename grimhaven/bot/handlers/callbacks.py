@@ -307,8 +307,9 @@ def _terminal_effects(ctx, user: dict, session: dict, now) -> None:
         world_mod.apply_conquest_result(ctx.storage, user, session["zone_id"], won=True, now=now)
         zone = world_mod.zone_doc(ctx.storage, session["zone_id"])
         if zone:
-            user["location"]["vein_density"] = max(user["location"].get("vein_density", 1.0),
-                                                    zone.get("vein_density", 1.0))
+            vd = max(user["location"].get("vein_density", 1.0), zone.get("vein_density", 1.0))
+            user["location"]["vein_density"] = vd
+            user["location"]["density"] = vd
     ce.close_session(user)
 
 
@@ -790,7 +791,9 @@ def _shop(ctx, user, args, now):
                     {"alert": t(lang, "ART_CLAIMED", name=art.name_for(lang))})
     if verb == "booth" and len(args) >= 4 and args[1] == "claim":
         booth, item_id = args[2], ":".join(args[3:])
-        granted = items_mod.booth_claim(user, item_id)
+        if booth not in items_mod.BOOTH_CATALOGS:
+            return R.shop_text(lang, user), kbs.shop_kb(lang), {}
+        granted = items_mod.booth_claim(user, item_id, booth=booth)
         nm = R.item_name(item_id, lang)
         if granted:
             return (R.shop_booth_text(lang, user, booth), kbs.booth_kb(lang, user, booth),
@@ -825,9 +828,14 @@ def _sect(ctx, user, args, now):
             res = world_mod.found_sect(ctx.storage, user)
         else:
             res = {"status": "ERR"}
-        note = t(lang, f"SECT_{res.get('status', 'ERR')}") if res.get("status") not in ("OK", None) \
-            else t(lang, "SECT_JOINED") if act == "join" else \
-            t(lang, "SECT_LEFT") if act == "leave" else t(lang, "SECT_FOUNDED")
+        if res.get("status") in ("OK", None):
+            note = (t(lang, "SECT_JOINED") if act == "join" else
+                    t(lang, "SECT_LEFT") if act == "leave" else t(lang, "SECT_FOUNDED"))
+        else:
+            # engine statuses are SECT_LOCKED / UNKNOWN_SECT / ALIGNMENT_MISMATCH /
+            # SECT_FOUND_LOCKED / ERR — map to SECT_<STATUS> without doubling the prefix
+            suffix = str(res.get("status", "ERR")).removeprefix("SECT_")
+            note = t(lang, f"SECT_{suffix}")
         return (R.sect_text(lang, user, ctx.storage), kbs.sect_kb(lang, user), {"alert": note})
     if verb == "sacrifice" and args[1:]:
         kind = args[1]

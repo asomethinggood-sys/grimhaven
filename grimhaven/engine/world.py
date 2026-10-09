@@ -46,7 +46,9 @@ def travel(storage, user: dict, zone_id: str, now: dt.datetime | None = None) ->
         return {"status": "ZONE_LOCKED_REALM", "min_realm": zdef["min_realm"]}
     zone = zone_doc(storage, zone_id)
     user["location"]["current_zone_id"] = zone_id
+    # keep BOTH density fields in sync — readers use either one
     user["location"]["vein_density"] = zone["vein_density"]
+    user["location"]["density"] = zone["vein_density"]
     return {"status": "OK", "zone": zone}
 
 
@@ -85,6 +87,7 @@ def apply_conquest_result(storage, user: dict, zone_id: str, won: bool,
     # ownership grants a tithe: +0.25 effective density for the owner
     if user["location"]["current_zone_id"] == zone_id:
         user["location"]["vein_density"] = zone["vein_density"]
+        user["location"]["density"] = zone["vein_density"]
     return {"status": "VICTORY", "zone": zone}
 
 
