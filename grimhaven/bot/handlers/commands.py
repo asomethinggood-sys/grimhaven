@@ -8,6 +8,8 @@ the dock when Telegram has dropped it.
 """
 from __future__ import annotations
 
+import logging
+
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
@@ -21,6 +23,8 @@ from ...render import start_text
 from ..keyboards import dock_reply_kb, resolve_dock_action, start_kb
 from .callbacks import _canon, _dispatch
 from .common import Ctx
+
+logger = logging.getLogger(__name__)
 
 # BotFather command registry (also pushed via set_my_commands on boot)
 BOT_COMMANDS = [
@@ -50,25 +54,33 @@ async def _run(update: Update, context: ContextTypes.DEFAULT_TYPE, data: str) ->
     hiccup) must still produce a reply — a silent tap is a lost player.
     """
     ctx: Ctx = get_ctx(context)
+    stage = "load-user"
     try:
         user, _created = ctx.get_or_create_user(update.effective_user)
         lang = user["account"]["language"]
         if user["account"].get("is_banned"):
             await update.message.reply_text(t(lang, "ERR_BANNED"))
             return
+        stage = "state-guard"
         data = _canon(data, user)
         blocked = callback_blocked(user, data)
         if blocked:
             await update.message.reply_text(t(lang, blocked))
             return
+        stage = "settle"
         settle_res = ctx.settle(user)
+        stage = "dispatch"
         action, arg = _split_for(data)
         text, kb, opts = _dispatch(ctx, user, action, arg, settle_res)
+        stage = "telegram-render"
         await _present(update.message, user, text, kb, opts)
+        stage = "persist"
         ctx.save(user)
     except Exception:  # pragma: no cover — safety net, never crash the bot
-        import traceback
-        traceback.print_exc()
+        logger.exception(
+            "Unhandled Telegram message path failure at stage=%s action=%r update_id=%s",
+            stage, data, getattr(update, "update_id", None),
+        )
         try:
             doc = ctx.storage.get_user(update.effective_user.id) or {}
             lang = (doc.get("account") or {}).get("language", "fa")

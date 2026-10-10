@@ -30,10 +30,21 @@ INJURY_QI_MULT = 0.5
 
 
 def get_status(user: dict) -> UserStatus:
+    """Read the persisted state defensively.
+
+    Player documents survive deploys and have crossed several schema versions.
+    A non-string/unknown status must not take down every screen through the
+    state guard; if the status is absent, infer combat only from a valid live
+    session and otherwise fail safely to idle.
+    """
     raw = user.get("status")
     if not raw:  # legacy docs without the field — derive
-        if user.get("combat", {}).get("session"):
+        combat = user.get("combat")
+        session = combat.get("session") if isinstance(combat, dict) else None
+        if isinstance(session, dict) and not session.get("finished"):
             return UserStatus.IN_COMBAT
+        return UserStatus.IDLE
+    if not isinstance(raw, str):
         return UserStatus.IDLE
     try:
         st = UserStatus(raw)
@@ -53,15 +64,23 @@ def set_status(user: dict, status: UserStatus) -> None:
 # ── debuffs & locks ───────────────────────────────────────────────────────────
 
 def active_debuff(user: dict, now: dt.datetime | None = None) -> dict | None:
-    """Severe-meridian-injury debuff while it is still running (auto-expires)."""
+    """Severe-meridian-injury debuff while it is still running (auto-expires).
+
+    Old/corrupt snapshots can contain a scalar where the current schema expects
+    an object. Treat that value as absent rather than allowing ``.get`` to crash
+    every command that settles Qi or checks the injury lock.
+    """
     now = now or dt.datetime.now(dt.timezone.utc)
-    deb = user.get("combat", {}).get("injury")
-    if not deb:
+    combat = user.get("combat")
+    if not isinstance(combat, dict):
+        return None
+    deb = combat.get("injury")
+    if not isinstance(deb, dict) or not deb:
         return None
     exp = deb.get("expires_at")
     try:
         if exp and dt.datetime.fromisoformat(exp) <= now:
-            user["combat"]["injury"] = None
+            combat["injury"] = None
             return None
     except (TypeError, ValueError):
         return None
@@ -70,7 +89,10 @@ def active_debuff(user: dict, now: dt.datetime | None = None) -> dict | None:
 
 def paralysis_active(user: dict, now: dt.datetime | None = None) -> bool:
     now = now or dt.datetime.now(dt.timezone.utc)
-    until = user.get("combat", {}).get("paralysis_until")
+    combat = user.get("combat")
+    if not isinstance(combat, dict):
+        return False
+    until = combat.get("paralysis_until")
     if not until:
         return False
     try:

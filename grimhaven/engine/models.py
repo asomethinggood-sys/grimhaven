@@ -232,12 +232,22 @@ def ensure_v2(doc: dict) -> dict:
     cul = doc.get("cultivation", {})
     if cul.get("meditating") and doc["status"] == "idle":
         doc["status"] = "meditating"
-    cmb = doc.setdefault("combat", {})
+    cmb = doc.get("combat")
+    if not isinstance(cmb, dict):
+        cmb = {}
+        doc["combat"] = cmb
     cmb.setdefault("session", None)
     cmb.setdefault("injury", None)
     cmb.setdefault("paralysis_until", None)
     cmb.setdefault("wins", 0)
     cmb.setdefault("losses", 0)
+    # Fields added after the first live release can contain old scalar values.
+    # Drop malformed optional records so middleware/renderers don't turn a
+    # single player's stale snapshot into ERR_UNKNOWN on every menu press.
+    if cmb["session"] is not None and not isinstance(cmb["session"], dict):
+        cmb["session"] = None
+    if cmb["injury"] is not None and not isinstance(cmb["injury"], dict):
+        cmb["injury"] = None
     loadout = cmb.setdefault("loadout", [])
     # drop legacy placeholder techniques that no longer exist in the data set
     from ..core.data_loader import data_registry
