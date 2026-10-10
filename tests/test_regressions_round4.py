@@ -174,26 +174,8 @@ def test_no_t_call_passes_lang_or_key_as_format_kwarg():
 
 # ── 3. /inspect must render, never TypeError ─────────────────────────────────
 
-class _Msg:
-    def __init__(self):
-        self.replies = []
-
-    async def reply_text(self, text, reply_markup=None, **kw):
-        self.replies.append(text)
-        return type("S", (), {"message_id": 1})()
-
-
-class _Upd:
-    def __init__(self, uid):
-        self.message = _Msg()
-        self.effective_user = type("U", (), {"id": uid, "username": "u", "first_name": "u"})()
-        self.callback_query = None
-
-
-class _Holder:
-    def __init__(self, ctx):
-        self.bot_data = {"ctx": ctx}
-        self.args = None
+from tests.telegram_fakes import (FakeBot, FakeContext as _Holder,  # faithful fakes
+                                 FakeUpdate as _Upd)
 
 
 def test_admin_inspect_renders_full_report(ctx):
@@ -203,7 +185,7 @@ def test_admin_inspect_renders_full_report(ctx):
     ctx.storage.save_user(admin)
     holder = _Holder(ctx)
     holder.args = ["555"]
-    upd = _Upd(999)
+    upd = _Upd(text='/inspect 555', user_id=999)
     asyncio.run(admin_h.cmd_inspect(upd, holder))
     assert upd.message.replies, "/inspect produced no reply"
     report = upd.message.replies[0]
@@ -213,7 +195,7 @@ def test_admin_inspect_renders_full_report(ctx):
 def test_admin_inspect_unknown_user_replies(ctx):
     holder = _Holder(ctx)
     holder.args = ["424242"]
-    upd = _Upd(999)
+    upd = _Upd(text='/inspect 555', user_id=999)
     asyncio.run(admin_h.cmd_inspect(upd, holder))
     assert upd.message.replies
 
@@ -229,7 +211,7 @@ def test_run_safety_net_answers_when_dispatch_crashes(ctx, monkeypatch):
     user = new_user_doc(70, "victim", "fa")
     ctx.storage.save_user(user)
     holder = _Holder(ctx)
-    upd = _Upd(70)
+    upd = _Upd(text='⚙️ تنظیمات', user_id=70)
     asyncio.run(cmd_h._run(upd, holder, "profile:view:main"))
     assert upd.message.replies, "a crashed dispatch must still answer the player"
     assert "ERR_UNKNOWN" not in upd.message.replies[0]  # localized, not the raw key
@@ -245,40 +227,10 @@ def test_on_callback_safety_net_answers_when_settle_crashes(ctx, monkeypatch):
     user = new_user_doc(71, "victim2", "fa")
     ctx.storage.save_user(user)
 
-    class _Query:
-        def __init__(self):
-            self.data = "profile:view:main"
-            self.answered = []
-            self.edits = []
-
-        async def answer(self, text=None, show_alert=False):
-            self.answered.append((text, show_alert))
-
-        async def edit_message_text(self, text, reply_markup=None):
-            self.edits.append(text)
-
-        async def edit_message_reply_markup(self, reply_markup=None):
-            return True
-
-    class _Bot:
-        async def delete_message(self, chat_id, message_id):
-            return True
-
-        async def send_message(self, chat_id, text, reply_markup=None):
-            return type("S", (), {"message_id": 2})()
-
-        async def edit_message_reply_markup(self, chat_id=None, message_id=None,
-                                              reply_markup=None):
-            return True
-
-    async def _reply(text, reply_markup=None):
-        return type("S", (), {"message_id": 3})()
-
-    q = _Query()
-    q.message = type("M", (), {"chat_id": 1, "bot": _Bot(), "reply_text": _reply})()
-    upd = type("U", (), {"callback_query": q,
-                         "effective_user": type("U2", (), {"id": 71})()})()
-    asyncio.run(cb.on_callback(upd, _Holder(ctx)))
+    upd = _Upd(query_data="profile:view:main", user_id=71)
+    holder = _Holder(ctx)
+    q = upd.callback_query
+    asyncio.run(cb.on_callback(upd, holder))
     assert q.answered, "a crashed callback must still be answered"
     assert q.answered[0][1] is True  # show_alert popup so the player sees it
 
