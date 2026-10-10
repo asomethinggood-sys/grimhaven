@@ -95,11 +95,11 @@ jobs:
           DATABASE_PATH: data/grimhaven.db
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # early smoke-save: proves the artifact pipeline in the first minute
-          # of the run and immediately re-persists the restored world
-          bash deploy/gha_state.sh save || true
-          # background saver: snapshot the world every 45 minutes
-          ( while true; do sleep 2700; bash deploy/gha_state.sh save || true; done ) &
+          # background saver: snapshot the world every 45 minutes. A failed
+          # snapshot must not kill the bot, so it is logged but not fatal —
+          # the Verify step at the end turns a wholly empty store red.
+          ( while true; do sleep 2700; bash deploy/gha_state.sh save || \
+              echo "⚠️  periodic world-state save failed"; done ) &
           SAVER_PID=$!
           trap 'kill $SAVER_PID 2>/dev/null || true' EXIT
           timeout --signal=TERM --kill-after=60 330m python run_bot.py || true
@@ -108,4 +108,13 @@ jobs:
         if: steps.guard.outputs.skip == 'no' && steps.token_check.outputs.has == 'yes'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash deploy/gha_state.sh save || true
+        run: bash deploy/gha_state.sh save
+
+      - name: Verify world state was persisted
+        # The runner is thrown away when this job ends, so if nothing was
+        # stored every player's progress dies here — silently, while the run
+        # still reports success. Fail loudly instead.
+        if: steps.guard.outputs.skip == 'no' && steps.token_check.outputs.has == 'yes'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash deploy/gha_state.sh verify
