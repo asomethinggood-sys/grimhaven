@@ -130,19 +130,19 @@ class CultivationEngine:
         if elapsed_hours <= 0:
             return {"status": "OK", "gained": 0, "events": []}
 
-        # spirit stone consumption while meditating
+        # spirit stone consumption while meditating — the boost is only granted
+        # for hours the cultivator can actually pay for. Heavenly stones used to
+        # be exempt from decay, which made them a permanent free ×3 boost; every
+        # grade now burns from the carried balance.
         consumed_stones: dict[str, float] = {}
         stone = cul.get("active_stone")
         if stone and stone in SPIRIT_STONES:
             need = SPIRIT_STONES[stone]["per_hour"] * elapsed_hours
             have = user["inventory"]["spirit_stones"].get(stone, 0)
-            if stone == "heavenly":
-                consumed_stones[stone] = 0.0
-            elif have >= need:
+            if have >= need:
                 user["inventory"]["spirit_stones"][stone] = int(have - need)
                 consumed_stones[stone] = need
-            else:  # ran out part-way: partial boost handled simply — disable
-                user["inventory"]["spirit_stones"][stone] = 0
+            else:  # balance cannot cover the session: disarm, keep the remainder
                 cul["active_stone"] = None
 
         rate = afk_hourly_rate(user, world_boost=world_boost, now=now)
@@ -306,7 +306,10 @@ class CultivationEngine:
                          if isinstance(b, dict) and b.get("id") != "inner_demon_deviation"]
         user["buffs"].append({"id": "inner_demon_deviation", "kind": "rate_debuff",
                               "rate_mult": 0.5, "until": iso(now + dt.timedelta(minutes=120)),
-                              "label": "انحراف شیطن درونی"})
+                              # internal id only — screens localize via label_key,
+                              # so a Persian literal can never surface in EN play
+                              "label": "inner_demon_deviation",
+                              "label_key": "BUFF_INNER_DEMON"})
         hidden["dao_heart_stability"] = max(0, hidden["dao_heart_stability"] - 3)
         user["progress"]["failures_minor"] += 1
         return {"status": "FAILED", "rate": round(rate, 1), "roll": round(roll, 1),

@@ -40,8 +40,50 @@ from ...errors import (TelegramError, is_message_gone, is_not_modified,
 from ...localization import Locale, t
 from .reporting import PATH_CALLBACK, notify_failure, render_failed, report_stage
 from ... import render as R
+from ...images.delivery import begin_artwork, join_artwork
 
 logger = logging.getLogger(__name__)
+
+
+# ── artwork event specs (delivered by the async layer; see docs/ARTWORK.md) ──
+
+def _artwork_spec(ctx, user: dict, asset_key: str, *, once_key: str | None = None,
+                  caption_args: dict | None = None,
+                  throttle_minutes: int | None = None) -> dict | None:
+    """Build an ``opts["artwork"]`` spec for one game event.
+
+    The queries and the caption *key* come from data (data/artwork_map.json),
+    never from handlers — the caption text is resolved through the locale the
+    player actually chose. ``None`` (artwork off/unavailable) simply leaves
+    the render text-only.
+    """
+    service = getattr(ctx, "artworks", None)
+    if service is None or not asset_key:
+        return None
+    asset_key = service.asset_key(asset_key)
+    cap_key = service.caption_key_for(asset_key) or "ART_CAP_GENERIC"
+    try:
+        caption = t(user["account"]["language"], cap_key, **(caption_args or {}))
+    except Exception:      # a bad placeholder must not sink the screen
+        caption = t(user["account"]["language"], "ART_CAP_GENERIC")
+    if throttle_minutes is None:
+        throttle_minutes = service.throttle_minutes_for(asset_key)
+    return {"asset_key": asset_key, "queries": service.queries_for(asset_key),
+            "caption": caption, "once_key": once_key,
+            "throttle_minutes": int(throttle_minutes or 0)}
+
+
+def _apply_artwork(bot, chat_id: int, user: dict, opts: dict, ctx):
+    """Start (or skip) the background photo send for a rendered screen."""
+    spec = opts.get("artwork")
+    if not spec:
+        return None
+    try:
+        return begin_artwork(bot, chat_id, user, spec, service=ctx.artworks)
+    except Exception:      # noqa: BLE001 — artwork can never break gameplay
+        logger.exception("artwork: could not schedule the send for user %s",
+                         user.get("user_id"))
+        return None
 
 # legacy callback shim → spec namespace (keeps stale messages clickable)
 _ALIAS_EXACT = {
@@ -195,9 +237,12 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         ctx.save(user)
         stage = "telegram-render"
         if opts.get("tribulation"):
-            await _run_tribulation(bot, query, user, text, keyboard, opts)
+            await _run_tribulation(bot, query, ctx, user, text, keyboard, opts)
         else:
             await _apply_render(bot, query, user, text, keyboard, opts)
+            # event artwork rides alongside the screen as its own message —
+            # the tracked root window (and its keyboard) stay untouched
+            _apply_artwork(bot, query.message.chat_id, user, opts, ctx)
         # persist the (possibly new) root anchor set during the render step
         stage = "persist-render-state"
         ctx.save(user)
@@ -226,12 +271,30 @@ async def _answer(query, text: str | None = None, *, show_alert: bool = False) -
                        type(exc).__name__, str(exc)[:160])
 
 
-async def _run_tribulation(bot, query, user: dict, text: str, keyboard, opts: dict) -> None:
+ARTWORK_JOIN_SECONDS = 2.5     # max extra wait for the picture inside the drama
+
+
+async def _run_tribulation(bot, query, ctx, user: dict, text: str, keyboard,
+                           opts: dict) -> None:
     """Spec P6 §3.3 — strip buttons, two 2-second atmospheric edits, then the
-    resolution card as the new root window."""
+    resolution card as the new root window.
+
+    When the router attached a heavenly-tribulation artwork spec, the photo
+    send starts immediately (so its network time hides inside the dramatic
+    pauses) and gets a short join window between the gathering-clouds phase
+    and the lightning-strike phase — the picture lands *before* the result
+    card, exactly as the sequence prescribes. A cold or dead artwork layer
+    costs the player nothing but the picture.
+    """
     import asyncio
     trib = opts["tribulation"]
-    for phase in trib.get("phases", [])[:2]:
+    chat_id = query.message.chat_id
+    artwork_task = None
+    if opts.get("artwork"):
+        artwork_task = _apply_artwork(bot, chat_id, user, opts, ctx)
+        opts["artwork_consumed"] = True
+    phases = trib.get("phases", [])[:2]
+    for idx, phase in enumerate(phases):
         try:
             await query.edit_message_text(phase)
         except (BadRequest, PtbTelegramError) as exc:
@@ -242,7 +305,16 @@ async def _run_tribulation(bot, query, user: dict, text: str, keyboard, opts: di
             await asyncio.sleep(2.0)
         except asyncio.CancelledError:  # pragma: no cover — shutdown during the drama
             raise
+        if idx == 0 and artwork_task is not None:
+            # the clouds gathered; let the picture land before the bolt strikes
+            await join_artwork(artwork_task, ARTWORK_JOIN_SECONDS)
     await _apply_render(bot, query, user, text, keyboard, opts)
+    # keep the *next* tribulation's picture warm so it never waits on a CDN
+    service = getattr(ctx, "artworks", None)
+    if service is not None:
+        service.schedule_prefetch("breakthrough")
+        service.schedule_prefetch("breakthrough_fail")
+        service.schedule_prefetch("milestone_realm")
 
 
 async def _apply_render(bot, query, user: dict, text: str, keyboard, opts: dict) -> None:
@@ -364,6 +436,7 @@ def _combat_step(ctx, user: dict, data: str, now):
         text, keyboard, card_opts = _combat_terminal(user, session, snapshot, summary)
         opts.update(card_opts)
         _terminal_effects(ctx, user, snapshot, now)
+        _attach_victory_artwork(ctx, user, outcome, snapshot, opts)
         return text, keyboard, opts
 
     outcome, lines = ce.resolve_round(user, engine_action, action_id, rng=random.Random())
@@ -375,7 +448,19 @@ def _combat_step(ctx, user: dict, data: str, now):
     text, keyboard, card_opts = _combat_terminal(user, snapshot, snapshot, lines)
     opts.update(card_opts)
     _terminal_effects(ctx, user, snapshot, now)
+    _attach_victory_artwork(ctx, user, outcome, snapshot, opts)
     return text, keyboard, opts
+
+
+def _attach_victory_artwork(ctx, user: dict, outcome: str, snapshot: dict,
+                            opts: dict) -> None:
+    """The Loot Scroll gets its own vista — throttled per zone, not per kill."""
+    if outcome != ce.OUT_VICTORY:
+        return
+    zone = (snapshot or {}).get("zone_id") or user["location"].get("current_zone_id") or "arena"
+    spec = _artwork_spec(ctx, user, "victory", once_key=f"victory:{zone}")
+    if spec:
+        opts["artwork"] = spec
 
 
 def _terminal_effects(ctx, user: dict, session: dict, now) -> None:
@@ -423,6 +508,9 @@ async def _combat_turn(bot, query, ctx, user: dict, data: str, now) -> None:
             await _answer(query)
             return
         await _apply_render(bot, query, user, text, keyboard, opts)
+        # victory vista (if any) claims its throttle key first, then this save
+        # persists the marker — a re-sent callback cannot double-post
+        _apply_artwork(bot, query.message.chat_id, user, opts, ctx)
         ctx.save(user)
     except Exception as exc:  # pragma: no cover — a failed battle tap must be answered
         logger.exception("combat turn failed at action=%r user_id=%s", data,
@@ -607,7 +695,12 @@ def _cultivate(ctx, user, args, settle_res, now):
                 return (R.meditate_hub_text(lang, user, ctx.world_boost(now), now),
                         kbs.meditate_hub_kb(lang), {"answer": t(lang, "CAT_OFF")})
             if grade in ("low", "mid", "high", "heavenly") and grade in SPIRIT_KEYS:
-                cul["active_stone"] = grade
+                # the boost is a *consumption*: the player must actually carry
+                # stones of that grade (granted as enemy loot / admin grants) —
+                # activation used to hand out free catalysts to anyone who tapped
+                if items_mod.activate_stone(user, grade).get("status") != "OK":
+                    return (R.catalyst_menu_text(lang, user), kbs.catalyst_kb(lang, user),
+                            {"alert": t(lang, "NO_STONES")})
                 return (R.meditate_hub_text(lang, user, ctx.world_boost(now), now),
                         kbs.meditate_hub_kb(lang),
                         {"alert": t(lang, "CAT_ON", stone=t(lang, f"STONE_{grade.upper()}"))})
@@ -645,8 +738,13 @@ def _map(ctx, user, args, settle_res, now):
             # realm gate — alert only, NO screen change (spec P3 §1)
             return (R.map_text(lang, user, ctx.storage), kbs.map_kb(lang, user),
                     {"alert": t(lang, "ALERT_REALM_GATE", rec=zdef.rec_for(lang))})
+        opts: dict = {}
+        spec = _artwork_spec(ctx, user, f"zone:{zone_id}", once_key=f"zone:{zone_id}",
+                             caption_args={"zone": zdef.name_for(lang)})
+        if spec:
+            opts["artwork"] = spec
         return (R.zone_hub_text(lang, user, zone_id),
-                kbs.zone_hub_kb(lang, user, zone_id), {})
+                kbs.zone_hub_kb(lang, user, zone_id), opts)
     if args[0] == "action" and len(args) >= 3:
         verb, zone_id = args[1], args[2]
         # An unknown zone id must never be answered by "use wherever you happen to
@@ -661,9 +759,14 @@ def _map(ctx, user, args, settle_res, now):
             if res["status"] != "OK":
                 return (R.map_text(lang, user, ctx.storage), kbs.map_kb(lang, user),
                         {"alert": t(lang, "ALERT_TRAVEL_BLOCKED")})
+            settle_opts = {"alert": t(lang, "ALERT_SETTLED", zone=zdef.name_for(lang),
+                                       density=zdef.density)}
+            spec = _artwork_spec(ctx, user, f"zone:{zone_id}", once_key=f"zone:{zone_id}",
+                                 caption_args={"zone": zdef.name_for(lang)})
+            if spec:
+                settle_opts["artwork"] = spec
             return (R.zone_hub_text(lang, user, zone_id), kbs.zone_hub_kb(lang, user, zone_id),
-                    {"alert": t(lang, "ALERT_SETTLED", zone=zdef.name_for(lang),
-                                density=zdef.density)})
+                    settle_opts)
         if verb == "hunt":
             return _start_hunt(ctx, user, zone_id, now, ambush=False)
         if verb == "gather":
@@ -690,8 +793,12 @@ def _start_hunt(ctx, user, zone_id: str, now, ambush: bool):
     ce.start_session(user, enemy, "hunt", zone_id)
     session = user["combat"]["session"]
     header = t(lang, "AMBUSH_HEADER") if ambush else ""
+    hunt_opts: dict = {"send": True}
+    spec = _artwork_spec(ctx, user, f"hunt:{zone_id}", once_key=f"hunt:{zone_id}")
+    if spec:
+        hunt_opts["artwork"] = spec
     return (header + R.combat_hud_text(lang, user, session),
-            kbs.battle_kb(lang, user, session), {"send": True})
+            kbs.battle_kb(lang, user, session), hunt_opts)
 
 
 def _gather(ctx, user, zone_id: str, now):
@@ -1026,7 +1133,8 @@ def _breakthrough(ctx, user, args, now):
             return (R.hud_text(ctx.storage, user, ctx.world_boost(now), now),
                     kbs.profile_kb(lang), {"alert": alert})
         res = CultivationEngine.confirm_tribulation(user, now=now, rng=random.Random())
-        if res["status"] == "SUCCESS" or res["status"] == "MIRACLE_SAVED":
+        won = res["status"] in ("SUCCESS", "MIRACLE_SAVED")
+        if won:
             text = R.breakthrough_win_text(lang, user, res)
             if res["status"] == "MIRACLE_SAVED":
                 text = t(lang, "BT_MIRACLE_LINE") + "\n\n" + text
@@ -1036,8 +1144,23 @@ def _breakthrough(ctx, user, args, now):
             kb = kbs.bt_fail_kb(lang)
         # the async layer performs the 2s×2 dramatic edits before this final
         trib = {"phases": [t(lang, "BT_PHASE_1"), t(lang, "BT_PHASE_2")],
-                "success": res["status"] in ("SUCCESS", "MIRACLE_SAVED")}
-        return text, kb, {"tribulation": trib, "root": True}
+                "success": won}
+        render_opts: dict = {"tribulation": trib, "root": True}
+        # ── artwork: the heavens answering the attempt ──
+        # one attempt → at most one picture: the once_key is the (already
+        # incremented) attempt counter, so a retried callback cannot re-send.
+        # A realm jump swaps in the grander "milestone" artwork; a failure
+        # keeps the same sky but tells it straight in the caption.
+        attempts = int(user.get("progress", {}).get("breakthrough_attempts", 0))
+        asset = "breakthrough"
+        if won and prep.get("is_realm_jump"):
+            asset = "milestone_realm"
+        spec = _artwork_spec(ctx, user, asset, once_key=f"breakthrough:{attempts}")
+        if spec is not None:
+            if not won:
+                spec["caption"] = t(lang, "ART_CAP_BREAKTHROUGH_FAIL")
+            render_opts["artwork"] = spec
+        return text, kb, render_opts
     return (R.hud_text(ctx.storage, user, ctx.world_boost(now), now),
             kbs.profile_kb(lang), {"root": True})
 

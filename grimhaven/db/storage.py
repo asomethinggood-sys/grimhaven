@@ -31,7 +31,7 @@ from ..errors import StorageError
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -57,9 +57,43 @@ CREATE TABLE IF NOT EXISTS corrupt_users (
     reason TEXT,
     quarantined_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+/* artwork index — one row per game-event asset key; the image bytes live on
+   disk under the cache dir, this table is the persistent index that keeps
+   re-downloads, duplicates and stale Telegram file ids out of the hot path.
+   (v4: CREATE TABLE IF NOT EXISTS, so old databases upgrade in place.) */
+CREATE TABLE IF NOT EXISTS artwork (
+    asset_key TEXT PRIMARY KEY,
+    file_hash TEXT NOT NULL DEFAULT '',
+    file_path TEXT NOT NULL DEFAULT '',
+    source_url TEXT NOT NULL DEFAULT '',
+    page_url TEXT NOT NULL DEFAULT '',
+    provider TEXT NOT NULL DEFAULT '',
+    query TEXT NOT NULL DEFAULT '',
+    mime TEXT NOT NULL DEFAULT '',
+    width INTEGER NOT NULL DEFAULT 0,
+    height INTEGER NOT NULL DEFAULT 0,
+    bytes INTEGER NOT NULL DEFAULT 0,
+    license TEXT NOT NULL DEFAULT '',
+    author TEXT NOT NULL DEFAULT '',
+    attribution TEXT NOT NULL DEFAULT '',
+    telegram_file_id TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'ok',
+    validated INTEGER NOT NULL DEFAULT 0,
+    note TEXT NOT NULL DEFAULT '',
+    retrieved_at TEXT NOT NULL DEFAULT (datetime('now')),
+    attempts_at TEXT,
+    last_used_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_artwork_hash ON artwork(file_hash);
+CREATE INDEX IF NOT EXISTS idx_artwork_lru ON artwork(last_used_at);
 """
 
 TABLES = ("users", "zones", "sects", "meta")
+
+#: artwork is part of the file but *rebuildable* — a world restore from an old
+#: artifact legitimately lacks it, so it is not in TABLES (which gates the
+#: "is this database usable" checks); health reporting still counts it.
+OPTIONAL_TABLES = ("artwork",)
 
 #: sidecar files that must be removed together with the database itself
 SIDECARS = ("", "-journal", "-wal", "-shm")
@@ -234,10 +268,91 @@ class Storage:
     def delete_meta(self, key: str) -> None:
         self._write("DELETE FROM meta WHERE key=?", (key,), f"delete_meta:{key}")
 
+    # ── artwork index (rebuildable game-artwork cache metadata) ───────────────
+    _ARTWORK_FIELDS = ("asset_key", "file_hash", "file_path", "source_url", "page_url",
+                       "provider", "query", "mime", "width", "height", "bytes", "license",
+                       "author", "attribution", "telegram_file_id", "status", "validated",
+                       "note")
+
+    def artwork_get(self, asset_key: str) -> dict | None:
+        rows = self._read("SELECT * FROM artwork WHERE asset_key=?", (asset_key,))
+        if not rows:
+            return None
+        doc = dict(rows[0])
+        doc["status"] = str(doc.get("status") or "ok")
+        doc["validated"] = int(doc.get("validated") or 0)
+        return doc
+
+    def artwork_upsert(self, doc: dict) -> None:
+        asset_key = doc.get("asset_key")
+        if not isinstance(asset_key, str) or not asset_key:
+            raise StorageError("artwork row needs a non-empty asset_key")
+        values = {k: doc.get(k, "") for k in self._ARTWORK_FIELDS}
+        values["validated"] = int(values.get("validated") or 0)
+        values["width"] = int(values.get("width") or 0)
+        values["height"] = int(values.get("height") or 0)
+        values["bytes"] = int(values.get("bytes") or 0)
+        cols = ", ".join(values)
+        marks = ", ".join("?" for _ in values)
+        updates = ", ".join(f"{k}=excluded.{k}" for k in values if k != "asset_key")
+        self._write(
+            f"INSERT INTO artwork({cols}, retrieved_at, attempts_at, last_used_at) "
+            f"VALUES({marks}, datetime('now'), NULL, datetime('now')) "
+            f"ON CONFLICT(asset_key) DO UPDATE SET {updates}, "
+            "retrieved_at=datetime('now'), attempts_at=NULL, last_used_at=datetime('now')",
+            tuple(values.values()), "artwork_upsert")
+
+    def artwork_touch(self, asset_key: str) -> None:
+        self._write("UPDATE artwork SET last_used_at=datetime('now') WHERE asset_key=?",
+                    (asset_key,), "artwork_touch")
+
+    def artwork_by_hash(self, file_hash: str) -> dict | None:
+        if not file_hash:
+            return None
+        rows = self._read("SELECT * FROM artwork WHERE file_hash=? "
+                          "ORDER BY last_used_at DESC LIMIT 1", (file_hash,))
+        return dict(rows[0]) if rows else None
+
+    def artwork_mark_failed(self, asset_key: str, query: str = "",
+                            note: str = "") -> None:
+        """Record 'we tried and nothing worked' (drives the failure cooldown)."""
+        self._write(
+            "INSERT INTO artwork(asset_key, status, note, query, attempts_at) "
+            "VALUES(?, 'failed', ?, ?, datetime('now')) "
+            "ON CONFLICT(asset_key) DO UPDATE SET status='failed', note=excluded.note, "
+            "query=excluded.query, attempts_at=datetime('now')",
+            (asset_key, str(note)[:400], str(query)[:400]), "artwork_mark_failed")
+
+    def artwork_beyond(self, cap: int) -> list[dict]:
+        """Successful rows beyond the cache cap, least-recently-used first."""
+        rows = self._read(
+            "SELECT * FROM artwork WHERE status='ok' AND file_hash <> '' "
+            "ORDER BY last_used_at ASC LIMIT -1 OFFSET ?", (max(0, int(cap)),))
+        return [dict(r) for r in rows]
+
+    def artwork_delete(self, asset_key: str) -> None:
+        self._write("DELETE FROM artwork WHERE asset_key=?", (asset_key,), "artwork_delete")
+
+    def artwork_set_file_id(self, asset_key: str, telegram_file_id: str) -> None:
+        self._write("UPDATE artwork SET telegram_file_id=? WHERE asset_key=?",
+                    (telegram_file_id[:256], asset_key), "artwork_set_file_id")
+
+    def artwork_all_keys(self) -> list[str]:
+        rows = self._read("SELECT asset_key FROM artwork ORDER BY asset_key")
+        return [str(r["asset_key"]) for r in rows]
+
+    def artwork_stats(self) -> dict[str, int]:
+        rows = self._read("SELECT status, COUNT(*) c FROM artwork GROUP BY status")
+        out = {"ok": 0, "failed": 0, "other": 0}
+        for r in rows:
+            key = str(r["status"])
+            out[key if key in out else "other"] = int(r["c"])
+        return out
+
     # ── health, reset ────────────────────────────────────────────────────────
     def counts(self) -> dict[str, int]:
         out: dict[str, int] = {}
-        for table in TABLES + ("corrupt_users",):
+        for table in TABLES + ("corrupt_users",) + OPTIONAL_TABLES:
             rows = self._read(f"SELECT COUNT(*) c FROM {table}")
             out[table] = int(rows[0]["c"])
         return out
@@ -273,7 +388,7 @@ class Storage:
         # *report*. Counting rows through the ordinary accessor raised, which is
         # precisely the moment an operator needs the summary.
         counts: dict[str, Any] = {}
-        for table in TABLES + ("corrupt_users",):
+        for table in TABLES + ("corrupt_users",) + OPTIONAL_TABLES:
             try:
                 counts[table] = int(self._read(f"SELECT COUNT(*) c FROM {table}")[0][0])
             except StorageError as exc:

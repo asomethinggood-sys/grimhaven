@@ -90,6 +90,11 @@ async def _run(update: Update, context: ContextTypes.DEFAULT_TYPE, data: str) ->
         ctx.save(user)
         stage = "telegram-render"
         await _present(bot, update.message, user, text, kb, opts)
+        # artwork rides the reply path too, with the same guarantees: a separate
+        # background photo that can never delay or break the rendered screen
+        if opts.get("artwork"):
+            from .callbacks import _apply_artwork
+            _apply_artwork(bot, update.message.chat_id, user, opts, ctx)
         stage = "persist-render-state"
         ctx.save(user)
     except Exception as exc:  # pragma: no cover — safety net, never crash the bot

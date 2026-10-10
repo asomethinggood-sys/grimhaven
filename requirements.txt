@@ -8,3 +8,8 @@ pytest-asyncio>=1.0
 # was only ever satisfied transitively through fastapi, so a web-only change
 # could break the bot and the whole test suite at once
 pydantic>=2.7,<3
+
+# the artwork subsystem (grimhaven/images) does its async provider/CDN I/O on
+# top of httpx — the same client library python-telegram-bot already ships
+# with, so this adds no new runtime weight, just an explicit direct pin
+httpx>=0.27,<1

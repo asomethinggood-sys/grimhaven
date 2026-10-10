@@ -89,12 +89,14 @@ LUCK_BONUS_FACTOR = 0.002        # Luck × 0.002
 # ─────────────────────────────────────────────────────────────────────────────
 # Chapter 3/5 — Catalysts
 # ─────────────────────────────────────────────────────────────────────────────
-# Spirit stones: boost %, consumption per hour (fractional ok)
+# Spirit stones: boost %, consumption per hour (fractional ok).
+# Every grade is a consumable — the boost only runs while the cultivator can
+# actually pay the hourly price (they start with NONE and win stones as loot).
 SPIRIT_STONES: dict[str, dict[str, float]] = {
     "low":      {"boost": 0.15, "per_hour": 20.0},
     "mid":      {"boost": 0.45, "per_hour": 5.0},
     "high":     {"boost": 1.20, "per_hour": 0.5},
-    "heavenly": {"boost": 3.00, "per_hour": 0.0},  # no decay
+    "heavenly": {"boost": 3.00, "per_hour": 0.1},  # rare: one stone lasts 10 h
 }
 
 HERBS: dict[str, dict] = {
@@ -241,7 +243,9 @@ PILLS: dict[str, dict] = {
 }
 
 STARTING_ITEMS = {
-    "spirit_stones": {"low": 30, "mid": 0, "high": 0, "heavenly": 0},
+    # a cultivator begins with empty sleeves: spirit stones are earned as
+    # monster loot (they fuel the catalyst boosts, nothing is free)
+    "spirit_stones": {"low": 0, "mid": 0, "high": 0, "heavenly": 0},
     "herbs": {},
     "pills": {"pill_guardian": 1},
     "methods": ["method_breath_mortal", "method_sky_cleaving"],

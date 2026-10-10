@@ -1,0 +1,155 @@
+{
+ "_about": "Event → artwork map for the grimhaven.images subsystem. asset keys are looked up by the handlers; 'queries' are descriptive source-language search strings (English sources index fantasy art in English). Captions are locale keys so both fa and en stay in locales/. No image URLs live in code.",
+ "_sources": {
+  "commons": "Wikimedia Commons MediaWiki API (no key; extmetadata licensing)",
+  "openverse": "Openverse API (no key; CC/PDM filter)",
+  "pixabay": "Pixabay (optional key)"
+ },
+ "events": {
+  "breakthrough": {
+   "caption_key": "ART_CAP_BREAKTHROUGH",
+   "min_width": 640,
+   "queries": [
+    "xianxia heavenly tribulation lightning cultivation breakthrough fantasy art",
+    "cultivator ascending under divine thunder storm clouds fantasy illustration",
+    "massive purple lightning storm celestial clouds dramatic fantasy landscape"
+   ]
+  },
+  "breakthrough_fail": {
+   "caption_key": "ART_CAP_BREAKTHROUGH_FAIL",
+   "min_width": 640,
+   "queries": [
+    "dark storm lightning ruined battlefield dramatic fantasy painting",
+    "black thunder clouds apocalyptic sky fantasy art painting"
+   ]
+  },
+  "milestone_realm": {
+   "caption_key": "ART_CAP_MILESTONE",
+   "min_width": 640,
+   "queries": [
+    "celestial dragon heavenly realm golden clouds fantasy illustration",
+    "divine palace above clouds golden light epic fantasy painting"
+   ]
+  },
+  "zone:zone_valley_mortals": {
+   "caption_key": "ART_CAP_ZONE",
+   "queries": [
+    "misty mountain valley waterfall sunrise fantasy landscape concept art",
+    "pastoral valley morning fog traditional chinese landscape painting"
+   ],
+   "throttle_minutes": 360
+  },
+  "zone:zone_ordinary_cave": {
+   "caption_key": "ART_CAP_ZONE",
+   "queries": [
+    "glowing crystal cave interior fantasy environment concept art",
+    "candlelit mountain cavern stalactites dark fantasy painting"
+   ],
+   "throttle_minutes": 360
+  },
+  "zone:zone_bamboo_forest": {
+   "caption_key": "ART_CAP_ZONE",
+   "queries": [
+    "ancient bamboo forest mist fantasy environment concept art",
+    "green bamboo grove sunlight chinese ink painting"
+   ],
+   "throttle_minutes": 360
+  },
+  "zone:zone_mist_peak": {
+   "caption_key": "ART_CAP_ZONE",
+   "queries": [
+    "snowy mountain peak above sea of clouds fantasy landscape art",
+    "lonely peak wrapped in mist asian mountain ink painting"
+   ],
+   "throttle_minutes": 360
+  },
+  "zone:zone_blood_marsh": {
+   "caption_key": "ART_CAP_ZONE",
+   "queries": [
+    "dark red swamp fog dead trees ominous fantasy landscape painting",
+    "eerie marsh at dusk black water mist dark fantasy concept art"
+   ],
+   "throttle_minutes": 360
+  },
+  "zone:zone_heavenly_spring": {
+   "caption_key": "ART_CAP_ZONE",
+   "queries": [
+    "glowing hot spring jade temple celestial garden fantasy art",
+    "turquoise mountain spring glowing water fantasy environment painting"
+   ],
+   "throttle_minutes": 360
+  },
+  "zone:zone_thunder_plateau": {
+   "caption_key": "ART_CAP_ZONE",
+   "queries": [
+    "thunderstorm plateau lightning dramatic sky fantasy landscape art",
+    "storm clouds over highland plain lightning epic romantic painting"
+   ],
+   "throttle_minutes": 360
+  },
+  "hunt:zone_valley_mortals": {
+   "caption_key": "ART_CAP_HUNT",
+   "queries": [
+    "wild wolves forest dawn fantasy creature concept art",
+    "lone wolf in misty valley dark fantasy painting"
+   ],
+   "throttle_minutes": 60
+  },
+  "hunt:zone_ordinary_cave": {
+   "caption_key": "ART_CAP_HUNT",
+   "queries": [
+    "serpent in dark cave glowing eyes fantasy creature art",
+    "giant snake coiled in cavern dungeon fantasy illustration"
+   ],
+   "throttle_minutes": 60
+  },
+  "hunt:zone_bamboo_forest": {
+   "caption_key": "ART_CAP_HUNT",
+   "queries": [
+    "predatory beast stalking through bamboo forest fantasy art",
+    "giant panda spirit beast bamboo forest fantasy illustration"
+   ],
+   "throttle_minutes": 60
+  },
+  "hunt:zone_mist_peak": {
+   "caption_key": "ART_CAP_HUNT",
+   "queries": [
+    "giant bird of prey above mountain clouds fantasy creature art",
+    "vulture circling storm peak dark fantasy painting"
+   ],
+   "throttle_minutes": 60
+  },
+  "hunt:zone_blood_marsh": {
+   "caption_key": "ART_CAP_HUNT",
+   "queries": [
+    "swamp monster serpent rising from black water dark fantasy art",
+    "bat swarm at dusk ruined marsh gothic fantasy painting"
+   ],
+   "throttle_minutes": 60
+  },
+  "hunt:zone_heavenly_spring": {
+   "caption_key": "ART_CAP_HUNT",
+   "queries": [
+    "jade guardian statue glowing spring fantasy creature art",
+    "white crane sacred pond celestial mythological painting"
+   ],
+   "throttle_minutes": 60
+  },
+  "hunt:zone_thunder_plateau": {
+   "caption_key": "ART_CAP_HUNT",
+   "queries": [
+    "lightning elemental beast storm plain fantasy creature concept art",
+    "thunder bird riding lightning dark fantasy illustration"
+   ],
+   "throttle_minutes": 60
+  },
+  "victory": {
+   "caption_key": "ART_CAP_VICTORY",
+   "queries": [
+    "warrior standing victorious over fallen beast sunset fantasy art",
+    "cultivator with glowing sword on hill triumphant fantasy painting"
+   ],
+   "throttle_minutes": 30
+  }
+ }
+}

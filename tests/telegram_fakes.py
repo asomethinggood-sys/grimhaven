@@ -28,11 +28,21 @@ class FakeBot:
         self.deleted: list[int] = []
         self.stripped: list[int] = []
         self.edited_markup: list[tuple[int, object]] = []
+        #: every photo send: (chat_id, photo, caption) — the artwork layer
+        #: asserts on this to prove a REAL upload happened
+        self.photos: list[tuple[int, object, object]] = []
+        self.documents: list[tuple[int, object, object]] = []
         #: True → Telegram refuses anything carrying a keyboard (a screen), while
         #: plain text (the failure notice) still lands. That is the realistic shape
         #: of a render rejection and it is what the reporter must cope with.
         self.fail_send = False
         self.fail_delete = False
+        #: True → send_photo raises: the artwork layer must swallow it in silence
+        #: (the game action already landed; a picture must never become an error)
+        self.fail_photo = False
+        #: when set, send_photo raises only for string photo ids (a stale
+        #: Telegram file_id) so the InputFile re-upload path is exercised
+        self.fail_file_id = False
         self._mid = 9000
 
     def next_id(self) -> int:
@@ -52,6 +62,22 @@ class FakeBot:
             raise BadRequest("Bad Request: BUTTON_TYPE_INVALID")
         mid = self.next_id()
         self.sent.append((mid, text, reply_markup))
+        return SimpleNamespace(message_id=mid, chat_id=chat_id)
+
+    async def send_photo(self, chat_id, photo, caption=None, reply_markup=None,
+                         **kwargs):
+        if self.fail_photo or (self.fail_file_id and isinstance(photo, str)):
+            raise BadRequest("Bad Request: PHOTO_FILE_INVALID")
+        mid = self.next_id()
+        self.photos.append((chat_id, photo, caption))
+        return SimpleNamespace(message_id=mid, chat_id=chat_id,
+                               photo=[SimpleNamespace(file_id=f"FAKE_FILE_ID_{mid}")])
+
+    async def send_document(self, chat_id, document, caption=None, **kwargs):
+        if self.fail_photo:
+            raise BadRequest("Bad Request: DOCUMENT_INVALID")
+        mid = self.next_id()
+        self.documents.append((chat_id, document, caption))
         return SimpleNamespace(message_id=mid, chat_id=chat_id)
 
     async def edit_message_reply_markup(self, chat_id=None, message_id=None,

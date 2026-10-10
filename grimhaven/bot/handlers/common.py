@@ -24,9 +24,37 @@ logger = logging.getLogger(__name__)
 class Ctx:
     """Everything a handler needs, pulled from the shared application bot_data."""
 
-    def __init__(self, storage: Storage, admin_ids: set[int]):
+    def __init__(self, storage: Storage, admin_ids: set[int], settings=None):
         self.storage = storage
         self.admin_ids = admin_ids
+        self.settings = settings
+        self._artworks: object | None = None
+        # settings absent (demo/test contexts) → nothing to build, ever
+        self._artworks_built = settings is None
+
+    @property
+    def artworks(self):
+        """The artwork service, or ``None`` when disabled/unavailable.
+
+        Construction is lazy and failure-tolerant: a broken cache directory
+        or a missing dependency must leave ``None`` (→ text-only play), it
+        must never take the bot down.
+        """
+        if self._artworks_built:
+            return self._artworks
+        self._artworks_built = True
+        try:
+            s = self.settings
+            if s is not None and getattr(s, "artwork_enabled", False):
+                from ...images.service import ArtworkService
+                self._artworks = ArtworkService(self.storage, s)
+                logger.info("artwork: service online — providers=%s cache=%s",
+                            getattr(s, "artwork_providers", "?"),
+                            self._artworks.root)
+        except Exception:      # noqa: BLE001 — artwork must never gate the bot
+            self._artworks = None
+            logger.exception("artwork: service unavailable — the game plays in text only")
+        return self._artworks
 
     # world boost (admin /world_boost) ─ {rate, until}
     def world_boost(self, now: dt.datetime | None = None) -> float:

@@ -1,6 +1,7 @@
 """Telegram application assembly — wiring the engine to @Grimheaven_bot."""
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from telegram import BotCommand, Update
@@ -47,7 +48,7 @@ def build_application(settings: Settings, storage: Storage) -> Application:
                 len(data_registry.offline_events), len(data_registry.martial_arts),
                 len(data_registry.techniques_index))
     app = Application.builder().token(settings.telegram_bot_token).build()
-    app.bot_data["ctx"] = Ctx(storage, settings.admin_ids)
+    app.bot_data["ctx"] = Ctx(storage, settings.admin_ids, settings=settings)
 
     get_user = storage.get_user
     guarded = lambda fn: guard_update(get_user, fn)  # noqa: E731
@@ -56,6 +57,20 @@ def build_application(settings: Settings, storage: Storage) -> Application:
         await application.bot.set_my_commands(
             [BotCommand(name, help_text) for name, help_text in cmd_handlers.BOT_COMMANDS]
         )
+        # warm the artwork cache for the marquee event before the first player
+        # taps it; bounded, deduplicated, and failure-silent (see ArtworkService)
+        service = application.bot_data["ctx"].artworks
+        if service is not None:
+            keys = [k for k in ("breakthrough", "breakthrough_fail", "milestone_realm")
+                    if service.queries_for(k)]
+            if keys:
+                task = asyncio.create_task(service.prefetch(keys))
+                application.bot_data["artwork_prefetch"] = task
+                task.add_done_callback(
+                    lambda t: logger.info("artwork: startup prefetch warmed %d asset(s)",
+                                          t.result()) if not t.exception()
+                    else logger.warning("artwork: startup prefetch failed: %s",
+                                        t.exception()))
 
     async def on_error(update: Update | None,
                      context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -94,7 +109,17 @@ def build_application(settings: Settings, storage: Storage) -> Application:
             logger.warning("could not report incident %s to the player: %s",
                            ref, send_exc)
 
+    async def post_shutdown(application: Application) -> None:
+        """Leave no artwork task dangling against a closing loop."""
+        service = application.bot_data["ctx"].artworks
+        if service is not None:
+            try:
+                await service.cancel_tasks()
+            except Exception:      # pragma: no cover — shutdown noise only
+                logger.debug("artwork: background tasks refused a clean cancel")
+
     app.post_init = post_init
+    app.post_shutdown = post_shutdown
     app.add_error_handler(on_error)
 
     app.add_handler(CommandHandler("start", guarded(cmd_handlers.cmd_start)))
