@@ -85,6 +85,10 @@ class ArtworkService:
         self._events = self._load_event_map()
         self._inflight: set[str] = set()
         self._tasks: set[asyncio.Task] = set()
+        #: file_hash → Telegram file_id, valid for THIS process only.
+        #: (Telegram stores bot-uploaded files for ~24 h; the DB outlives the
+        #: runner, so the persisted column must never be used to send.)
+        self._file_ids: dict[str, str] = {}
 
     # ── event map ─────────────────────────────────────────────────────────────
     @staticmethod
@@ -442,6 +446,27 @@ class ArtworkService:
         for task in list(self._tasks):
             task.cancel()
         self._tasks.clear()
+
+    # ── Telegram file_id memory (process-lifetime on purpose) ──────────────
+    def remember_file_id(self, file_hash: str, file_id: str) -> None:
+        """Cache a sendable file_id for identical bytes within this process.
+
+        Deliberately NOT persisted as a send path: Telegram keeps
+        bot-uploaded files on its servers for a short time (≈24 h) — while
+        our database (and its artwork index) outlives every hosting cycle.
+        Reading a stored id back after a restart guarantees a 400
+        "can't find file for file_id of type 'PhotoSize'" on first send;
+        keeping the map in memory makes reuse instant AND always valid,
+        because a bot run is capped well below Telegram's retention window.
+        """
+        if file_hash and file_id:
+            if len(self._file_ids) > 1024:            # bounded, FIFO
+                self._file_ids.pop(next(iter(self._file_ids)))
+            self._file_ids[file_hash] = file_id
+
+    def recall_file_id(self, file_hash: str) -> str:
+        """The known-live file_id for these bytes in THIS process, if any."""
+        return self._file_ids.get(file_hash or "", "")
 
     def stats(self) -> dict:
         try:

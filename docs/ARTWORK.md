@@ -143,11 +143,16 @@ captions are gameplay text only.
 * **Dedupe on content** — two event keys that resolve to the same picture
   share one file on disk (one index row each); eviction checks the shared
   hash before deleting.
-* **`file_id` reuse** — after the first successful send the Telegram
-  `file_id` is stored; later sends reference it (instant, no re-upload). If
-  Telegram rejects the id (cache moved, file expired) one fresh upload is
-  performed and the id updated. Files >5 MB (near the photo limit) go out
-  as documents instead.
+* **`file_id` reuse is process-local** — after the first successful send in
+  a run the Telegram `file_id` is remembered *in memory* (keyed by content
+  hash), so identical bytes travel exactly once per cycle and every reuse is
+  guaranteed valid. It is deliberately **never read back from the database**:
+  Telegram garbage-collects bot-uploaded files after roughly a day while the
+  DB artifact outlives every hosting cycle, and a stale id means a 400
+  `can't find file for file_id of type 'PhotoSize'` on every first send after
+  a restart (this was a real production incident). The `telegram_file_id`
+  column is kept for ops diagnostics only. Files >5 MB (near the photo
+  limit) go out as documents instead.
 * **Atomic cache writes** — `*.part` + `os.replace`; a crash cannot leave a
   half file being served.
 * **Schema is additive** — old (v3) databases gain the `artwork` table on

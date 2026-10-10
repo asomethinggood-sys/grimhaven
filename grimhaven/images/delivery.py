@@ -12,9 +12,11 @@ game code calls. It
 * resolves the artwork through the service (cache hit → instant send; miss →
   one bounded fetch, then silence — the handler's own document save then
   persists the claim, and startup prefetching warms the cache);
-* reuses the Telegram ``file_id`` stored with the row so already-uploaded
-  bytes never travel twice, falling back to a fresh ``InputFile`` upload when
-  Telegram no longer knows the id;
+* reuses the Telegram ``file_id`` **within this process only** (identical
+  bytes never travel twice in one run); persisted ids are never trusted —
+  Telegram garbage-collects bot files after roughly a day, and a stale id
+  guarantees a 400 "can't find file for file_id of type 'PhotoSize'", so the
+  in-memory map dies with the run and the first send uploads fresh instead;
 * clamps captions to Telegram's 1024-character limit, sends plain text, and
   routes the rare oversized file through ``send_document``;
 * **never raises, never blocks the handler** — the actual delivery runs as a
@@ -92,9 +94,10 @@ async def send_photo_row(bot, chat_id: int, path: Path, caption: str, *,
                                        caption=caption or None)
             return _extract_file_id(msg) or file_id
         except PtbTelegramError as exc:
-            # file ids can expire (token swap, server-side GC) — upload fresh
-            logger.debug("artwork: stored file_id rejected (%s); re-uploading",
-                         str(exc)[:120])
+            # only reachable when an in-process id aged past Telegram's ~24 h
+            # retention (very long run) or the token changed — upload fresh
+            logger.info("artwork: remembered file_id rejected (%s); re-uploading",
+                        str(exc)[:120])
 
     size = path.stat().st_size
     try:
@@ -156,15 +159,25 @@ async def deliver_artwork(bot, chat_id: int, user: dict, spec: dict, *,
             logger.warning("artwork: cached path rejected for %s: %s", asset_key, exc)
             return False
         caption = str(spec.get("caption") or "")
+        file_hash = str(row.get("file_hash") or "")
+        # file_id reuse is PROCESS-LOCAL by design: Telegram expires bot
+        # uploads (≈24 h) while the DB row outlives every hosting cycle, so
+        # the persisted column must never reach the send path — see
+        # ArtworkService.remember_file_id. It is updated only as ops metadata.
+        recall = getattr(service, "recall_file_id", None)
+        remember = getattr(service, "remember_file_id", None)
+        known_id = recall(file_hash) if recall else ""
         file_id = await asyncio.wait_for(
-            send_photo_row(bot, chat_id, path, caption,
-                           file_id=str(row.get("telegram_file_id") or "")),
+            send_photo_row(bot, chat_id, path, caption, file_id=known_id),
             timeout=timeout)
-        if file_id and file_id != row.get("telegram_file_id"):
-            try:
-                service.storage.artwork_set_file_id(asset_key, file_id)
-            except Exception:
-                logger.debug("artwork: file_id could not be indexed")
+        if file_id:
+            if remember:
+                remember(file_hash, file_id)
+            if file_id != row.get("telegram_file_id"):
+                try:
+                    service.storage.artwork_set_file_id(asset_key, file_id)
+                except Exception:
+                    logger.debug("artwork: file_id could not be indexed")
         return True
     except asyncio.CancelledError:
         raise
