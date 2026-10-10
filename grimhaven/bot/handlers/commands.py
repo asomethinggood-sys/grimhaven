@@ -18,7 +18,7 @@ from telegram.ext import ContextTypes
 from ...core.middleware import callback_blocked
 from ...localization import t
 from ...render import start_text
-from ..keyboards import REPLY_TO_ACTION, dock_reply_kb, start_kb
+from ..keyboards import dock_reply_kb, resolve_dock_action, start_kb
 from .callbacks import _canon, _dispatch
 from .common import Ctx
 
@@ -199,11 +199,21 @@ async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def on_reply_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Route docked reply-keyboard button taps to their game screens."""
+    """Route docked reply-keyboard button taps to their game screens.
+
+    A tap is never swallowed: if the label is not a dock button we fall back to
+    the destiny scroll, because silence reads as a dead bot (a stale keyboard
+    from an older release used to produce exactly that).
+    """
     if not update.message or not update.message.text:
         return
     text = update.message.text.strip()
-    data = REPLY_TO_ACTION.get(text)
+    data = resolve_dock_action(text)
     if not data:
+        ctx: Ctx = get_ctx(context)
+        user, _ = ctx.get_or_create_user(update.effective_user)
+        await _present(update.message, user, *ctx.profile_reply(user)[:2],
+                       {"root": True})
+        ctx.save(user)
         return
     await _run(update, context, data)

@@ -59,6 +59,95 @@ REPLY_TO_ACTION = {
     "⚙️ Settings": "settings:view:main",
 }
 
+# ── drift-tolerant dock lookup ───────────────────────────────────────────────
+# Telegram keeps a reply keyboard on the CLIENT until the bot sends a new one,
+# so a player can be holding labels from any older release. An exact-match miss
+# used to return None, which made `on_reply_button` bail out silently — the
+# player tapped and the bot said nothing at all. We therefore normalize the
+# label (emoji presentation selectors, ZWNJ, Arabic letterforms, spacing) and,
+# failing that, fall back to distinctive keywords that survive rewording.
+def _normalize_dock(label: str) -> str:
+    """Fold away the cosmetic differences between dock revisions."""
+    text = "".join(
+        ch for ch in (label or "")
+        if ch not in ("\ufe0e", "\ufe0f", "\u200c", "\u200d", "\u2060")
+    )
+    # Arabic letterforms → Persian, so ي/ك match ی/ک
+    text = text.replace("ي", "ی").replace("ك", "ک")
+    text = text.replace("ۀ", "ه").replace("ة", "ه")
+    return " ".join(text.split()).casefold()
+
+
+_DOCK_ALIASES: dict[str, str] = {
+    _normalize_dock(_label): _action for _label, _action in REPLY_TO_ACTION.items()
+}
+
+# the glyph every dock button opens with — the gate for the keyword pass
+_DOCK_PREFIXES = frozenset(
+    lbl.strip()[0] for lbl in REPLY_TO_ACTION if lbl.strip()
+)
+
+# checked in order; the first keyword contained in the normalized label wins
+_DOCK_KEYWORDS: tuple[tuple[str, str], ...] = (
+    ("مدیتیشن", "cultivate:view:hub"), ("تهذیب", "cultivate:view:hub"),
+    ("مراقبه", "cultivate:view:hub"), ("خلوت", "cultivate:view:hub"),
+    ("cultivation", "cultivate:view:hub"), ("meditat", "cultivate:view:hub"),
+    ("شکست سد", "breakthrough:view:prep"), ("شکست", "breakthrough:view:prep"),
+    ("breakthrough", "breakthrough:view:prep"),
+    ("نقشه", "map:view:world"), ("شکار", "map:view:world"),
+    ("map", "map:view:world"), ("hunt", "map:view:world"),
+    ("کوله", "bag:tab:gear:1"), ("گنجینه", "bag:tab:gear:1"),
+    ("bag", "bag:tab:gear:1"), ("treasure", "bag:tab:gear:1"),
+    ("لوح سرنوشت", "profile:view:main"), ("پروفایل", "profile:view:main"),
+    ("destiny scroll", "profile:view:main"), ("profile", "profile:view:main"),
+    ("پاویون", "shop:view:hub"), ("تجارت", "shop:view:hub"),
+    ("pavilion", "shop:view:hub"), ("shop", "shop:view:hub"),
+    ("فرقه", "sect:view:main"), ("sect", "sect:view:main"),
+    ("تنظیمات", "settings:view:main"), ("زبان", "settings:view:main"),
+    ("settings", "settings:view:main"), ("language", "settings:view:main"),
+)
+
+
+def _looks_like_dock_button(label: str) -> bool:
+    """Cheap guard: a dock tap is short and opens with one of the dock glyphs.
+
+    Keeps the keyword pass away from real chat. Derived from the labels we
+    actually ship, so it tracks the dock automatically.
+    """
+    text = (label or "").strip()
+    if not text or len(text) > 40:
+        return False
+    return text[0] in _DOCK_PREFIXES
+
+
+def resolve_dock_action(label: str) -> str | None:
+    """Map a tapped dock label to a dispatch payload, or None if it is not one.
+
+    Tolerates keyboards left over from older releases (see ``_DOCK_ALIASES``)
+    so that a stale button still opens its screen instead of doing nothing.
+
+    The keyword pass is deliberately gated behind ``_looks_like_dock_button``:
+    without that gate an ordinary English sentence ("I want to shop for a new
+    map") would be hijacked into a navigation jump.
+    """
+    if not label:
+        return None
+    exact = REPLY_TO_ACTION.get(label.strip())
+    if exact:
+        return exact
+    normalized = _normalize_dock(label)
+    if not normalized:
+        return None
+    alias = _DOCK_ALIASES.get(normalized)
+    if alias:
+        return alias
+    if not _looks_like_dock_button(label):
+        return None
+    for keyword, action in _DOCK_KEYWORDS:
+        if keyword in normalized:
+            return action
+    return None
+
 
 def dock_reply_kb(lang: str) -> ReplyKeyboardMarkup:
     """The 8-button dock — persistent, resized, never one-shot (P1 §1.1)."""

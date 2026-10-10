@@ -286,15 +286,20 @@ def test_on_callback_safety_net_answers_when_settle_crashes(ctx, monkeypatch):
 # ── 5. the world-state saver speaks the real artifact protocol ───────────────
 
 def test_gha_state_saves_through_the_artifact_twirp_protocol():
+    # the Twirp client was extracted into a module (round 5) so the protocol is
+    # unit-testable; gha_state.sh must still drive it
     script = (REPO / "deploy/gha_state.sh").read_text(encoding="utf-8")
+    client = (REPO / "deploy/gha_artifact.py").read_text(encoding="utf-8")
+    both = script + client
     # the dead public-REST creation POST (404 for every historical run) is gone
-    assert "expiration_days=1" not in script
-    assert "CreateArtifact" in script
-    assert "FinalizeArtifact" in script
-    assert "x-ms-blob-type" in script
-    assert "Actions.Results" in script
-    assert "ACTIONS_RUNTIME_TOKEN" in script and "ACTIONS_RESULTS_URL" in script
-    assert "twirp/github.actions.results.api.v1.ArtifactService" in script
+    assert "expiration_days=1" not in both
+    assert "gha_artifact.py" in script  # save/verify delegate to the module
+    assert "CreateArtifact" in client
+    assert "FinalizeArtifact" in client
+    assert "x-ms-blob-type" in client
+    assert "Actions.Results" in client
+    assert "ACTIONS_RUNTIME_TOKEN" in client and "ACTIONS_RESULTS_URL" in client
+    assert "twirp/github.actions.results.api.v1.ArtifactService" in client
 
 
 def test_locale_module_exposes_mapping_variant():
