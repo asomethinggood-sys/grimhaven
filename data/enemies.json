@@ -20,11 +20,13 @@
      {
       "item_id": "wolf_pelt",
       "name": "پوست ضخیم گرگ",
+      "name_en": "Wolf Pelt",
       "chance_percent": 70
      },
      {
       "item_id": "wolf_fang",
       "name": "دندان نیش تیز",
+      "name_en": "Wolf Fang",
       "chance_percent": 35
      }
     ]
@@ -87,11 +89,13 @@
      {
       "item_id": "boar_tusk",
       "name": "عاج خنجری گراز",
+      "name_en": "Boar Tusk",
       "chance_percent": 50
      },
      {
       "item_id": "rough_hide",
       "name": "چرم خشن کوهستان",
+      "name_en": "Rough Hide",
       "chance_percent": 40
      }
     ]
@@ -154,11 +158,13 @@
      {
       "item_id": "viper_venom_sac",
       "name": "کیسه زهر بوته‌زار",
+      "name_en": "Viper Venom Sac",
       "chance_percent": 60
      },
      {
       "item_id": "snake_scale",
       "name": "پولک نرم خاکی",
+      "name_en": "Snake Scale",
       "chance_percent": 45
      }
     ]
@@ -221,11 +227,13 @@
      {
       "item_id": "vulture_feather",
       "name": "شاه‌پَر تیره عقاب‌نما",
+      "name_en": "Vulture Feather",
       "chance_percent": 55
      },
      {
       "item_id": "iron_beak_shard",
       "name": "خرده‌منقار محکم",
+      "name_en": "Iron Beak Shard",
       "chance_percent": 30
      }
     ]
@@ -288,11 +296,13 @@
      {
       "item_id": "ape_sinew",
       "name": "تاندون مقاوم میمون",
+      "name_en": "Ape Sinew",
       "chance_percent": 40
      },
      {
       "item_id": "spirit_fruit_core",
       "name": "هسته میوه نیمه‌رسیده",
+      "name_en": "Spirit Fruit Core",
       "chance_percent": 50
      }
     ]
@@ -355,11 +365,13 @@
      {
       "item_id": "cave_wolf_core",
       "name": "هسته ناخالص جانور غار",
+      "name_en": "Cave Wolf Core",
       "chance_percent": 40
      },
      {
       "item_id": "phosphor_eye",
       "name": "چشم فسفری شب‌نما",
+      "name_en": "Phosphor Eye",
       "chance_percent": 30
      }
     ]
@@ -422,11 +434,13 @@
      {
       "item_id": "crystal_chitin",
       "name": "پوسته کیتینی بلورین",
+      "name_en": "Crystal Chitin",
       "chance_percent": 50
      },
      {
       "item_id": "sticky_web_thread",
       "name": "تار ابریشم چسبنده غار",
+      "name_en": "Sticky Web Thread",
       "chance_percent": 65
      }
     ]
@@ -489,11 +503,13 @@
      {
       "item_id": "bat_wing_membrane",
       "name": "غشای نازک بال خفاش",
+      "name_en": "Bat Wing Membrane",
       "chance_percent": 60
      },
      {
       "item_id": "blood_essence_drop",
       "name": "قطره جوهره خون تیره",
+      "name_en": "Blood Essence Drop",
       "chance_percent": 35
      }
     ]
@@ -556,11 +572,13 @@
      {
       "item_id": "iron_carapace",
       "name": "قطعه زره کیتینی خارا",
+      "name_en": "Iron Carapace",
       "chance_percent": 45
      },
      {
       "item_id": "centipede_leg",
       "name": "پای نیش‌دار هزارپا",
+      "name_en": "Centipede Leg",
       "chance_percent": 60
      }
     ]
@@ -623,11 +641,13 @@
      {
       "item_id": "yin_ghost_dust",
       "name": "غبار سرمای یین",
+      "name_en": "Yin Ghost Dust",
       "chance_percent": 50
      },
      {
       "item_id": "broken_jade_pendant",
       "name": "تکه آویز یشم شکسته",
+      "name_en": "Broken Jade Pendant",
       "chance_percent": 25
      }
     ]

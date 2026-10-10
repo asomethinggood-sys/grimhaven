@@ -156,7 +156,9 @@ def as_str(value: Any, default: str = "") -> str:
 BASE_RING_CAPACITY = 12
 
 START_INVENTORY = {
-    "spirit_stones": {"low": 30, "mid": 0, "high": 0, "heavenly": 0},
+    # empty sleeves: spirit stones (the catalyst fuel) are earned as enemy loot —
+    # a brand-new cultivator owns none and the boost stays locked until they hunt
+    "spirit_stones": {"low": 0, "mid": 0, "high": 0, "heavenly": 0},
     "methods": ["method_breath_mortal", "method_sky_cleaving"],
     "arts": ["art_moonlight_sword"],          # every mortal starts on the moonlight path
     "items": {"pill_guardian": 1, "talisman_gale_blade": 2},
@@ -494,6 +496,13 @@ def ensure_v2(doc: dict, changes: list[str] | None = None) -> dict:
         if stones.get(grade) != n:
             note(f"inventory.spirit_stones.{grade} coerced")
         stones[grade] = n
+    # a catalyst is a *consumable*: an armed stone nobody carries is either a
+    # stale grant or a hand-edited document — disarm it so the AFK boost cannot
+    # be kept alive without paying for it every hour
+    armed = cul.get("active_stone")
+    if armed and stones.get(armed, 0) <= 0:
+        cul["active_stone"] = None
+        note("cultivation.active_stone disarmed: no stones carried")
     # merge legacy pills/herbs dicts into the unified item ledger
     for pid, qty in (as_dict(inv.get("pills")) or {}).items():
         n = as_int(qty, 0, minimum=0)

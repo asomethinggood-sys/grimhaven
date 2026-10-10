@@ -42,7 +42,8 @@ def test_new_user_bootstrap_stats():
     assert hidden["dao_heart_stability"] == 70
     assert hidden["demonic_corruption"] == 0
     assert 1 <= len(u["combat"]["loadout"]) <= 6  # starter arts auto-fit the deck
-    assert u["inventory"]["spirit_stones"] == {"low": 30, "mid": 0, "high": 0, "heavenly": 0}
+    # empty sleeves by design: catalyst fuel is earned as enemy loot, never gifted
+    assert u["inventory"]["spirit_stones"] == {"low": 0, "mid": 0, "high": 0, "heavenly": 0}
     assert not u["combat"]["session"]
 
 
@@ -191,5 +192,5 @@ def test_victory_persists_loot_and_closes_session():
     assert u["combat"]["session"] is None
     assert u["combat"]["wins"] == 1
     total_stones = sum(u["inventory"]["spirit_stones"].values())
-    assert total_stones >= 11  # 10 base + loot
+    assert total_stones >= 3  # the serpent's drop — starters carry nothing now
     assert u["status"] != "in_combat"

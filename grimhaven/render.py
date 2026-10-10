@@ -451,7 +451,8 @@ def zone_hub_text(lang: str, user: dict, zone_id: str) -> str:
     if not z:
         return t(lang, "ERR_UNKNOWN")
     enemies = data_registry.enemies_by_zone_list(zone_id)
-    beast_names = "، ".join(e.name_for(lang) for e in enemies[:4]) if enemies else z.beasts_for(lang)
+    beast_names = _list_sep(lang).join(e.name_for(lang) for e in enemies[:4]) \
+        if enemies else z.beasts_for(lang)
     settled = user["location"].get("current_zone_id") == zone_id
     lines = [
         t(lang, "ZONEH_TITLE", name=z.name_for(lang)),
@@ -488,7 +489,8 @@ def zone_text(lang: str, zone: dict, storage, viewer_id: int | None) -> str:
             owner_txt = f"tg:{zone['owner']}"
     return t(lang, "ZONE_INFO_OLD", zone=z.name_for(lang), density=z.density,
              realm=t(lang, REALM_NAMES[z.min_realm]), owner=owner_txt,
-             beasts="، ".join(e.name_for(lang) for e in data_registry.enemies_by_zone_list(z.zone_id)))
+             beasts=_list_sep(lang).join(
+                 e.name_for(lang) for e in data_registry.enemies_by_zone_list(z.zone_id)))
 
 
 # ═══════════════════════════════ combat (P4) ══════════════════════════════════
@@ -547,13 +549,19 @@ def _status_summary(lang: str, statuses: list[dict]) -> str:
     return " · ".join(parts)
 
 
+def _list_sep(lang: str) -> str:
+    """Join separator for inline lists — the Persian Enumeration comma only
+    belongs to fa; EN screens must not sprinkle «،» through English text."""
+    return "، " if lang == "fa" else ", "
+
+
 def loot_scroll_text(lang: str, user: dict, session: dict) -> str:
     """The clean Loot Scroll — spec P4 §5.2."""
     e = session["enemy"]
     reward = session.get("reward") or {}
     drops = reward.get("drops") or []
     e_name = enemy_name(e, lang)
-    loot_str = "، ".join(drops) if drops else t(lang, "LOOT_NONE")
+    loot_str = _list_sep(lang).join(drops) if drops else t(lang, "LOOT_NONE")
     return (
         f"{t(lang, 'VICTORY_TITLE', enemy=e_name)}\n\n"
         f"{t(lang, 'VICTORY_FLAVOR')}\n\n"

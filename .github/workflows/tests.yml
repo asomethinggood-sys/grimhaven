@@ -22,3 +22,22 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Run tests
         run: python -m pytest -q
+
+  # Live counterpart to the MockTransport suite: proves discovery → download
+  # → validation → caching genuinely works against the real public endpoints.
+  # Non-blocking by design (a third-party outage must not redden main), but
+  # the logs show exactly when image retrieval stops working.
+  artwork-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Live image retrieval probe
+        run: python scripts/artwork_probe.py
+        continue-on-error: true
+

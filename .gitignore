@@ -1,5 +1,6 @@
 # Secrets & local state — NEVER commit (game content in data/*.json IS committed)
 .env
+assets/artwork/
 *.db
 *.sqlite3
 data/*.db
