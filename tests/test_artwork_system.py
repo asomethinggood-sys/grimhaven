@@ -600,7 +600,17 @@ async def test_file_id_reuse_then_fresh_upload_fallback(tmp_path, storage):
     assert fid2
 
 
-_COMMONS_ROUTES = {
+# ── 12. process-local file_id: the stale-id regression ─────────────────────
+#
+# Telegram reclaims bot-uploaded files after roughly a day; the game
+# database outlives every hosting cycle.  The persisted ``telegram_file_id``
+# column is therefore stale metadata — quoting it would 400 the first send
+# of every fresh run ("can't find file for file_id of type 'PhotoSize'").
+# Only ids THIS process just received from Telegram may be quoted.  The
+# FakeBot below makes any quoted string id fail hard, so a green test is
+# proof a dead id was never even attempted.
+
+_TRIB_ROUTES = {
     "commons.wikimedia.org": httpx.Response(
         200, content=commons_payload("https://upload.wikimedia.org/bt/trib.jpg"),
         headers={"content-type": "application/json"}),
@@ -608,65 +618,90 @@ _COMMONS_ROUTES = {
 }
 
 
-@pytest.mark.asyncio
-async def test_restart_never_quotes_the_persisted_file_id(tmp_path, storage):
-    """Production bug: DB outlives the runner, Telegram expires bot files
-    (≈24 h) — a persisted file_id must NEVER reach the send path, or every
-    fresh cycle opens with 400 "can't find file for file_id of type PhotoSize".
-    """
-    from grimhaven.images.delivery import deliver_artwork
-    tp = Transport(dict(_COMMONS_ROUTES))
-    service = build_service(tmp_path, storage, tp)
-    row = await service.get_or_fetch_artwork("breakthrough")
-    assert row["telegram_file_id"] == ""
+def _trib_service(tmp_path: Path, storage: Storage) -> ArtworkService:
+    return build_service(tmp_path, storage, Transport(dict(_TRIB_ROUTES)))
 
-    # first send of the process: uploads the bytes (no id known yet)
+
+@pytest.mark.asyncio
+async def test_persisted_id_is_never_quoted_on_the_first_send(tmp_path, storage):
+    """A fresh process over a DB that already holds a file_id must upload."""
+    from grimhaven.images.delivery import deliver_artwork
+    service = _trib_service(tmp_path, storage)
+    await service.get_or_fetch_artwork("breakthrough")
+    dead_id = "FAKE_FILE_ID_RECLAIMED_BY_TELEGRAM"
+    storage.artwork_set_file_id("breakthrough", dead_id)
+    assert storage.artwork_get("breakthrough")["telegram_file_id"] == dead_id
+
+    bot = FakeBot()
+    bot.fail_file_id = True        # quoting any stored id would blow up here
+    assert await deliver_artwork(bot, 777, {"user_id": 1},
+                                 {"asset_key": "breakthrough", "caption": "hi"},
+                                 service=service)
+    assert not isinstance(bot.photos[0][1], str), \
+        "the first send of a fresh run must upload the bytes, not quote the DB"
+    assert storage.artwork_get("breakthrough")["telegram_file_id"] != dead_id, \
+        "the ops column is refreshed with the id Telegram just gave us"
+
+
+@pytest.mark.asyncio
+async def test_identical_bytes_travel_at_most_once_per_run(tmp_path, storage):
+    """Second send, same process, same bytes → the live in-process id is quoted."""
+    from grimhaven.images.delivery import deliver_artwork
+    service = _trib_service(tmp_path, storage)
     bot = FakeBot()
     assert await deliver_artwork(bot, 777, {"user_id": 1},
                                  {"asset_key": "breakthrough", "caption": "one"},
                                  service=service)
     assert not isinstance(bot.photos[0][1], str), "cold send must upload the file"
-    fid = storage.artwork_get("breakthrough")["telegram_file_id"]
-    assert fid and fid.startswith("FAKE_FILE_ID_"), "id recorded for ops metadata"
+    live_id = storage.artwork_get("breakthrough")["telegram_file_id"]
 
-    # second send, same process: identical bytes never travel twice
     bot2 = FakeBot()
     assert await deliver_artwork(bot2, 777, {"user_id": 1},
                                  {"asset_key": "breakthrough", "caption": "two"},
                                  service=service)
-    assert bot2.photos[0][1] == fid, "warm send reuses the in-memory file_id"
+    assert bot2.photos[0][1] == live_id, "the live in-process id must be reused"
 
-    # "restart": fresh service over the same DB. The bot EXPLODES on any
-    # file_id send, so a green run here proves the stale persisted id in the
-    # column was never even attempted.
-    service2 = build_service(tmp_path, storage, Transport(dict(_COMMONS_ROUTES)))
-    assert service2.recall_file_id(row["file_hash"]) == "", "memory died with the run"
+    # a different asset key with identical bytes must NOT re-upload either
     bot3 = FakeBot()
-    bot3.fail_file_id = True
     assert await deliver_artwork(bot3, 777, {"user_id": 1},
-                                 {"asset_key": "breakthrough", "caption": "three"},
-                                 service=service2)
-    assert not isinstance(bot3.photos[0][1], str), \
-        "post-restart first send must upload fresh, not quote the dead id"
+                                 {"asset_key": "milestone_realm", "caption": "three"},
+                                 service=service)
+    assert isinstance(bot3.photos[0][1], str), \
+        "identical bytes under another key ride the live in-process id"
 
 
 @pytest.mark.asyncio
-async def test_dead_in_process_id_is_dropped_and_reuploaded(tmp_path, storage):
-    """If even a remembered id goes stale (ultra-long run), recover quietly."""
+async def test_stale_in_process_id_is_replaced_by_a_reupload(tmp_path, storage):
+    """Even a remembered id can outlive Telegram's ~24 h in a marathon run."""
     from grimhaven.images.delivery import deliver_artwork
-    tp = Transport(dict(_COMMONS_ROUTES))
-    service = build_service(tmp_path, storage, tp)
+    service = _trib_service(tmp_path, storage)
     row = await service.get_or_fetch_artwork("breakthrough")
-    service.remember_file_id(row["file_hash"], "EXPIRED_ID")
+    service.file_id_memory.put(row["file_hash"], "FAKE_FILE_ID_LONG_GONE")
     bot = FakeBot()
-    bot.fail_file_id = True     # Telegram: can't find file for PhotoSize
+    bot.fail_file_id = True
     assert await deliver_artwork(bot, 777, {"user_id": 1},
-                                 {"asset_key": "breakthrough", "caption": "cap"},
+                                 {"asset_key": "breakthrough", "caption": "again"},
                                  service=service)
     assert len(bot.photos) == 1, "exactly the fallback upload landed"
     assert not isinstance(bot.photos[0][1], str)
-    new_id = service.recall_file_id(row["file_hash"])
-    assert new_id and new_id != "EXPIRED_ID", "dead id replaced in memory"
+    fresh = service.file_id_memory.lookup(row["file_hash"])
+    assert fresh and fresh != "FAKE_FILE_ID_LONG_GONE", \
+        "the dead id must be replaced in the in-process registry"
+
+
+def test_file_id_memory_is_bounded_lru_and_process_local():
+    from grimhaven.images.service import ProcessFileIdMemory
+    mem = ProcessFileIdMemory(cap=4)
+    for i in range(6):
+        mem.put(f"hash{i}", f"id{i}")
+    assert len(mem) == 4
+    assert mem.lookup("hash0") == "", "oldest entry evicted"
+    assert mem.lookup("hash5") == "id5"
+    mem.put("", "no-hash")
+    mem.put("hash9", "")
+    assert len(mem) == 4, "empty keys/ids are ignored"
+    assert ProcessFileIdMemory().lookup("hash5") == "", \
+        "a new process starts with an empty registry"
 
 
 # ── routing contracts: specs on zone/hunt/victory + captions ────────────────

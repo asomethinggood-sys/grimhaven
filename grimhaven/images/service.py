@@ -32,6 +32,7 @@ import json
 import logging
 import os
 import re
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
@@ -64,6 +65,56 @@ def parse_age_minutes(iso_like: Any) -> float:
                .total_seconds() / 60.0)
 
 
+class ProcessFileIdMemory:
+    """Telegram ``file_id``s, kept in memory ON PURPOSE.
+
+    Telegram reclaims bot-uploaded files after roughly a day, while this
+    game's database outlives every hosting cycle — so a ``file_id`` that
+    survives a process restart is a stale promise, and quoting it fails
+    with 400 ``can't find file for file_id of type 'PhotoSize'``.  The
+    registry is therefore:
+
+    * keyed by content hash (identical bytes share one live id),
+    * filled only from ids this very process just received from Telegram,
+    * bounded (LRU) so a long run cannot grow it without limit,
+    * and born and dead with the process — a fresh run starts empty, which
+      is exactly what keeps its first send valid.
+
+    The database's ``telegram_file_id`` column is still refreshed with
+    fresh ids, but purely as ops metadata: the send path never reads it.
+    """
+
+    __slots__ = ("_cap", "_ids")
+
+    def __init__(self, cap: int = 1024) -> None:
+        self._cap = int(cap)
+        if self._cap < 1:
+            self._cap = 1024
+        self._ids: "OrderedDict[str, str]" = OrderedDict()
+
+    def put(self, file_hash: str, file_id: str) -> None:
+        """Remember a file_id this process just received from Telegram."""
+        file_hash = str(file_hash or "")
+        file_id = str(file_id or "")
+        if not file_hash or not file_id:
+            return
+        self._ids[file_hash] = file_id
+        self._ids.move_to_end(file_hash)
+        while len(self._ids) > self._cap:
+            self._ids.popitem(last=False)
+
+    def lookup(self, file_hash: str) -> str:
+        """The live file_id for these bytes in this process, or ``""``."""
+        file_hash = str(file_hash or "")
+        file_id = self._ids.get(file_hash)
+        if file_id:
+            self._ids.move_to_end(file_hash)
+        return file_id or ""
+
+    def __len__(self) -> int:
+        return len(self._ids)
+
+
 class ArtworkService:
     def __init__(self, storage: Any, settings: Any, *, transport: Any = None):
         self.storage = storage
@@ -85,10 +136,10 @@ class ArtworkService:
         self._events = self._load_event_map()
         self._inflight: set[str] = set()
         self._tasks: set[asyncio.Task] = set()
-        #: file_hash → Telegram file_id, valid for THIS process only.
-        #: (Telegram stores bot-uploaded files for ~24 h; the DB outlives the
-        #: runner, so the persisted column must never be used to send.)
-        self._file_ids: dict[str, str] = {}
+        #: Telegram file_ids received by THIS process, keyed by content hash.
+        #: Process-lifetime on purpose — the persisted DB column is ops
+        #: metadata and is never fed back into the send path.
+        self.file_id_memory = ProcessFileIdMemory()
 
     # ── event map ─────────────────────────────────────────────────────────────
     @staticmethod
@@ -446,27 +497,6 @@ class ArtworkService:
         for task in list(self._tasks):
             task.cancel()
         self._tasks.clear()
-
-    # ── Telegram file_id memory (process-lifetime on purpose) ──────────────
-    def remember_file_id(self, file_hash: str, file_id: str) -> None:
-        """Cache a sendable file_id for identical bytes within this process.
-
-        Deliberately NOT persisted as a send path: Telegram keeps
-        bot-uploaded files on its servers for a short time (≈24 h) — while
-        our database (and its artwork index) outlives every hosting cycle.
-        Reading a stored id back after a restart guarantees a 400
-        "can't find file for file_id of type 'PhotoSize'" on first send;
-        keeping the map in memory makes reuse instant AND always valid,
-        because a bot run is capped well below Telegram's retention window.
-        """
-        if file_hash and file_id:
-            if len(self._file_ids) > 1024:            # bounded, FIFO
-                self._file_ids.pop(next(iter(self._file_ids)))
-            self._file_ids[file_hash] = file_id
-
-    def recall_file_id(self, file_hash: str) -> str:
-        """The known-live file_id for these bytes in THIS process, if any."""
-        return self._file_ids.get(file_hash or "", "")
 
     def stats(self) -> dict:
         try:
