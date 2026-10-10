@@ -18,6 +18,7 @@ persists the user document afterwards.
 from __future__ import annotations
 
 import datetime as dt
+import logging
 import random
 
 from telegram import Update
@@ -38,6 +39,8 @@ from ...engine.cultivation import CultivationEngine
 from ...engine.models import iso, parse_iso, utcnow
 from ...localization import Locale, t
 from ... import render as R
+
+logger = logging.getLogger(__name__)
 
 # legacy callback shim → spec namespace (keeps stale messages clickable)
 _ALIAS_EXACT = {
@@ -143,6 +146,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     ctx = context.bot_data["ctx"]
     data = query.data or "profile:view:main"
     tg_user = update.effective_user
+    stage = "load-user"
     try:
         user, _ = ctx.get_or_create_user(tg_user)
         lang = user["account"]["language"]
@@ -150,39 +154,48 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await query.answer(t(lang, "ERR_BANNED"), show_alert=True)
             return
 
+        stage = "canonicalize"
         data = _canon(data, user)
         if data == "noop":
             await query.answer()
             return
 
+        stage = "state-guard"
         blocked = callback_blocked(user, data)
         if blocked:
             await query.answer(t(lang, blocked), show_alert=True)
             return
 
+        stage = "settle"
         settle_res = ctx.settle(user)
 
         # ── atomic combat pipeline (spec P4 §1) ──
         if data.startswith("combat:act:"):
+            stage = "combat"
             await _combat_turn(query, ctx, user, data, now := utcnow())
             return
 
+        stage = "dispatch"
         try:
             text, keyboard, opts = _route(ctx, user, data, settle_res)
         except Exception:  # pragma: no cover — safety net, never crash the bot
-            import traceback
-            traceback.print_exc()
+            logger.exception("Callback render failed at stage=dispatch action=%r", data)
             text, keyboard, opts = t(lang, "ERR_UNKNOWN"), None, {}
+        stage = "persist"
         ctx.save(user)
+        stage = "telegram-render"
         if opts.get("tribulation"):
             await _run_tribulation(query, user, text, keyboard, opts)
         else:
             await _apply_render(query, user, text, keyboard, opts)
         # persist the (possibly new) root anchor set during the render step
+        stage = "persist-render-state"
         ctx.save(user)
     except Exception:  # pragma: no cover — a failed tap must still be answered
-        import traceback
-        traceback.print_exc()
+        logger.exception(
+            "Unhandled Telegram callback failure at stage=%s action=%r update_id=%s",
+            stage, data, getattr(update, "update_id", None),
+        )
         try:
             doc = ctx.storage.get_user(tg_user.id) or {}
             lang = (doc.get("account") or {}).get("language", "fa")
