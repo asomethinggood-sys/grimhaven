@@ -600,6 +600,75 @@ async def test_file_id_reuse_then_fresh_upload_fallback(tmp_path, storage):
     assert fid2
 
 
+_COMMONS_ROUTES = {
+    "commons.wikimedia.org": httpx.Response(
+        200, content=commons_payload("https://upload.wikimedia.org/bt/trib.jpg"),
+        headers={"content-type": "application/json"}),
+    "upload.wikimedia.org/bt/trib.jpg": ok(JPEG_OK, "image/jpeg"),
+}
+
+
+@pytest.mark.asyncio
+async def test_restart_never_quotes_the_persisted_file_id(tmp_path, storage):
+    """Production bug: DB outlives the runner, Telegram expires bot files
+    (≈24 h) — a persisted file_id must NEVER reach the send path, or every
+    fresh cycle opens with 400 "can't find file for file_id of type PhotoSize".
+    """
+    from grimhaven.images.delivery import deliver_artwork
+    tp = Transport(dict(_COMMONS_ROUTES))
+    service = build_service(tmp_path, storage, tp)
+    row = await service.get_or_fetch_artwork("breakthrough")
+    assert row["telegram_file_id"] == ""
+
+    # first send of the process: uploads the bytes (no id known yet)
+    bot = FakeBot()
+    assert await deliver_artwork(bot, 777, {"user_id": 1},
+                                 {"asset_key": "breakthrough", "caption": "one"},
+                                 service=service)
+    assert not isinstance(bot.photos[0][1], str), "cold send must upload the file"
+    fid = storage.artwork_get("breakthrough")["telegram_file_id"]
+    assert fid and fid.startswith("FAKE_FILE_ID_"), "id recorded for ops metadata"
+
+    # second send, same process: identical bytes never travel twice
+    bot2 = FakeBot()
+    assert await deliver_artwork(bot2, 777, {"user_id": 1},
+                                 {"asset_key": "breakthrough", "caption": "two"},
+                                 service=service)
+    assert bot2.photos[0][1] == fid, "warm send reuses the in-memory file_id"
+
+    # "restart": fresh service over the same DB. The bot EXPLODES on any
+    # file_id send, so a green run here proves the stale persisted id in the
+    # column was never even attempted.
+    service2 = build_service(tmp_path, storage, Transport(dict(_COMMONS_ROUTES)))
+    assert service2.recall_file_id(row["file_hash"]) == "", "memory died with the run"
+    bot3 = FakeBot()
+    bot3.fail_file_id = True
+    assert await deliver_artwork(bot3, 777, {"user_id": 1},
+                                 {"asset_key": "breakthrough", "caption": "three"},
+                                 service=service2)
+    assert not isinstance(bot3.photos[0][1], str), \
+        "post-restart first send must upload fresh, not quote the dead id"
+
+
+@pytest.mark.asyncio
+async def test_dead_in_process_id_is_dropped_and_reuploaded(tmp_path, storage):
+    """If even a remembered id goes stale (ultra-long run), recover quietly."""
+    from grimhaven.images.delivery import deliver_artwork
+    tp = Transport(dict(_COMMONS_ROUTES))
+    service = build_service(tmp_path, storage, tp)
+    row = await service.get_or_fetch_artwork("breakthrough")
+    service.remember_file_id(row["file_hash"], "EXPIRED_ID")
+    bot = FakeBot()
+    bot.fail_file_id = True     # Telegram: can't find file for PhotoSize
+    assert await deliver_artwork(bot, 777, {"user_id": 1},
+                                 {"asset_key": "breakthrough", "caption": "cap"},
+                                 service=service)
+    assert len(bot.photos) == 1, "exactly the fallback upload landed"
+    assert not isinstance(bot.photos[0][1], str)
+    new_id = service.recall_file_id(row["file_hash"])
+    assert new_id and new_id != "EXPIRED_ID", "dead id replaced in memory"
+
+
 # ── routing contracts: specs on zone/hunt/victory + captions ────────────────
 
 def test_zone_and_hunt_attach_artwork_specs(tmp_path):
