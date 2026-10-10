@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from telegram import BotCommand, Update
+from telegram.ext import ContextTypes
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -12,10 +13,14 @@ from telegram.ext import (
     filters,
 )
 
+from telegram import error as tg_error
+
 from ..config import Settings
 from ..core.data_loader import bootstrap as bootstrap_data
 from ..core.middleware import guard_update
 from ..db.storage import Storage, bootstrap_world
+from ..localization import t
+from ..errors import Category, USER_KEY, classify, incident_id
 from .handlers import admin as admin_handlers
 from .handlers import commands as cmd_handlers
 from .handlers.callbacks import on_callback
@@ -52,7 +57,45 @@ def build_application(settings: Settings, storage: Storage) -> Application:
             [BotCommand(name, help_text) for name, help_text in cmd_handlers.BOT_COMMANDS]
         )
 
+    async def on_error(update: Update | None,
+                     context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Last line of defence: anything that escapes a handler is logged with a
+        reference and told to the player — never swallowed by PTB's default
+        "No error handlers are registered" logger."""
+        exc = context.error
+        category = classify(exc)
+        ref = incident_id() if category in (Category.STORAGE, Category.TELEGRAM,
+                                           Category.CONTENT, Category.INTERNAL) else ""
+        logger.error("unhandled error incident=%s category=%s update_id=%s user_id=%s",
+                     ref or "-", category.value,
+                     getattr(update, "update_id", None),
+                     getattr(getattr(update, "effective_user", None), "id", None))
+        # the traceback belongs to *this* log line, so `incident=` and the frames
+        # below it are one record — a player's screenshot becomes a stack trace
+        logger.debug("unhandled error traceback", exc_info=exc)
+        if category is Category.TELEGRAM:
+            return              # delivery itself is broken; there is nothing to deliver
+        user_id = getattr(getattr(update, "effective_user", None), "id", None)
+        lang = "fa"
+        try:
+            doc = storage.get_user(user_id) if user_id is not None else None
+            lang = ((doc or {}).get("account") or {}).get("language") or "fa"
+        except Exception:       # the reporter must never be the second failure
+            logger.debug("could not resolve the language for the error notice")
+        text = t(lang, USER_KEY[category])
+        if ref:
+            text = f"{text}\n{t(lang, 'ERR_REFERENCE', ref=ref)}"
+        try:
+            if getattr(update, "callback_query", None) is not None:
+                await update.callback_query.answer(text, show_alert=True)
+            elif getattr(update, "message", None) is not None:
+                await update.message.reply_text(text)
+        except tg_error.TelegramError as send_exc:
+            logger.warning("could not report incident %s to the player: %s",
+                           ref, send_exc)
+
     app.post_init = post_init
+    app.add_error_handler(on_error)
 
     app.add_handler(CommandHandler("start", guarded(cmd_handlers.cmd_start)))
     app.add_handler(CommandHandler("help", guarded(cmd_handlers.cmd_help)))

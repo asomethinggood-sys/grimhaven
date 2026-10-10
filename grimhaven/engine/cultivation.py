@@ -26,6 +26,8 @@ from .constants import (
 )
 from .models import tribulation_mitigation
 from .models import (
+    active_buffs,
+    as_list,
     afk_hourly_rate,
     iso,
     meridians_sealed,
@@ -62,8 +64,7 @@ class CultivationEngine:
         loc = user.get("location", {})
         lang = user["account"]["language"]
         zdef = data_registry.get_zone(loc.get("current_zone_id", ""))
-        debuffed = any(b.get("rate_mult") and parse_iso(b.get("until", "")) and
-                       parse_iso(b["until"]) > now for b in (user.get("buffs") or []))
+        debuffed = any(b.get("rate_mult") for b in active_buffs(user, now))
         return {
             "location_name": (zdef.name_for(lang) if zdef else loc.get("name", "")) or loc.get("name", ""),
             "density": float(loc.get("vein_density") or loc.get("density") or 1.0),
@@ -301,8 +302,8 @@ class CultivationEngine:
         cul["qi_current"] = int(cul["qi_current"] * 0.5)
         vis = user["stats"]["visible"]
         vis["physique_hp"] = max(1, int(vis["max_hp"] * 0.20))
-        user["buffs"] = [b for b in (user.get("buffs") or [])
-                         if b.get("id") != "inner_demon_deviation"]
+        user["buffs"] = [b for b in as_list(user.get("buffs"))
+                         if isinstance(b, dict) and b.get("id") != "inner_demon_deviation"]
         user["buffs"].append({"id": "inner_demon_deviation", "kind": "rate_debuff",
                               "rate_mult": 0.5, "until": iso(now + dt.timedelta(minutes=120)),
                               "label": "انحراف شیطن درونی"})

@@ -101,31 +101,12 @@ def test_keyword_pass_never_hijacks_real_chat(chat: str) -> None:
 
 # ── the tap is never swallowed ───────────────────────────────────────────────
 
-class _Msg:
-    def __init__(self) -> None:
-        self.text = "x"
-        self.chat_id = 1
-        self.message_id = 5
-        self.replies: list[str] = []
-
-    async def reply_text(self, text, reply_markup=None, **kw):
-        self.replies.append(text)
-        return type("S", (), {"message_id": 1})()
-
-    async def delete(self):
-        return None
+from tests.telegram_fakes import FakeContext, FakeUpdate as _Upd
 
 
-class _Upd:
-    def __init__(self, text: str):
-        class U:
-            id = 777
-            username = "tapper"
-            first_name = "tapper"
-        self.effective_user = U()
-        self.message = _Msg()
-        self.message.text = text
-        self.callback_query = None
+def _ctx_wrap(ctx):
+    """A context that looks like PTB's: bot_data *and* bot."""
+    return FakeContext(ctx)
 
 
 def _ctx(tmp_path: pathlib.Path) -> Ctx:
@@ -142,11 +123,8 @@ async def test_unknown_dock_text_still_gets_a_reply(tmp_path: pathlib.Path) -> N
     """The regression itself: an unrecognised tap used to return silently."""
     ctx = _ctx(tmp_path)
 
-    class C:
-        bot_data = {"ctx": ctx}
-
-    update = _Upd("⚡ اقدام به شکست سد")
-    await guard_update(ctx.storage.get_user, cmds.on_reply_button)(update, C())
+    update = _Upd(text="⚡ اقدام به شکست سد", user_id=777)
+    await guard_update(ctx.storage.get_user, cmds.on_reply_button)(update, _ctx_wrap(ctx))
     assert update.message.replies, "player tapped and the bot said nothing"
     assert "لوح سرنوشت" in update.message.replies[0]
 
@@ -156,11 +134,8 @@ async def test_stale_dock_tap_reaches_its_screen(tmp_path: pathlib.Path) -> None
     """The stale meditation label must open the meditation hub, not the HUD."""
     ctx = _ctx(tmp_path)
 
-    class C:
-        bot_data = {"ctx": ctx}
-
-    update = _Upd("🧘 مدیتیشن و تهدید")
-    await guard_update(ctx.storage.get_user, cmds.on_reply_button)(update, C())
+    update = _Upd(text="🧘 مدیتیشن و تهدید", user_id=777)
+    await guard_update(ctx.storage.get_user, cmds.on_reply_button)(update, _ctx_wrap(ctx))
     assert update.message.replies
     assert "مدیتیشن" in update.message.replies[0] or "خلوت" in update.message.replies[0]
 

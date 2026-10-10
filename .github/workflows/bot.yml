@@ -16,7 +16,20 @@ on:
     - cron: '*/5 * * * *'
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      reset_world:
+        description: "Wipe the mutable world state and rebuild it from data/*.json"
+        type: boolean
+        default: false
+      reset_on_corrupt:
+        description: "If the restored database fails validation, re-seed instead of failing"
+        type: boolean
+        default: true
+      verbose_logs:
+        description: "Run the bot with GRIMHAVEN_LOG_LEVEL=DEBUG"
+        type: boolean
+        default: false
 
 concurrency:
   group: grimhaven-bot
@@ -61,6 +74,29 @@ jobs:
             echo "skip=no" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Resolve operator switches
+        id: ops
+        run: |
+          # workflow_dispatch inputs only — a scheduled or push run takes the
+          # defaults (reset_world off, auto-repair on), so nobody has to pass a
+          # flag to get the behaviour the pipeline had before.
+          if [ "${{ inputs.reset_world }}" = "true" ]; then
+            echo "reset_world=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "reset_world=0" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "${{ inputs.reset_on_corrupt }}" = "false" ]; then
+            echo "reset_on_corrupt=0" >> "$GITHUB_OUTPUT"
+            echo "::warning::reset_on_corrupt=false — a corrupt restored database will fail this run instead of being re-seeded"
+          else
+            echo "reset_on_corrupt=1" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "${{ inputs.verbose_logs }}" = "true" ]; then
+            echo "log_level=DEBUG" >> "$GITHUB_OUTPUT"
+          else
+            echo "log_level=INFO" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check bot token secret
         id: token_check
         if: steps.guard.outputs.skip == 'no'
@@ -82,10 +118,32 @@ jobs:
           echo "   The next scheduled run (every 5 minutes) picks it up automatically."
 
       - name: Restore world state
+        # The step validates what it unpacked (integrity_check + schema + zone
+        # seeds) and refuses to hand the bot a database it cannot serve, rather
+        # than silently booting a "fresh world" over the players' progress.
         if: steps.guard.outputs.skip == 'no' && steps.token_check.outputs.has == 'yes'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESET_ON_CORRUPT: ${{ steps.ops.outputs.reset_on_corrupt }}
         run: bash deploy/gha_state.sh restore
+
+      - name: Reset the world (manual only)
+        if: steps.guard.outputs.skip == 'no' && steps.token_check.outputs.has == 'yes' && steps.ops.outputs.reset_world == '1'
+        env:
+          DATABASE_PATH: data/grimhaven.db
+        run: |
+          # Static game content (data/*.json, locales/*) is the rebuild source and
+          # is never written; only the mutable SQLite state is wiped.
+          python scripts/reset_world.py --yes --db data/grimhaven.db \
+            --keep-audit grimhaven-reset-audit.json
+
+      - name: Upload reset audit
+        if: always() && steps.ops.outputs.reset_world == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: grimhaven-reset-audit
+          path: grimhaven-reset-audit.json
+          if-no-files-found: ignore
 
       - name: Host the bot (long-polling, up to 5.5 hours)
         if: steps.guard.outputs.skip == 'no' && steps.token_check.outputs.has == 'yes'
@@ -94,6 +152,7 @@ jobs:
           ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
           DATABASE_PATH: data/grimhaven.db
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GRIMHAVEN_LOG_LEVEL: ${{ steps.ops.outputs.log_level }}
         run: |
           # background saver: snapshot the world every 45 minutes. A failed
           # snapshot must not kill the bot, so it is logged but not fatal —
@@ -102,7 +161,20 @@ jobs:
               echo "⚠️  periodic world-state save failed"; done ) &
           SAVER_PID=$!
           trap 'kill $SAVER_PID 2>/dev/null || true' EXIT
-          timeout --signal=TERM --kill-after=60 330m python run_bot.py || true
+          # A non-zero exit used to be swallowed by "|| true", so a run whose bot
+          # died at boot (bad token, corrupt vault) still reported success. 124/143
+          # are the normal hand-over signals when the 5.5 h ceiling is reached.
+          set +e
+          timeout --signal=TERM --kill-after=60 330m python run_bot.py
+          rc=$?
+          set -e
+          echo "bot_rc=$rc" >> "$GITHUB_ENV"
+          case "$rc" in
+            0)   echo "✅ bot cycle finished cleanly" ;;
+            124|143) echo "✅ cycle reached its time limit — the next run takes over" ;;
+            2)   echo "::error::run_bot.py refused to boot: the world database failed validation" ;;
+            *)   echo "::error::run_bot.py exited $rc — see the log above for the traceback" ;;
+          esac
 
       - name: Final world-state save
         if: steps.guard.outputs.skip == 'no' && steps.token_check.outputs.has == 'yes'
@@ -118,3 +190,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash deploy/gha_state.sh verify
+
+      - name: Fail the run if the bot died
+        # Last on purpose: the state is archived and verified first, then the run
+        # goes red. Before this, a bot that died at boot (bad token, refused
+        # corrupt vault) still produced a green "success" — the failure was only
+        # ever visible to a player tapping a button.
+        if: env.bot_rc != '0' && env.bot_rc != '124' && env.bot_rc != '143'
+        run: |
+          echo "the bot process exited with code $bot_rc — this run is NOT a healthy host"
+          echo "likely causes: world database refused at boot (2), token rejected by Telegram, unhandled startup error"
+          exit 1

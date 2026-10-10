@@ -26,6 +26,8 @@ from .engine.constants import (
     TIER_KEYS,
 )
 from .engine.models import (
+    active_buffs,
+    as_float,
     afk_hourly_rate,
     comprehension,
     crit_chance,
@@ -98,13 +100,12 @@ def catalyst_text(lang: str, user: dict, now: dt.datetime | None = None) -> str:
     stone = user["cultivation"].get("active_stone")
     if stone:
         parts.append(f"🪨 +{int(SPIRIT_STONES[stone]['boost'] * 100)}%")
-    for buff in user.get("buffs", []):
-        until = parse_iso(buff.get("until"))
-        if until and until > now:
-            if buff.get("rate_mult") is not None and float(buff.get("rate_mult", 1.0)) < 1.0:
-                parts.append(f"😈 ×{buff['rate_mult']}")
-                continue
-            parts.append(f"🩸 +{int(float(buff.get('boost', 0.0)) * 100)}%")
+    for buff in active_buffs(user, now):
+        rate_mult = buff.get("rate_mult")
+        if rate_mult is not None and as_float(rate_mult, 1.0) < 1.0:
+            parts.append(f"😈 ×{as_float(rate_mult, 1.0):g}")
+            continue
+        parts.append(f"🩸 +{int(as_float(buff.get('boost'), 0.0) * 100)}%")
     if user.get("progress", {}).get("root_ancient_used"):
         parts.append("🌿 +25%")
     m = data_registry.get_method(user["cultivation"].get("active_method_id") or "")

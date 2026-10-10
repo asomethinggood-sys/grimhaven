@@ -11,7 +11,7 @@ from .constants import (
     SECT_FOUND_REALM,
     ZONES,
 )
-from .models import in_seclusion, iso, meridians_sealed, parse_iso, utcnow
+from .models import as_list, in_seclusion, iso, meridians_sealed, parse_iso, utcnow
 
 MONSTERS_PER_GUARD = {
     1: ["wild_boar", "hungry_wolf"],
@@ -155,8 +155,9 @@ def perform_sacrifice(user: dict, kind: str, now: dt.datetime | None = None) -> 
         return {"status": "DANTIAN_EXPLOSION", "qi_lost": lost}
     spec = SACRIFICES[kind]
     cul.setdefault("active_stone", cul.get("active_stone"))
-    user["buffs"] = [b for b in user.get("buffs", [])
-                     if (parse_iso(b.get("until")) or now) > now]
+    user["buffs"] = [b for b in as_list(user.get("buffs"))
+                     if isinstance(b, dict)
+                     and (parse_iso(b.get("until")) or now) > now]
     user["buffs"].append({
         "key": spec["key"], "boost": spec["boost"],
         "until": iso(now + dt.timedelta(hours=spec["hours"])),

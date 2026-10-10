@@ -29,13 +29,127 @@ def iso(ts: dt.datetime | None = None) -> str:
     return (ts or utcnow()).isoformat()
 
 
-def parse_iso(value: str | None) -> dt.datetime | None:
+def parse_iso(value: Any) -> dt.datetime | None:
+    """Parse a persisted timestamp, whatever shape it arrived in.
+
+    Documents cross several schema revisions and an operator may have edited one
+    by hand, so a timestamp can legitimately turn out to be ``None``, a string,
+    a bare epoch number or even a ``datetime``.  Only ``ValueError`` used to be
+    caught, so an int made every caller explode: ``settle_afk``, ``afk_hourly_rate``,
+    the injury lock and the world boost all sit on this one function, and a crash
+    in any of them took down *every* screen for that player.
+    """
     if not value:
         return None
+    if isinstance(value, dt.datetime):
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            return dt.datetime.fromtimestamp(float(value), UTC)
+        except (OverflowError, OSError, ValueError):
+            return None
+    if not isinstance(value, str):
+        return None
     try:
-        return dt.datetime.fromisoformat(value)
+        parsed = dt.datetime.fromisoformat(value)
     except ValueError:
         return None
+    return parsed
+
+
+def as_iso(value: Any) -> str | None:
+    """Coerce any timestamp-ish value into the ISO string the schema stores."""
+    parsed = parse_iso(value)
+    return parsed.isoformat() if parsed is not None else None
+
+
+# ── defensive accessors used by ensure_v2 ─────────────────────────────────────
+
+def as_dict(value: Any, *, changes: list[str] | None = None,
+            field: str = "") -> dict:
+    """A mapping is required; anything else is replaced by an empty one."""
+    if isinstance(value, dict):
+        return value
+    if changes is not None and value is not None and field:
+        changes.append(f"{field}:{type(value).__name__}→object")
+    return {}
+
+
+def as_list(value: Any, *, changes: list[str] | None = None,
+            field: str = "") -> list:
+    if isinstance(value, list):
+        return value
+    if changes is not None and value is not None and field:
+        changes.append(f"{field}:{type(value).__name__}→array")
+    return []
+
+
+_DIGIT_FOLD = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+
+
+def as_int(value: Any, default: int = 0, minimum: int | None = None,
+            maximum: int | None = None) -> int:
+    """Best-effort integer.  Persian/Arabic digits and ``1،234`` groupings are
+    accepted because the FA locale writes them back into documents through
+    ``Locale.num``, and a display artifact must never become a crash."""
+    out: Any = None
+    if isinstance(value, bool):
+        out = int(value)
+    elif isinstance(value, (int, float)):
+        out = value
+    elif isinstance(value, str):
+        text = value.translate(_DIGIT_FOLD).replace("،", "").replace(",", "").strip()
+        try:
+            out = float(text)
+        except ValueError:
+            out = None
+    if out is None:
+        out = default
+    try:
+        out = int(out)
+    except (TypeError, ValueError, OverflowError):
+        out = default
+    if minimum is not None:
+        out = max(minimum, out)
+    if maximum is not None:
+        out = min(maximum, out)
+    return out
+
+
+def as_float(value: Any, default: float = 0.0, minimum: float | None = None,
+             maximum: float | None = None) -> float:
+    out: Any = None
+    if isinstance(value, bool):
+        out = float(value)
+    elif isinstance(value, (int, float)):
+        out = float(value)
+    elif isinstance(value, str):
+        text = value.translate(_DIGIT_FOLD).replace("،", "").replace(",", "").strip()
+        try:
+            out = float(text)
+        except ValueError:
+            out = None
+    if out is None:
+        out = default
+    if out != out or out in (float("inf"), float("-inf")):      # NaN / infinity
+        out = default
+    if minimum is not None:
+        out = max(minimum, out)
+    if maximum is not None:
+        out = min(maximum, out)
+    return out
+
+
+def as_bool(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on", "✔")
+    return bool(value)
+
+
+def as_str(value: Any, default: str = "") -> str:
+    return value if isinstance(value, str) and value else default
 
 
 # ── new schema ───────────────────────────────────────────────────────────────
@@ -145,153 +259,447 @@ def new_user_doc(user_id: int, username: str = "", language: str = "fa") -> dict
     return doc
 
 
-def ensure_v2(doc: dict) -> dict:
-    """Idempotent migration for documents written before the overhaul.
+#: every status value the FSM knows; anything else is repaired to "idle"
+_VALID_STATUS = {"idle", "meditating", "in_combat", "seclusion_tribulation",
+                 "heavily_injured"}
+_STONE_GRADES = ("low", "mid", "high", "heavenly")
+_LANGS = ("fa", "en")
+_ALIGNMENTS = ("orthodox", "demonic")
 
-    Backfills EVERY field the engines and renderers touch, so even a partial or
-    hand-corrupted document can never KeyError mid-update (a crash there used to
-    leave the player's tap completely unanswered).
+
+def ensure_v2(doc: dict, changes: list[str] | None = None) -> dict:
+    """Idempotent, *validating* migration for every stored document.
+
+    Two jobs, in this order:
+
+    1. **repair** anything the schema cannot hold — a scalar where an object
+       belongs, a list of strings where the buff engine expects objects, a bare
+       epoch number where an ISO timestamp belongs, an out-of-range realm index;
+    2. **backfill** every field the engines and renderers touch, so a partial
+       document can never raise mid-update.
+
+    Before this existed the "repair" half was absent: ``doc.setdefault(...)``
+    happily returns the scalar it found, and the first ``.get`` on it raised
+    ``AttributeError`` inside the *guard* or the *settlement* step — which the
+    handlers turned into ERR_UNKNOWN on every single button, for that player,
+    forever, because the malformed row was never rewritten.  ``changes`` lets a
+    caller persist (and log) exactly what was repaired.
     """
-    doc.setdefault("status", "idle")
+    if not isinstance(doc, dict):
+        raise TypeError(f"user document must be an object, got {type(doc).__name__}")
+    from ..core.data_loader import data_registry   # zone/technique validation
+    log = changes if changes is not None else []
+
+    def note(msg: str) -> None:
+        if msg not in log:
+            log.append(msg)
+
+    def obj(field: str, *, container: dict | None = None) -> dict:
+        box = doc if container is None else container
+        value = box.get(field)
+        if isinstance(value, dict):
+            return value
+        if value is not None:
+            note(f"{field}:{type(value).__name__}→object")
+        box[field] = {}
+        return box[field]
+
+    def arr(field: str, *, container: dict) -> list:
+        value = container.get(field)
+        if isinstance(value, list):
+            return value
+        if value is not None:
+            note(f"{field}:{type(value).__name__}→array")
+        container[field] = []
+        return container[field]
+
+    def keep(box: dict, key: str, value: Any, *, label: str | None = None) -> None:
+        """Write a repaired scalar and report it when the bytes really changed.
+
+        Silent scalar repairs are the second-worst thing a migration can do: the
+        document looks fine in memory, nothing is written back, and the next tap
+        reads the same junk.  ``ui.active_menu_message_id = "77"`` is the case
+        that mattered — the root-window delete needs a real integer id.
+        """
+        raw = box.get(key)
+        box[key] = value
+        if raw is not None and raw != value:
+            note(f"{label or key}:{raw!r}→{value!r}")
+
+    def iso_field(box: dict, key: str, *, label: str | None = None,
+                  fallback: str | None = None) -> None:
+        """Normalize one timestamp — and *report* it when the stored bytes were
+        not already that exact string.
+
+        A bare epoch number (or a ``Z``-suffixed offset) parses fine, so the old
+        code silently accepted it and moved on. But renderers and the admin HUD
+        read the raw stored value, and an unreported repair is never written back:
+        the row stays broken for the next tap. Anything that changes the bytes
+        must therefore land in ``changes``.
+        """
+        raw = box.get(key)
+        value = as_iso(raw)
+        label = label or key
+        if value is None:
+            if raw is not None:
+                note(f"{label} was not a timestamp")
+            value = fallback
+        box[key] = value
+        if raw is not None and value is not None and raw != value:
+            note(f"{label} normalized to {value!r}")
+
+    # ── status ──
+    raw_status = doc.get("status")
+    if not isinstance(raw_status, str) or raw_status not in _VALID_STATUS:
+        if raw_status is not None:
+            note(f"status:{raw_status!r}→idle")
+        doc["status"] = "idle"
+
     # ── account ──
-    acc = doc.setdefault("account", {})
-    acc.setdefault("username", f"cultivator_{doc.get('user_id', 0)}")
-    acc.setdefault("language", "fa")
-    acc.setdefault("is_banned", False)
-    acc.setdefault("registered_at", iso())
-    acc.setdefault("is_admin", False)
+    acc = obj("account")
+    acc["username"] = as_str(acc.get("username"), f"cultivator_{doc.get('user_id', 0)}")
+    if acc.get("language") not in _LANGS:
+        if acc.get("language") is not None:
+            note(f"account.language:{acc.get('language')!r}→fa")
+        acc["language"] = "fa"
+    acc["is_banned"] = as_bool(acc.get("is_banned"))
+    acc["is_admin"] = as_bool(acc.get("is_admin"))
+    iso_field(acc, "registered_at", label="account.registered_at", fallback=iso())
+
     # ── cultivation ──
-    cul = doc.setdefault("cultivation", {})
-    cul.setdefault("current_realm_index", 1)
-    cul.setdefault("current_stage", 0)
-    cul.setdefault("qi_current", 0)
-    cul.setdefault("qi_capacity", REALM_STAGES[cul["current_realm_index"]][
-        min(cul["current_stage"], len(REALM_STAGES[cul["current_realm_index"]]) - 1)])
-    cul.setdefault("dao_path", None)
-    cul.setdefault("alignment", "orthodox")
-    cul.setdefault("alignment_locked", False)
-    cul.setdefault("active_method_id", "method_breath_mortal")
-    cul.setdefault("active_stone", None)
-    cul.setdefault("active_pill", None)
-    cul.setdefault("meditating", False)
-    cul.setdefault("meditation_started_at", None)
-    cul.setdefault("seclusion_finish_time", None)
-    cul.setdefault("seclusion_target", None)
-    cul.setdefault("meridian_sealed_until", None)
-    cul.setdefault("last_afk_timestamp", iso())
+    cul = obj("cultivation")
+    realm = as_int(cul.get("current_realm_index"), 1, minimum=1, maximum=MAX_REALM)
+    if cul.get("current_realm_index") != realm:
+        note(f"cultivation.current_realm_index:{cul.get('current_realm_index')!r}→{realm}")
+    cul["current_realm_index"] = realm
+    layers = len(REALM_STAGES[realm])
+    stage = as_int(cul.get("current_stage"), 0, minimum=0, maximum=layers - 1)
+    if cul.get("current_stage") != stage:
+        note(f"cultivation.current_stage:{cul.get('current_stage')!r}→{stage}")
+    cul["current_stage"] = stage
+    capacity = as_int(cul.get("qi_capacity"), 0, minimum=1)
+    if capacity <= 0:
+        capacity = REALM_STAGES[realm][stage] or 1
+        note("cultivation.qi_capacity→realm table")
+    cul["qi_capacity"] = capacity
+    qi = as_int(cul.get("qi_current"), 0, minimum=0)
+    if qi != as_int(cul.get("qi_current"), -1):
+        note("cultivation.qi_current coerced")
+    cul["qi_current"] = min(qi, capacity)
+    cul["alignment"] = cul.get("alignment") if cul.get("alignment") in _ALIGNMENTS \
+        else "orthodox"
+    if not isinstance(cul.get("alignment_locked"), bool):
+        cul["alignment_locked"] = as_bool(cul.get("alignment_locked"))
+    cul["dao_path"] = cul.get("dao_path") if isinstance(cul.get("dao_path"), str) else None
+    for key, default in (("active_method_id", "method_breath_mortal"),
+                         ("active_pill", None), ("active_stone", None)):
+        value = cul.get(key)
+        if value is not None and not isinstance(value, str):
+            note(f"cultivation.{key} coerced")
+            value = None
+        if value is None and default is not None and not cul.get(key):
+            value = default
+        if key == "active_stone" and value not in _STONE_GRADES:
+            value = None
+        cul[key] = value
+    if not cul.get("active_method_id"):
+        cul["active_method_id"] = "method_breath_mortal"
+    cul["meditating"] = as_bool(cul.get("meditating"))
+    for key in ("meditation_started_at", "seclusion_finish_time",
+                "meridian_sealed_until", "last_afk_timestamp"):
+        iso_field(cul, key, label=f"cultivation.{key}")
+    cul["last_afk_timestamp"] = cul["last_afk_timestamp"] or iso()
+    if cul.get("seclusion_target") is not None:
+        cul["seclusion_target"] = as_int(cul.get("seclusion_target"), 0, minimum=0)
+    if cul.get("current_realm_index") >= MAX_REALM and not cul.get("seclusion_target"):
+        cul["seclusion_target"] = None
+
     # ── stats ──
-    stats = doc.setdefault("stats", {})
-    vis = stats.setdefault("visible", {})
-    vis.setdefault("physique_hp", 100)
-    vis.setdefault("max_hp", 100)
-    vis.setdefault("spiritual_sense", 10)
-    vis.setdefault("circulation_velocity", 10)
-    hid = stats.setdefault("hidden", {})
-    hid.setdefault("karmic_luck", 50)
-    hid.setdefault("karmic_luck_revealed", False)
-    hid.setdefault("dao_affinity_charisma", 30)
-    hid.setdefault("dao_affinity_revealed", False)
-    hid.setdefault("dao_heart_stability", 70)
-    hid.setdefault("demonic_corruption", 0)
-    doc.setdefault("buffs", [])
-    inv = doc.setdefault("inventory", {})
-    inv.setdefault("arts", ["art_moonlight_sword"])
-    inv.setdefault("methods", ["method_breath_mortal"])
-    inv.setdefault("gear", {})
-    # spirit-stone ledger — directly indexed all over the engines
-    stones = inv.setdefault("spirit_stones", {})
-    for grade in ("low", "mid", "high", "heavenly"):
-        stones.setdefault(grade, 0)
-    items = inv.setdefault("items", {})
-    # merge legacy pills/herbs dicts into the unified item ledger
-    for pid, qty in (inv.get("pills") or {}).items():
-        if qty and pid not in items:
-            items[pid] = qty
-    for hid, qty in (inv.get("herbs") or {}).items():
-        if hid == "root_used":
-            if qty:
-                doc.setdefault("progress", {})["root_ancient_used"] = True
+    stats = obj("stats")
+    vis = obj("visible", container=stats)
+    hid = obj("hidden", container=stats)
+    vis["max_hp"] = as_int(vis.get("max_hp"), 100, minimum=1)
+    vis["physique_hp"] = as_int(vis.get("physique_hp"), vis["max_hp"], minimum=1,
+                                maximum=vis["max_hp"])
+    vis["spiritual_sense"] = as_int(vis.get("spiritual_sense"), 10, minimum=0)
+    vis["circulation_velocity"] = as_int(vis.get("circulation_velocity"), 10, minimum=0)
+    hid["karmic_luck"] = as_int(hid.get("karmic_luck"), 50, minimum=0, maximum=100)
+    hid["dao_affinity_charisma"] = as_int(hid.get("dao_affinity_charisma"), 30,
+                                          minimum=0, maximum=100)
+    hid["dao_heart_stability"] = as_int(hid.get("dao_heart_stability"), 70,
+                                       minimum=0, maximum=100)
+    hid["demonic_corruption"] = as_int(hid.get("demonic_corruption"), 0,
+                                       minimum=0, maximum=100)
+    for key in ("karmic_luck_revealed", "dao_affinity_revealed"):
+        hid[key] = as_bool(hid.get(key))
+
+    # ── buffs: a list of objects, nothing else ──
+    # Every consumer (afk_hourly_rate, hub_state, catalyst_text, the settlement
+    # sweep) does ``buff.get(...)``; one bare string in this list used to crash
+    # the *idle accrual* step, i.e. every screen at once.
+    raw_buffs = doc.get("buffs")
+    if isinstance(raw_buffs, dict):
+        entries = [raw_buffs]                    # single buff written as an object
+        note("buffs:object→array")
+    elif isinstance(raw_buffs, list):
+        entries = raw_buffs
+    else:
+        entries = []
+        if raw_buffs is not None:
+            note(f"buffs:{type(raw_buffs).__name__}→array")
+    buffs: list[dict] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            note(f"buffs: dropped non-object entry ({type(entry).__name__})")
             continue
-        if qty and hid not in items:
-            items[hid] = qty
-    inv.pop("pills", None)
-    inv.pop("herbs", None)
-    inv.pop("techniques", None)
-    # normalize gear (old docs used {slot,tier}; new ones use {dur})
-    for gid, g in list(inv["gear"].items()):
+        # every entry — whatever shape it arrived in — goes through the validator,
+        # and a buff that cannot expire is *removed*, not kept as an empty stub:
+        # a stub is re-noticed on every load, so the row is rewritten forever.
+        buff = _ensure_buff(entry, note)
+        if buff:
+            buffs.append(buff)
+    doc["buffs"] = buffs
+
+    # ── inventory ──
+    inv = obj("inventory")
+    # setdefault semantics preserved from the old migration: a document that
+    # never owned the starter art still gets it (the default deck depends on it)
+    if "arts" not in inv:
+        inv["arts"] = ["art_moonlight_sword"]
+    if "methods" not in inv:
+        inv["methods"] = ["method_breath_mortal", "method_sky_cleaving"]
+    inv["arts"] = [x for x in arr("arts", container=inv) if isinstance(x, str)]
+    inv["methods"] = [x for x in arr("methods", container=inv) if isinstance(x, str)]
+    if not inv["methods"]:
+        inv["methods"] = ["method_breath_mortal"]
+    gear = obj("gear", container=inv)
+    for gid, g in list(gear.items()):
         if not isinstance(g, dict):
-            inv["gear"][gid] = {"dur": 100}
+            gear[gid] = {"dur": 100}
+            note(f"inventory.gear.{gid}: scalar → dur object")
+            continue
+        g["dur"] = as_int(g.get("dur"), 100, minimum=0, maximum=100)
+    items = obj("items", container=inv)
+    for iid, qty in list(items.items()):
+        n = as_int(qty, 0, minimum=0)
+        if n != qty:
+            note(f"inventory.items.{iid}: {qty!r}→{n}")
+        if n <= 0:
+            items.pop(iid, None)
         else:
-            g.setdefault("dur", 100)
-    eq = doc.setdefault("equipment", {})
+            items[iid] = n
+    stones = obj("spirit_stones", container=inv)
+    for grade in _STONE_GRADES:
+        n = as_int(stones.get(grade), 0, minimum=0)
+        if stones.get(grade) != n:
+            note(f"inventory.spirit_stones.{grade} coerced")
+        stones[grade] = n
+    # merge legacy pills/herbs dicts into the unified item ledger
+    for pid, qty in (as_dict(inv.get("pills")) or {}).items():
+        n = as_int(qty, 0, minimum=0)
+        if n and pid not in items:
+            items[pid] = n
+    for hid_key, qty in (as_dict(inv.get("herbs")) or {}).items():
+        if hid_key == "root_used":
+            if as_bool(qty):
+                obj("progress")["root_ancient_used"] = True
+            continue
+        n = as_int(qty, 0, minimum=0)
+        if n and hid_key not in items:
+            items[hid_key] = n
+    for legacy in ("pills", "herbs", "techniques"):
+        inv.pop(legacy, None)
+
+    # ── equipment ──
+    eq = obj("equipment")
     for slot in EQUIP_SLOTS:
-        eq.setdefault(slot, None)
-    for slot, gear in list(eq.items()):
-        if isinstance(gear, dict):
-            gear.setdefault("dur", 100)
-    cul = doc.get("cultivation", {})
-    if cul.get("meditating") and doc["status"] == "idle":
-        doc["status"] = "meditating"
-    cmb = doc.get("combat")
-    if not isinstance(cmb, dict):
-        cmb = {}
-        doc["combat"] = cmb
-    cmb.setdefault("session", None)
-    cmb.setdefault("injury", None)
-    cmb.setdefault("paralysis_until", None)
-    cmb.setdefault("wins", 0)
-    cmb.setdefault("losses", 0)
-    # Fields added after the first live release can contain old scalar values.
-    # Drop malformed optional records so middleware/renderers don't turn a
-    # single player's stale snapshot into ERR_UNKNOWN on every menu press.
-    if cmb["session"] is not None and not isinstance(cmb["session"], dict):
+        piece = eq.get(slot)
+        if piece is None:
+            eq[slot] = None
+        elif isinstance(piece, dict):
+            piece["dur"] = as_int(piece.get("dur"), 100, minimum=0, maximum=100)
+        else:
+            eq[slot] = None
+            note(f"equipment.{slot}: non-object piece dropped")
+
+    # ── combat ──
+    cmb = obj("combat")
+    session = cmb.get("session")
+    if session is not None and not isinstance(session, dict):
         cmb["session"] = None
-    if cmb["injury"] is not None and not isinstance(cmb["injury"], dict):
+        note("combat.session: scalar → null")
+    elif isinstance(session, dict):
+        session["round"] = as_int(session.get("round"), 1, minimum=1)
+        session["turn_lock"] = as_int(session.get("turn_lock"), session["round"] - 1)
+        session["finished"] = as_bool(session.get("finished"))
+        for side in ("player", "enemy"):
+            if session.get(side) is not None and not isinstance(session[side], dict):
+                session[side] = {}
+                note(f"combat.session.{side}: scalar → object")
+    injury = cmb.get("injury")
+    if injury is not None and not isinstance(injury, dict):
         cmb["injury"] = None
-    loadout = cmb.setdefault("loadout", [])
-    # drop legacy placeholder techniques that no longer exist in the data set
-    from ..core.data_loader import data_registry
-    cmb["loadout"] = [t for t in loadout if isinstance(t, str) and t in data_registry.techniques_index][:6]
-    if not cmb["loadout"] and "art_moonlight_sword" in inv.get("arts", []):
+        note("combat.injury: scalar → null")
+    elif isinstance(injury, dict):
+        iso_field(injury, "expires_at", label="combat.injury.expires_at")
+    iso_field(cmb, "paralysis_until", label="combat.paralysis_until")
+    cmb["wins"] = as_int(cmb.get("wins"), 0, minimum=0)
+    cmb["losses"] = as_int(cmb.get("losses"), 0, minimum=0)
+    loadout = [x for x in arr("loadout", container=cmb) if isinstance(x, str)]
+    # drop legacy placeholder techniques that no longer exist in the data set —
+    # but only when the data set is actually loaded, otherwise "unknown" means
+    # nothing and every player's loadout would be erased
+    content_ready = data_registry.is_loaded()
+    kept = ([tid for tid in loadout if tid in data_registry.techniques_index][:6]
+            if content_ready else loadout[:6])
+    if kept != loadout:
+        note("combat.loadout: unknown technique ids dropped")
+    cmb["loadout"] = kept
+    if not kept and "art_moonlight_sword" in inv.get("arts", []):
         cmb["loadout"] = ["moon_slash", "lunar_mist", "zenith_eclipse"]
-    prog = doc.setdefault("progress", {})
-    for k, v in (("qi_total_accumulated", 0), ("breakthrough_attempts", 0),
-                 ("breakthrough_successes", 0), ("failures_minor", 0),
-                 ("failures_deviation", 0), ("failures_annihilation", 0),
-                 ("encounters_found", 0), ("root_ancient_used", False),
-                 ("deaths", 0), ("miracle_escapes", 0), ("adventures", 0),
-                 ("last_gather_at", None)):
-        prog.setdefault(k, v)
+    item_slots = [x for x in arr("item_slots", container=cmb) if isinstance(x, str)]
+    cmb["item_slots"] = item_slots[:2]
+
+    # ── progress ──
+    prog = obj("progress")
+    for key, default in (("qi_total_accumulated", 0), ("breakthrough_attempts", 0),
+                         ("breakthrough_successes", 0), ("failures_minor", 0),
+                         ("failures_deviation", 0), ("failures_annihilation", 0),
+                         ("encounters_found", 0), ("deaths", 0),
+                         ("miracle_escapes", 0), ("adventures", 0)):
+        prog[key] = as_int(prog.get(key), default, minimum=0)
+    prog["root_ancient_used"] = as_bool(prog.get("root_ancient_used"))
+    iso_field(prog, "last_gather_at", label="progress.last_gather_at")
+
     # ── spec P3: zone renames → data/zones.json ids (one-time alias migration)
     _ZONE_ALIASES = {"zone_mortal_valley": "zone_valley_mortals",
                      "zone_common_cave": "zone_ordinary_cave",
                      "zone_misty_peak": "zone_mist_peak",
                      "zone_heaven_spring": "zone_heavenly_spring"}
-    loc = doc.setdefault("location", {})
-    zid = loc.get("current_zone_id") or loc.get("zone_id") or "zone_valley_mortals"
+    loc = obj("location")
+    zid = as_str(loc.get("current_zone_id")) or as_str(loc.get("zone_id")) \
+        or "zone_valley_mortals"
     zid = _ZONE_ALIASES.get(zid, zid)
-    from ..core.data_loader import data_registry
     zdef = data_registry.get_zone(zid) or data_registry.get_zone("zone_valley_mortals")
+    if content_ready and not data_registry.get_zone(zid):
+        note(f"location.current_zone_id:{zid} → {zdef.zone_id if zdef else zid}")
+        zid = zdef.zone_id if zdef else "zone_valley_mortals"
     loc["current_zone_id"] = loc["zone_id"] = zid
     if zdef:
         loc.setdefault("name", zdef.name)
         loc.setdefault("name_en", zdef.name_en)
         # vein_density is the LIVE field (travel/conquest update it); the legacy
         # density mirror must follow it — never let a stale value win.
-        vd = loc.get("vein_density")
-        if vd is None:
-            vd = loc.get("density")
-        vd = float(vd) if vd else float(zdef.density)
+        vd_raw = loc.get("vein_density")
+        if vd_raw is None:
+            vd_raw = loc.get("density")
+        vd = as_float(vd_raw, float(zdef.density), minimum=0.1, maximum=10.0)
+        if vd != vd_raw:
+            note("location.vein_density coerced to a number")
         loc["vein_density"] = vd
         loc["density"] = vd
-    loc.setdefault("since", iso())
-    loc.setdefault("sect_id", None)
-    ui = doc.setdefault("ui", {})
-    for k, v in (("active_menu_message_id", None), ("bag_tab", "gear"),
-                 ("bag_page", 1), ("map_page", 1), ("shop_page", 1)):
-        ui.setdefault(k, v)
-    cmb.setdefault("item_slots", [])
+    iso_field(loc, "since", label="location.since", fallback=iso())
+    loc["sect_id"] = as_str(loc.get("sect_id")) or None
+
+    # ── ui ──
+    ui = obj("ui")
+    anchor = ui.get("active_menu_message_id")
+    if anchor in (None, ""):
+        keep(ui, "active_menu_message_id", None)
+    elif as_int(anchor, 0) <= 0:
+        note(f"ui.active_menu_message_id:{anchor!r} dropped")
+        keep(ui, "active_menu_message_id", None)
+    else:
+        keep(ui, "active_menu_message_id", as_int(anchor, 0))
+    if ui.get("bag_tab") not in ("gear", "consumables", "materials"):
+        keep(ui, "bag_tab", "gear")
+    for key in ("bag_page", "map_page", "shop_page"):
+        keep(ui, key, as_int(ui.get(key), 1, minimum=1))
+    for key in ("mantra_back",):
+        if ui.get(key) is not None and not isinstance(ui.get(key), str):
+            ui[key] = None
+
+    # ── derived consistency ──
+    if cul["meditating"] and doc["status"] == "idle":
+        doc["status"] = "meditating"
+    if doc["status"] == "in_combat" and not isinstance(cmb.get("session"), dict):
+        doc["status"] = "idle"
+        note("combat.session gone but status said in_combat → idle")
+    if doc["status"] == "meditating" and not cul["meditating"]:
+        doc["status"] = "idle"
+    doc["_id"] = as_str(doc.get("_id"), f"tg_user_{doc.get('user_id', 0)}")
     return doc
+
+
+def _ensure_buff(buff: dict, note) -> dict:
+    """Validate one buff object; the return value is always safe to ``.get``."""
+    out: dict[str, Any] = {}
+    for key in ("id", "key", "kind"):
+        if isinstance(buff.get(key), str):
+            out[key] = buff[key]
+    raw_until = buff.get("until")
+    until = as_iso(raw_until)
+    if raw_until is not None and until is None:
+        note(f"buff {buff.get('id') or buff.get('key')}: bad 'until' dropped")
+    elif until is not None and raw_until != until:
+        # a bare epoch number is readable here but not in the HUD — rewrite the row
+        note(f"buff {buff.get('id') or buff.get('key') or buff.get('kind')}: "
+             f"'until' normalized to {until!r}")
+    if until is None:
+        note("buff without a usable 'until' dropped (cannot expire)")
+        return {}
+    out["until"] = until
+    if buff.get("boost") is not None:
+        out["boost"] = as_float(buff.get("boost"), 0.0, minimum=-1.0, maximum=10.0)
+    if buff.get("rate_mult") is not None:
+        out["rate_mult"] = as_float(buff.get("rate_mult"), 1.0, minimum=0.05, maximum=10.0)
+    return out
+
+
+def active_buffs(user: dict, now: dt.datetime | None = None,
+                 *, kinds: tuple[str, ...] | None = None) -> list[dict]:
+    """The live, *validated* buffs on a document.
+
+    Every engine/renderer that touches ``user["buffs"]`` must go through this:
+    a hand-edited or stale document may hold a string, a null or a buff without
+    an ``until``, and ``.get`` on those used to abort the whole tap.
+    """
+    now = now or utcnow()
+    out: list[dict] = []
+    raw = user.get("buffs") if isinstance(user, dict) else None
+    if not isinstance(raw, list):
+        return out
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        until = parse_iso(entry.get("until"))
+        if until is None or until <= now:
+            continue
+        if kinds and str(entry.get("kind") or "") not in kinds:
+            continue
+        out.append(entry)
+    return out
+
+
+def buff_rate_multiplier(user: dict, now: dt.datetime | None = None) -> float:
+    """Product of the active ``rate_mult`` debuffs (1.0 when none are live)."""
+    mult = 1.0
+    for buff in active_buffs(user, now):
+        if buff.get("rate_mult") is None:
+            continue
+        mult *= as_float(buff.get("rate_mult"), 1.0, minimum=0.0, maximum=10.0)
+    return mult
+
+
+def buff_catalyst(user: dict, now: dt.datetime | None = None) -> float:
+    """Summed ``boost`` of the live buffs, the form the AFK formula wants."""
+    total = 0.0
+    for buff in active_buffs(user, now):
+        if buff.get("rate_mult") is not None and buff.get("boost") is None:
+            continue
+        total += as_float(buff.get("boost"), 0.0)
+    return total
+
 
 
 # ── derived stats ────────────────────────────────────────────────────────────
@@ -421,28 +829,23 @@ def afk_hourly_rate(user: dict, world_boost: float = 1.0,
     from ..core.data_loader import data_registry
     _m = data_registry.get_method(cul.get("active_method_id", ""))
     tech = _m.qi_mult if _m else METHODS.get(cul.get("active_method_id", ""), {}).get("tech_mult", 1.0)
-    for _b in user.get("buffs", []) or []:  # timed debuffs (e.g. inner-demon deviation)
-        if _b.get("rate_mult") and _b.get("until"):
-            _u = parse_iso(_b["until"])
-            if _u and _u > now:
-                rate_mult *= float(_b["rate_mult"])
+    # timed debuffs (e.g. inner-demon deviation) — active_buffs() ignores
+    # malformed entries and already-expired records instead of raising
+    rate_mult *= buff_rate_multiplier(user, now)
 
     catalyst = 0.0
     stone = cul.get("active_stone")
     if stone:
         from .constants import SPIRIT_STONES
-        catalyst += SPIRIT_STONES[stone]["boost"]
+        catalyst += as_float(SPIRIT_STONES[stone]["boost"], 0.0)
     if user.get("progress", {}).get("root_ancient_used"):
         catalyst += 0.25  # ancient ginseng permanently widens the channels
-    for buff in user.get("buffs", []):
-        until = parse_iso(buff.get("until"))
-        if until and until > now:
-            catalyst += float(buff.get("boost", 0.0))
+    catalyst += buff_catalyst(user, now)
     if cul["alignment"] == "demonic":
         catalyst = min(1.0 + catalyst, DEMONIC_AFK_MULT_CAP) - 1.0
 
-    vein = user["location"].get("vein_density", 1.0)
-    luck_bonus = user["stats"]["hidden"]["karmic_luck"] * 0.002
+    vein = as_float(user["location"].get("vein_density", 1.0), 1.0, minimum=0.1)
+    luck_bonus = as_float(user["stats"]["hidden"].get("karmic_luck", 50), 50) * 0.002
     rate = base * tech * (1.0 + catalyst) * vein * rate_mult
     rate *= (1.0 + luck_bonus) * world_boost
     if _meridians_sealed(user, now):

@@ -23,9 +23,7 @@ import random
 
 from telegram import Update
 from telegram.constants import ParseMode
-from telegram.error import BadRequest
-
-MessageNotModified = BadRequest  # PTB v21 surfaces "not modified" as BadRequest
+from telegram.error import BadRequest, TelegramError as PtbTelegramError
 from telegram.ext import ContextTypes
 
 from .. import keyboards as kbs
@@ -37,7 +35,10 @@ from ...engine import items as items_mod
 from ...engine import world as world_mod
 from ...engine.cultivation import CultivationEngine
 from ...engine.models import iso, parse_iso, utcnow
+from ...errors import (TelegramError, is_message_gone, is_not_modified,
+                       is_query_expired)
 from ...localization import Locale, t
+from .reporting import PATH_CALLBACK, notify_failure, render_failed, report_stage
 from ... import render as R
 
 logger = logging.getLogger(__name__)
@@ -142,28 +143,41 @@ def _split(raw: str) -> tuple[str, list[str]]:
 # ── Telegram entry point ─────────────────────────────────────────────────────
 
 async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Inline-button tap: canonicalize → guard → settle → dispatch → persist →
+    render → persist the render state.
+
+    Two database writes on purpose. The first one lands the *game* result (qi
+    settled, pill consumed, battle started) before anything is shown, so a
+    delivery failure never costs the player progress. The second one stores the
+    root anchor created by the render. Both raise
+    :class:`~grimhaven.errors.StorageError`, which the player sees as a database
+    outage rather than a game error.
+    """
     query = update.callback_query
     ctx = context.bot_data["ctx"]
+    bot = context.bot
     data = query.data or "profile:view:main"
     tg_user = update.effective_user
     stage = "load-user"
+    user: dict = {}
+    lang = "fa"
     try:
         user, _ = ctx.get_or_create_user(tg_user)
         lang = user["account"]["language"]
         if user["account"].get("is_banned") and not data.startswith(("setlang", "noop")):
-            await query.answer(t(lang, "ERR_BANNED"), show_alert=True)
+            await _answer(query, t(lang, "ERR_BANNED"), show_alert=True)
             return
 
         stage = "canonicalize"
         data = _canon(data, user)
         if data == "noop":
-            await query.answer()
+            await _answer(query)
             return
 
         stage = "state-guard"
         blocked = callback_blocked(user, data)
         if blocked:
-            await query.answer(t(lang, blocked), show_alert=True)
+            await _answer(query, t(lang, blocked), show_alert=True)
             return
 
         stage = "settle"
@@ -172,103 +186,144 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         # ── atomic combat pipeline (spec P4 §1) ──
         if data.startswith("combat:act:"):
             stage = "combat"
-            await _combat_turn(query, ctx, user, data, now := utcnow())
+            await _combat_turn(bot, query, ctx, user, data, utcnow())
             return
 
         stage = "dispatch"
-        try:
-            text, keyboard, opts = _route(ctx, user, data, settle_res)
-        except Exception:  # pragma: no cover — safety net, never crash the bot
-            logger.exception("Callback render failed at stage=dispatch action=%r", data)
-            text, keyboard, opts = t(lang, "ERR_UNKNOWN"), None, {}
+        text, keyboard, opts = _route(ctx, user, data, settle_res)
         stage = "persist"
         ctx.save(user)
         stage = "telegram-render"
         if opts.get("tribulation"):
-            await _run_tribulation(query, user, text, keyboard, opts)
+            await _run_tribulation(bot, query, user, text, keyboard, opts)
         else:
-            await _apply_render(query, user, text, keyboard, opts)
+            await _apply_render(bot, query, user, text, keyboard, opts)
         # persist the (possibly new) root anchor set during the render step
         stage = "persist-render-state"
         ctx.save(user)
-    except Exception:  # pragma: no cover — a failed tap must still be answered
-        logger.exception(
-            "Unhandled Telegram callback failure at stage=%s action=%r update_id=%s",
-            stage, data, getattr(update, "update_id", None),
-        )
-        try:
-            doc = ctx.storage.get_user(tg_user.id) or {}
-            lang = (doc.get("account") or {}).get("language", "fa")
-            await query.answer(t(lang, "ERR_UNKNOWN"), show_alert=True)
-        except Exception:
-            pass
+    except Exception as exc:  # pragma: no cover — a failed tap must still be answered
+        await notify_failure(update, context, exc, stage=report_stage(exc, stage),
+                             path=PATH_CALLBACK, action=data, lang=lang,
+                             user_id=getattr(tg_user, "id", None))
 
 
-async def _run_tribulation(query, user: dict, text: str, keyboard, opts: dict) -> None:
+async def _answer(query, text: str | None = None, *, show_alert: bool = False) -> None:
+    """Answer a callback query, tolerating Telegram's 30-second window.
+
+    A toast that arrives late is not a game failure; treating it as one used to
+    replace a perfectly good screen with "unknown error".
+    """
+    try:
+        if text is None:
+            await query.answer()
+        else:
+            await query.answer(text, show_alert=show_alert)
+    except (BadRequest, PtbTelegramError) as exc:
+        if is_query_expired(exc):
+            logger.debug("callback answer arrived after Telegram's window expired")
+            return
+        logger.warning("callback answer rejected (%s): %s",
+                       type(exc).__name__, str(exc)[:160])
+
+
+async def _run_tribulation(bot, query, user: dict, text: str, keyboard, opts: dict) -> None:
     """Spec P6 §3.3 — strip buttons, two 2-second atmospheric edits, then the
     resolution card as the new root window."""
     import asyncio
     trib = opts["tribulation"]
-    try:
-        await query.edit_message_text(trib["phases"][0])
-        await asyncio.sleep(2.0)
-        await query.edit_message_text(trib["phases"][1])
-        await asyncio.sleep(2.0)
-    except (MessageNotModified, BadRequest):
-        pass
-    await _apply_render(query, user, text, keyboard, opts)
+    for phase in trib.get("phases", [])[:2]:
+        try:
+            await query.edit_message_text(phase)
+        except (BadRequest, PtbTelegramError) as exc:
+            if render_failed(exc):
+                logger.warning("tribulation phase edit failed: %s", str(exc)[:160])
+            break
+        try:
+            await asyncio.sleep(2.0)
+        except asyncio.CancelledError:  # pragma: no cover — shutdown during the drama
+            raise
+    await _apply_render(bot, query, user, text, keyboard, opts)
 
 
-async def _apply_render(query, user: dict, text: str, keyboard, opts: dict) -> None:
-    """Execute the render contract (edit / fresh-send / root lifecycle / alert)."""
+async def _apply_render(bot, query, user: dict, text: str, keyboard, opts: dict) -> None:
+    """Execute the render contract (edit / fresh-send / root lifecycle / alert).
+
+    Every Telegram call is checked: the previous version swallowed *all*
+    ``BadRequest`` errors, so a screen that Telegram rejected was reported to the
+    caller as a successful render.
+    """
     alert = opts.get("alert")
     answer = opts.get("answer")
-    lang = user["account"]["language"]
+    if opts.get("no_render"):
+        # Explain, and change nothing else. Editing or re-sending here would
+        # destroy the screen the player is reading in order to tell them the tap
+        # was invalid — the old behaviour silently pushed them to the profile.
+        await _answer(query, alert or answer, show_alert=bool(alert))
+        return
     if opts.get("root"):
         # single-window lifecycle: delete the previous root, send a new one
         menu_id = (user.get("ui") or {}).get("active_menu_message_id")
         if menu_id:
             try:
-                await query.bot.delete_message(query.message.chat_id, menu_id)
-            except BadRequest:
-                try:
-                    await query.bot.edit_message_reply_markup(
-                        chat_id=query.message.chat_id, message_id=menu_id, reply_markup=None)
-                except (BadRequest, MessageNotModified):
-                    pass
-        try:
-            sent = await query.message.reply_text(text, reply_markup=keyboard)
+                await bot.delete_message(query.message.chat_id, menu_id)
+            except (BadRequest, PtbTelegramError) as exc:
+                if not is_message_gone(exc):
+                    try:
+                        await bot.edit_message_reply_markup(
+                            chat_id=query.message.chat_id, message_id=menu_id,
+                            reply_markup=None)
+                    except (BadRequest, PtbTelegramError) as exc2:
+                        if render_failed(exc2):
+                            logger.warning("could not delete or strip root %s: %s",
+                                           menu_id, str(exc2)[:160])
+        sent = await _send_fresh(bot, query, text, keyboard)
+        if sent is not None:
             user.setdefault("ui", {})["active_menu_message_id"] = sent.message_id
-        except BadRequest:
-            pass
-        if alert:
-            await query.answer(alert, show_alert=True)
-        elif answer:
-            await query.answer(answer)
-        else:
-            await query.answer()
-        return
-    if opts.get("send"):
+    elif opts.get("send"):
         try:
-            await query.bot.send_message(query.message.chat_id, text, reply_markup=keyboard)
-        except BadRequest:
-            pass
+            await bot.send_message(query.message.chat_id, text, reply_markup=keyboard)
+        except (BadRequest, PtbTelegramError) as exc:
+            raise TelegramError(f"battle screen could not be delivered: {exc}",
+                                operation="sendMessage",
+                                chat_id=query.message.chat_id,
+                                user_key="ERR_DELIVERY") from exc
     else:
         try:
             if keyboard is not None:
                 await query.edit_message_text(text, reply_markup=keyboard)
             else:
                 await query.edit_message_text(text)
-        except MessageNotModified:
-            pass
-        except BadRequest:
-            pass
+        except (BadRequest, PtbTelegramError) as exc:
+            if render_failed(exc):
+                raise TelegramError(f"screen could not be edited: {exc}",
+                                    operation="editMessageText",
+                                    message_id=query.message.message_id,
+                                    user_key="ERR_DELIVERY") from exc
     if alert:
-        await query.answer(alert, show_alert=True)
+        await _answer(query, alert, show_alert=True)
     elif answer:
-        await query.answer(answer)
+        await _answer(query, answer)
     else:
-        await query.answer()
+        await _answer(query)
+
+
+async def _send_fresh(bot, query, text: str, keyboard):
+    """Send the new root window.
+
+    Deliberately NOT ``query.message.reply_text``: the root lifecycle deletes the
+    very message the tap came from, and Telegram rejects a reply to a message
+    that no longer exists (REPLY_MESSAGE_NOT_FOUND) — which used to leave the
+    player with a vanished menu and no replacement.
+    """
+    try:
+        return await bot.send_message(query.message.chat_id, text, reply_markup=keyboard)
+    except (BadRequest, PtbTelegramError) as exc:
+        if is_message_gone(exc) or is_not_modified(exc):
+            return None
+        raise TelegramError(f"screen could not be delivered: {exc}",
+                            operation="sendMessage", chat_id=query.message.chat_id,
+                            user_key="ERR_DELIVERY") from exc
+
 
 
 # ── combat: the 5-step atomic turn ───────────────────────────────────────────
@@ -336,7 +391,7 @@ def _terminal_effects(ctx, user: dict, session: dict, now) -> None:
     ce.close_session(user)
 
 
-async def _combat_turn(query, ctx, user: dict, data: str, now) -> None:
+async def _combat_turn(bot, query, ctx, user: dict, data: str, now) -> None:
     """PTB wrapper: toast the guard alerts, de-weaponize the pressed message,
     then run the shared turn."""
     lang = user["account"]["language"]
@@ -353,23 +408,31 @@ async def _combat_turn(query, ctx, user: dict, data: str, now) -> None:
         if rnd != session["round"]:
             await query.answer(t(lang, "ALERT_STALE_TURN"), show_alert=False)
             return
-        # instant de-weaponization of the trigger message (spec P4 §4.1 step 2)
+        # instant de-weaponization of the trigger message (spec P4 §4.1 step 2).
+        # Best-effort: the screen we are about to render replaces this keyboard
+        # anyway, so a rejected strip (not modified / message gone) is noise —
+        # but an *unexpected* failure is our bug, so it is logged, never alerted.
         try:
             await query.edit_message_reply_markup(reply_markup=None)
-        except (MessageNotModified, BadRequest):
-            pass
+        except (BadRequest, PtbTelegramError) as exc:
+            logger.debug("trigger keyboard not stripped: %s", str(exc)[:120])
+        except Exception:  # pragma: no cover — defensive
+            logger.exception("stripping the trigger keyboard failed (action=%r)", data)
         text, keyboard, opts = _combat_step(ctx, user, data, now)
         if opts.get("no_render"):
+            await _answer(query)
             return
-        await _apply_render(query, user, text, keyboard, opts)
+        await _apply_render(bot, query, user, text, keyboard, opts)
         ctx.save(user)
-    except Exception:  # pragma: no cover — a failed battle tap must be answered
-        import traceback
-        traceback.print_exc()
-        try:
-            await query.answer(t(lang, "ERR_UNKNOWN"), show_alert=True)
-        except Exception:
-            pass
+    except Exception as exc:  # pragma: no cover — a failed battle tap must be answered
+        logger.exception("combat turn failed at action=%r user_id=%s", data,
+                         user.get("user_id"))
+        await _answer(query, t(lang, _failure_key(exc)), show_alert=True)
+
+
+def _failure_key(exc: BaseException) -> str:
+    from ...errors import USER_KEY, classify
+    return USER_KEY[classify(exc)]
 
 
 def _combat_terminal(user: dict, session: dict, snapshot: dict, lines: list[str]):
@@ -476,9 +539,13 @@ def _route(ctx, user: dict, data: str, settle_res: dict,
         }.get(sub, "USAGE_BROADCAST")
         return (R.admin_text(lang, ctx.storage, ctx.boost_label()) + "\n\n" + t(lang, usage_key),
                 kbs.admin_kb(lang), {})
-    # unknown → gently back to the scroll
-    return (R.hud_text(ctx.storage, user, ctx.world_boost(now), now),
-            kbs.profile_kb(lang), {"root": True})
+    # An action this build does not know (a button left on an old message after a
+    # deploy, a hand-typed payload, a forged callback): say so, and leave the
+    # player's screen exactly where it was. It used to redirect to the profile
+    # HUD, which destroyed whatever they were reading and looked like a bug in
+    # the button they tapped.
+    return (t(lang, "ERR_INVALID_ACTION"), None,
+            {"no_render": True, "alert": t(lang, "ERR_INVALID_ACTION")})
 
 
 def _rival_verdict(user: dict, verdict: str) -> str:
@@ -544,7 +611,8 @@ def _cultivate(ctx, user, args, settle_res, now):
                 return (R.meditate_hub_text(lang, user, ctx.world_boost(now), now),
                         kbs.meditate_hub_kb(lang),
                         {"alert": t(lang, "CAT_ON", stone=t(lang, f"STONE_{grade.upper()}"))})
-            return t(lang, "ERR_UNKNOWN"), kbs.catalyst_kb(lang, user), {}
+            return (t(lang, "ERR_UNKNOWN_OPTION"), kbs.catalyst_kb(lang, user),
+                    {"alert": t(lang, "ERR_UNKNOWN_OPTION")})
     if verb == "mantra":
         user.setdefault("ui", {})["mantra_back"] = "cultivate:view:hub"
         return R.mantra_menu_text(lang, user), kbs.mantra_kb(lang, user), {}
@@ -581,9 +649,13 @@ def _map(ctx, user, args, settle_res, now):
                 kbs.zone_hub_kb(lang, user, zone_id), {})
     if args[0] == "action" and len(args) >= 3:
         verb, zone_id = args[1], args[2]
-        zdef = data_registry.get_zone(zone_id) or data_registry.get_zone(
-            user["location"].get("current_zone_id", ""))
-        zone_id = zdef.zone_id if zdef else zone_id
+        # An unknown zone id must never be answered by "use wherever you happen to
+        # be": that turned a stale/forged payload into a conquest battle in the
+        # current valley, i.e. a state change the player did not ask for.
+        if not data_registry.get_zone(zone_id):
+            return (t(lang, "ERR_UNKNOWN_OPTION"), kbs.map_kb(lang, user),
+                    {"no_render": True, "alert": t(lang, "ERR_UNKNOWN_OPTION")})
+        zdef = data_registry.get_zone(zone_id)
         if verb == "settle":
             res = world_mod.travel(ctx.storage, user, zone_id, now=now)
             if res["status"] != "OK":
@@ -600,7 +672,8 @@ def _map(ctx, user, args, settle_res, now):
             # kept for legacy / admin use — no UI entry any more
             enemy = ce.make_guardian(zdef.guard if zdef else 1, random.Random())
             if not enemy:
-                return t(lang, "ERR_UNKNOWN"), None, {}
+                return t(lang, "ERR_UNKNOWN_OPTION"), None, {
+                    "alert": t(lang, "ERR_UNKNOWN_OPTION")}
             ce.start_session(user, enemy, "conquest", zone_id)
             session = user["combat"]["session"]
             return (R.combat_hud_text(lang, user, session),
@@ -626,7 +699,8 @@ def _gather(ctx, user, zone_id: str, now):
     lang = user["account"]["language"]
     zdef = data_registry.get_zone(zone_id)
     if not zdef:
-        return t(lang, "ERR_UNKNOWN"), None, {}
+        return t(lang, "ERR_UNKNOWN_OPTION"), None, {
+            "alert": t(lang, "ERR_UNKNOWN_OPTION")}
     cul = user["cultivation"]
     cost = zdef.gather.qi_cost
     if cul["qi_current"] < cost:
@@ -740,7 +814,8 @@ def _martial(ctx, user, args, now):
             mid = args[2]
             m = data_registry.get_method(mid)
             if not m:
-                return t(lang, "ERR_UNKNOWN"), kbs.martial_kb(lang, user), {}
+                return t(lang, "ERR_UNKNOWN_OPTION"), kbs.martial_kb(lang, user), {
+                    "alert": t(lang, "ERR_UNKNOWN_OPTION")}
             owned = user["inventory"].setdefault("methods", [])
             if mid not in owned:
                 if m.tier != "mortal":
@@ -772,7 +847,8 @@ def _martial(ctx, user, args, now):
             tid = args[3]
             tech = data_registry.get_technique(tid)
             if not tech:
-                return t(lang, "ERR_UNKNOWN"), kbs.martial_kb(lang, user), {}
+                return t(lang, "ERR_UNKNOWN_OPTION"), kbs.martial_kb(lang, user), {
+                    "alert": t(lang, "ERR_UNKNOWN_OPTION")}
             res = items_mod.set_loadout(user, tid, idx)
             if res.get("status") != "OK":
                 return (R.martial_text(lang, user), kbs.martial_kb(lang, user),
@@ -808,14 +884,16 @@ def _shop(ctx, user, args, now):
             art_id, page = args[2], _as_page(args[3])
             art = data_registry.get_martial_art(art_id)
             if not art:
-                return t(lang, "ERR_UNKNOWN"), None, {"alert": t(lang, "ERR_UNKNOWN")}
+                return t(lang, "ERR_UNKNOWN_OPTION"), None, {
+                    "alert": t(lang, "ERR_UNKNOWN_OPTION")}
             return (R.art_inspect_text(lang, user, art_id),
                     kbs.art_card_kb(lang, user, art_id, page), {})
         if sub == "claim_free" and len(args) >= 4:
             art_id, page = args[2], _as_page(args[3])
             art = data_registry.get_martial_art(art_id)
             if not art:
-                return t(lang, "ERR_UNKNOWN"), None, {"alert": t(lang, "ERR_UNKNOWN")}
+                return t(lang, "ERR_UNKNOWN_OPTION"), None, {
+                    "alert": t(lang, "ERR_UNKNOWN_OPTION")}
             items_mod.learn_art(user, art_id)
             return (R.art_inspect_text(lang, user, art_id),
                     kbs.art_card_kb(lang, user, art_id, page),
@@ -900,7 +978,7 @@ def _breakthrough(ctx, user, args, now):
         if status != "READY":
             note_key = {"MERIDIANS_SEALED": "STATUS_MERIDIAN_SEALED_T", "IN_COMBAT": "GUARD_COMBAT",
                         "INJURED": "GUARD_INJURED", "AT_DAO_SOVEREIGN": "BT_SUPREME",
-                        "CHOOSE_DAO_FIRST": "BT_CHOOSE_DAO"}.get(status, "ERR_UNKNOWN")
+                        "CHOOSE_DAO_FIRST": "BT_CHOOSE_DAO"}.get(status, "BT_GATE_UNKNOWN")
             if status == "CHOOSE_DAO_FIRST":
                 return R.dao_prompt_text(lang, user), kbs.dao_kb(lang, False), {"root": True}
             return (R.hud_text(ctx.storage, user, ctx.world_boost(now), now), kbs.profile_kb(lang),
@@ -914,7 +992,8 @@ def _breakthrough(ctx, user, args, now):
             iid = args[2]
             item = data_registry.get_consumable(iid)
             if not item or item.action != "breakthrough_bonus":
-                return t(lang, "ERR_UNKNOWN"), kbs.bt_prep_kb(lang), {}
+                return t(lang, "ERR_UNKNOWN_OPTION"), kbs.bt_prep_kb(lang), {
+                    "alert": t(lang, "ERR_UNKNOWN_OPTION")}
             if not items_mod.consume_item(user, iid):
                 return t(lang, "ITEM_NONE_LEFT", item=item.name_for(lang)), kbs.bt_prep_kb(lang), {}
             user["cultivation"]["active_pill"] = iid
@@ -943,7 +1022,7 @@ def _breakthrough(ctx, user, args, now):
                      if prep["status"] == "QI_NOT_FULL" else
                      t(lang, {"MERIDIANS_SEALED": "STATUS_MERIDIAN_SEALED_T",
                               "IN_COMBAT": "GUARD_COMBAT", "INJURED": "GUARD_INJURED",
-                              "AT_DAO_SOVEREIGN": "BT_SUPREME"}.get(prep["status"], "ERR_UNKNOWN")))
+                              "AT_DAO_SOVEREIGN": "BT_SUPREME"}.get(prep["status"], "BT_GATE_UNKNOWN")))
             return (R.hud_text(ctx.storage, user, ctx.world_boost(now), now),
                     kbs.profile_kb(lang), {"alert": alert})
         res = CultivationEngine.confirm_tribulation(user, now=now, rng=random.Random())
@@ -975,7 +1054,8 @@ def _dao(ctx, user, args, now):
             dao_name = t(lang, R.DAO_PATHS[dao]["key"]) if dao in R.DAO_PATHS else dao
             return (R.hud_text(ctx.storage, user, ctx.world_boost(now), now),
                     kbs.profile_kb(lang), {"alert": t(lang, "DAO_CHOSEN", dao=dao_name)})
-        return R.dao_prompt_text(lang, user), kbs.dao_kb(lang, False), {"alert": t(lang, "ERR_UNKNOWN")}
+        return (R.dao_prompt_text(lang, user), kbs.dao_kb(lang, False),
+                {"alert": t(lang, "ERR_UNKNOWN_OPTION")})
     return R.dao_prompt_text(lang, user), kbs.dao_kb(lang, False), {}
 
 

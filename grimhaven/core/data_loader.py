@@ -473,6 +473,17 @@ class GameDataRegistry:
     def get_guardian(self, guard_level: int) -> Optional[Enemy]:
         return self.guardians.get(guard_level)
 
+    def is_loaded(self) -> bool:
+        """True once the shipped data sets are actually in memory.
+
+        Anything that *rewrites* a stored id because it looks unknown has to ask
+        this first: with an empty registry every zone and every technique is
+        "unknown", so a migration run before :func:`bootstrap` (or after a failed
+        one) would happily wipe real player loadouts and teleport everyone to the
+        starting valley.
+        """
+        return bool(self._initialized and (self.zones or self.techniques_index))
+
     def get_zone(self, zone_id: str) -> Optional[ZoneDef]:
         return self.zones.get(zone_id)
 

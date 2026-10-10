@@ -7,6 +7,7 @@ Injury / paralysis locks keep the classic consequences of a true death.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from .state_machine import UserStatus, get_status, paralysis_active, is_injured
@@ -83,6 +84,8 @@ def _zone_is_perilous(zone_id: str) -> bool:
     return bool(zdef and zdef.get("guard", 1) >= 3)
 
 
+logger = logging.getLogger(__name__)
+
 # commands players can always use, and meditation-time restrictions
 _ALWAYS_COMMANDS = {"start", "me", "profile", "bag", "help", "settings",
                     "language", "cultivate", "admin", "panel"}
@@ -137,9 +140,13 @@ def guard_update(storage_get_user, handler):
                 else:
                     await update.message.reply_text(msg)
                 return None
-        except Exception:  # guard must never crash the bot
-            import traceback
-            traceback.print_exc()
+        except Exception as exc:  # guard must never crash the bot
+            # Logged as what it is — a guard that cannot decide must not silently
+            # wave the update through as if the check had passed.
+            logger.exception(
+                "state guard failed, routing unchecked: update_id=%s user_id=%s: %s",
+                getattr(update, "update_id", None),
+                getattr(getattr(update, "effective_user", None), "id", None), exc)
         return await handler(update, context)
 
     return wrapper
