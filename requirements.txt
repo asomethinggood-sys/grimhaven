@@ -3,3 +3,8 @@ fastapi>=0.115
 uvicorn>=0.30
 pytest>=8.0
 pytest-asyncio>=1.0
+
+# imported directly by grimhaven/core/data_loader.py (the models use it too); it
+# was only ever satisfied transitively through fastapi, so a web-only change
+# could break the bot and the whole test suite at once
+pydantic>=2.7,<3
