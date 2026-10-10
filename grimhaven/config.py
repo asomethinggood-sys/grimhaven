@@ -38,6 +38,11 @@ class Settings:
     listen_port: int = 8080
     demo_host: str = "0.0.0.0"
     demo_port: int = 8000
+    #: everything the operator needs to flip from the Actions UI — no code push
+    log_level: str = "INFO"
+    reset_world: bool = False
+    #: refuse to boot against a database that failed PRAGMA integrity_check
+    allow_corrupt_db: bool = False
 
     @classmethod
     def load(cls) -> "Settings":
@@ -54,7 +59,13 @@ class Settings:
             db_path = ROOT_DIR / db_path
         port = os.environ.get("LISTEN_PORT", "8080")
         demo_port = os.environ.get("DEMO_PORT", "8000")
+        truthy = ("1", "true", "yes", "on")
+        level = os.environ.get("GRIMHAVEN_LOG_LEVEL", "INFO").strip().upper()
         return cls(
+            log_level=level if level in {"DEBUG", "INFO", "WARNING", "ERROR"} else "INFO",
+            reset_world=os.environ.get("GRIMHAVEN_RESET_WORLD", "").strip().lower() in truthy,
+            allow_corrupt_db=os.environ.get("GRIMHAVEN_ALLOW_CORRUPT_DB", "")
+            .strip().lower() in truthy,
             admin_ids=admins,
             database_path=db_path,
             webhook_url=os.environ.get("WEBHOOK_URL", ""),
