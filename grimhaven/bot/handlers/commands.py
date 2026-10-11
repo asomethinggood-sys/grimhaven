@@ -17,7 +17,6 @@ from __future__ import annotations
 import logging
 
 from telegram import Update
-from telegram.constants import ParseMode
 from telegram.error import BadRequest, TelegramError as PtbTelegramError
 from telegram.ext import ContextTypes
 

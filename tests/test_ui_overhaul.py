@@ -149,10 +149,16 @@ def test_locale_tables_complete_and_symmetric():
         used |= set(re.findall(r'"(BTN_[A-Z_]+|GUARD_[A-Z_]+|STATUS_[A-Z_]+|COMBAT_[A-Z_]+|USE_[A-Z_]+|ADVENTURE_[A-Z_]+)"', src))
     missing = {k for k in used if k not in fa}
     assert not missing, f"locale keys referenced but missing: {sorted(missing)}"
-    # dynamic engine statuses rendered through t(lang, status) must exist too
-    for status in ("FULL_HP", "QI_FULL", "WRONG_REALM", "ALREADY_USED", "NOT_INJURED",
-                   "NOT_USABLE", "UNKNOWN_ITEM", "NOT_OWNED"):
-        assert status in LOCALES["fa"]
+    # dynamic engine statuses are rendered through t(lang, f"USE_{status}") /
+    # t(lang, f"ERR_{status}") — the *prefixed* row is what the router needs.
+    # (Bare "NOT_USABLE"-style rows are dead weight: nothing ever looks them up,
+    # and "cannot be used outside battle" was a lie for the death doll.)
+    for status in ("NONE_LEFT", "IN_COMBAT", "QI_FULL", "FULL_HP", "WRONG_REALM",
+                   "ALREADY_USED", "NOT_INJURED", "COMBAT_ONLY", "SELL_ONLY",
+                   "PASSIVE", "UNKNOWN_ACTION"):
+        assert f"USE_{status}" in fa, f"consume status {status} has no USE_ row"
+    for status in ("NOT_OWNED", "NOT_EQUIPPABLE", "EMPTY_SLOT", "SOUL_BOUND"):
+        assert f"ERR_{status}" in fa, f"equip status {status} has no ERR_ row"
 
 
 def test_locale_format_placeholders_match():

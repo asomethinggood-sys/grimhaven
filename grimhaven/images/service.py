@@ -209,11 +209,15 @@ class ArtworkService:
         if not str(source).lower().startswith(("https://", "http://")):
             raise ImageRejected("bad-url", "not an http(s) URL")
         body, ctype = await self.fetcher.get(source, max_bytes=max_bytes, expect="image")
-        info = validate_image_bytes(body,
-                                    min_width=self.settings.artwork_min_width,
-                                    max_side=self.settings.artwork_max_side,
-                                    max_bytes=max_bytes,
-                                    declared_mime=ctype)
+        # hashing + magic-byte parsing runs over the whole payload (up to
+        # artwork_max_bytes); keep it off the event loop so one slow image never
+        # stalls every other player's screen.
+        info = await asyncio.to_thread(
+            validate_image_bytes, body,
+            min_width=self.settings.artwork_min_width,
+            max_side=self.settings.artwork_max_side,
+            max_bytes=max_bytes,
+            declared_mime=ctype)
         return body, {"mime": info.mime, "width": info.width, "height": info.height,
                       "sha256": info.sha256, "bytes": info.size, "ext": info.ext}
 
@@ -238,13 +242,6 @@ class ArtworkService:
                     tmp.unlink()
             except OSError:
                 logger.debug("artwork: leftover temp file %s", tmp.name)
-
-    async def download_image(self, source: str, destination: Path | str, *,
-                             max_bytes: int | None = None) -> dict:
-        """Public helper: fetch, validate, and store at exactly ``destination``."""
-        body, info = await self.fetch_validated(source, max_bytes=max_bytes)
-        self.write_atomic(body, destination)
-        return info
 
     @staticmethod
     def validate_image(path: Path | str) -> dict:
@@ -292,23 +289,6 @@ class ArtworkService:
         except Exception:
             pass
         return row
-
-    def get_artwork_for_event(self, event_type: str, event_id: str = "",
-                              language: str = "en") -> dict | None:
-        """Cache-only artwork lookup for a game event (safe to call anywhere).
-
-        Returns ``{"path": Path, "caption": str, "row": dict}``, or ``None``
-        when nothing is cached — callers must treat ``None`` as "text-only".
-        """
-        asset_key = self.asset_key(event_type, event_id)
-        row = self.cached_row(asset_key)
-        if not row:
-            return None
-        from ..localization import t
-        caption_key = self.caption_key_for(asset_key) or "ART_CAP_GENERIC"
-        caption = t(language, caption_key) if caption_key else ""
-        return {"path": self.row_path(row), "caption": caption, "row": row,
-                "asset_key": asset_key}
 
     @staticmethod
     def asset_key(event_type: str, event_id: str = "") -> str:
@@ -381,7 +361,8 @@ class ArtworkService:
         if final.is_file() and final.stat().st_size == info["bytes"]:
             fresh = False      # identical bytes already cached — deduplication
         else:
-            self.write_atomic(body, final)
+            # fsync + atomic rename is blocking disk I/O — same reason as above
+            await asyncio.to_thread(self.write_atomic, body, final)
         rel = str(final.relative_to(self.root))
         doc = self._index_doc(asset_key, cand, query, info, rel)
         if not fresh:

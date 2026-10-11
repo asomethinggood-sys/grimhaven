@@ -6,13 +6,15 @@ No game content is hardcoded in application logic; everything (50 idle events,
 """
 from __future__ import annotations
 
+from ..errors import ContentError
+
 import json
 import logging
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 logger = logging.getLogger("DataLoader")
 
@@ -40,6 +42,7 @@ class OfflineEvent(BaseModel):
     @field_validator("type")
     @classmethod
     def _type_ok(cls, v: str) -> str:
+        """Reject event types the chronicle renderer has no branch for."""
         allowed = {"combat", "encounter", "hazard", "nature", "insight"}
         if v not in allowed:
             raise ValueError(f"offline event type must be one of {allowed}, got {v!r}")
@@ -242,13 +245,22 @@ class GatherDef(BaseModel):
 
 
 class ZoneDef(BaseModel):
+    # data/zones.json ships the gate as `required_realm_tier`; the runtime name is
+    # `min_realm`. Without the alias the field kept its default 1 for every zone,
+    # which silently disabled the whole realm gate: the inspect/action guards in
+    # callbacks (`realm < zdef.min_realm`), the "required realm" line on the zone
+    # hub and any per-zone spawn restriction all behaved as if every zone were
+    # open to a layer-1 cultivator.
+    model_config = ConfigDict(populate_by_name=True)
+
     zone_id: str
     order: int = 0
     icon: str = "🟢"
     name: str = ""
     name_en: str = ""
     density: float = 1.0
-    min_realm: int = 1
+    min_realm: int = Field(default=1, validation_alias=AliasChoices("min_realm",
+                                                                    "required_realm_tier"))
     guard: int = 1
     danger_badge: str = "🟢 ایمن"
     danger_badge_en: str = "🟢 Safe"
@@ -345,11 +357,22 @@ class GameDataRegistry:
         logger.info("All game datasets loaded and indexed.")
 
     def _load_json_file(self, filename: str) -> Any:
+        """Load one content file; failures are CONTENT problems, not storage ones.
+
+        A missing or malformed data/*.json used to surface as FileNotFoundError /
+        JSONDecodeError, which ``classify`` maps to the storage category — the
+        player was told the *database* was broken while the real fault was a
+        shipped content file, and the log lost the incident reference the CONTENT
+        category would have attached.
+        """
         path = self.data_dir / filename
         if not path.exists():
-            raise FileNotFoundError(f"Missing essential game data file: {path}")
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            raise ContentError(f"missing game data file: {path}", file=filename)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError as exc:
+            raise ContentError(f"{filename} is not valid JSON: {exc}", file=filename) from exc
 
     def _load_offline_events(self):
         self.offline_events.clear()
@@ -444,10 +467,6 @@ class GameDataRegistry:
             self.methods[mid] = CultivationMethod(method_id=mid, **raw)
         logger.info("Loaded %d cultivation methods.", len(self.methods))
 
-    # accessors
-    def get_event(self, event_id: int) -> Optional[OfflineEvent]:
-        return self.offline_events.get(event_id)
-
     def get_all_events(self) -> List[OfflineEvent]:
         return list(self.offline_events.values())
 
@@ -462,10 +481,6 @@ class GameDataRegistry:
 
     def get_consumable(self, item_id: str) -> Optional[ConsumableItem]:
         return self.consumables.get(item_id)
-
-    def get_item(self, item_id: str):
-        """Any catalog record for an item id (gear or consumable/material)."""
-        return self.get_equipment(item_id) or self.get_consumable(item_id)
 
     def get_beast(self, enemy_id: str) -> Optional[Enemy]:
         return self.beasts.get(enemy_id)

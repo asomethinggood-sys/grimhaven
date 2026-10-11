@@ -8,18 +8,88 @@ plus authored tables: equipment.json, consumables.json, enemies.json.
 
 The generated JSON is committed to the repo; this script only needs re-running when the
 source content changes.  Run from the repo root:  python scripts/build_data.py
+
+!! data/*.json is the RUNTIME SOURCE OF TRUTH and has moved on from the authored
+!! tables below (extra loot rows, extra beasts, hand-tuned prices and drops --
+!! see git log for data/).  Running this script overwrites the live content with
+!! whatever the tables here emit; the id-losing guard only blocks *shrinking*
+!! writes, not changed values.  Prefer editing data/*.json directly, and treat
+!! --force as "I know this resets content to the frozen snapshot".
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import random
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "google_drive"
 OUT = ROOT / "data"
 OUT.mkdir(exist_ok=True)
+
+FORCE = "--force" in sys.argv
+
+
+def read_source(name: str) -> list:
+    """Load a Drive-sourced seed file, or explain what is missing."""
+    path = SRC / name
+    if not path.exists():
+        raise SystemExit(
+            f"missing source file: {path}\n"
+            f"The Drive seeds are not committed to the repo. Download them from the "
+            f"'TELEGRAM GAME' folder into google_drive/ before re-running this script.\n"
+            f"Nothing was written."
+        )
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def write_guarded(name: str, payload, *, id_key: str = "item_id") -> None:
+    """Write ``OUT/name`` without ever *shrinking* the committed catalogue.
+
+    ``data/*.json`` is the runtime source of truth and has grown past what the
+    authored tables in this script emit (extra loot materials, extra beasts,
+    richer per-enemy blocks).  A plain ``write_text`` would silently delete
+    that content, so the generator refuses to drop entries unless run with
+    ``--force``.
+    """
+    path = OUT / name
+    if path.exists() and FORCE:
+        print(f"!! --force: overwriting {path.name} with this script's frozen snapshot — "
+              f"live content (loot rows, prices, drops) that is not in the tables is lost.")
+    if path.exists():
+        current = json.loads(path.read_text(encoding="utf-8"))
+        gen_ids = _ids_of(payload, id_key)
+        cur_ids = _ids_of(current, id_key)
+        lost = sorted(cur_ids - gen_ids)
+        if lost:
+            msg = (f"refusing to overwrite {path}: the file holds {len(cur_ids)} entries, "
+                   f"this script only knows {len(gen_ids)} "
+                   f"({len(lost)} would be deleted: {', '.join(lost[:6])}"
+                   f"{' …' if len(lost) > 6 else ''}). Re-run with --force to clobber.")
+            print("!! " + msg)
+            return
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def _ids_of(payload, id_key: str) -> set:
+    """Ids (recursively) of a list-of-records or dict-of-lists payload."""
+    if isinstance(payload, dict):
+        out = set()
+        for value in payload.values():
+            out |= _ids_of(value, id_key)
+        return out
+    if isinstance(payload, list):
+        out = set()
+        for row in payload:
+            if isinstance(row, dict):
+                rid = row.get(id_key) or row.get("enemy_id") or row.get("art_id")
+                if rid:
+                    out.add(rid)
+                out |= _ids_of([v for v in row.values() if isinstance(v, (list, dict))], id_key)
+        return out
+    return set()
 
 
 def _h(key: str) -> int:
@@ -94,7 +164,7 @@ TYPE_ICON = {"combat": "⚔️", "encounter": "👣", "hazard": "⚡️", "natur
 
 
 def build_offline_events() -> None:
-    raw = json.loads((SRC / "dataoffline_events.json").read_text(encoding="utf-8"))
+    raw = read_source("dataoffline_events.json")
     assert len(raw) == 50, f"expected 50 events, got {len(raw)}"
     out = []
     for ev in raw:
@@ -111,8 +181,7 @@ def build_offline_events() -> None:
             "text_en": EVENT_EN[ev["id"]],
             "effect": eff,
         })
-    (OUT / "offline_events.json").write_text(
-        json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+    write_guarded("offline_events.json", out, id_key="id")
     print(f"offline_events.json: {len(out)} events")
 
 
@@ -305,7 +374,7 @@ def _grazed_verb(hit: str) -> str:
 
 
 def build_martial_arts() -> None:
-    raw = json.loads((SRC / "datamartial_arts.json").read_text(encoding="utf-8"))
+    raw = read_source("datamartial_arts.json")
     assert len(raw) == 30
     out = []
     for art in raw:
@@ -418,7 +487,7 @@ EQUIPMENT = [
 def build_equipment() -> None:
     for it in EQUIPMENT:
         it.setdefault("name_fa", it["name"])
-    (OUT / "equipment.json").write_text(json.dumps(EQUIPMENT, ensure_ascii=False, indent=1), encoding="utf-8")
+    write_guarded("equipment.json", EQUIPMENT)
     print(f"equipment.json: {len(EQUIPMENT)} items")
 
 
@@ -472,7 +541,7 @@ def build_consumables() -> None:
         it.setdefault("price_stones", None)
         it["name_fa"] = it.pop("name")
         it["name"] = it["name_fa"]
-    (OUT / "consumables.json").write_text(json.dumps(CONSUMABLES, ensure_ascii=False, indent=1), encoding="utf-8")
+    write_guarded("consumables.json", CONSUMABLES)
     print(f"consumables.json: {len(CONSUMABLES)} items")
 
 
@@ -536,7 +605,7 @@ RIVAL = {  # roaming cultivators — the mercy/plunder duel
 
 def build_enemies() -> None:
     data = {"beasts": ENEMIES, "guardians": GUARDIANS, "rival": RIVAL}
-    (OUT / "enemies.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    write_guarded("enemies.json", data, id_key="enemy_id")
     print(f"enemies.json: {len(ENEMIES)} beasts, {len(GUARDIANS)} guardians, rival duel")
 
 

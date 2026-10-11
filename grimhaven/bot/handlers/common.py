@@ -122,12 +122,3 @@ class Ctx:
         lang = user["account"]["language"]
         text = hud_text(self.storage, user, world_boost=self.world_boost(now), now=now)
         return text, profile_kb(lang)
-
-    def deep_reply(self, user: dict):
-        from ...render import meridians_text
-        lang = user["account"]["language"]
-        return meridians_text(lang, user), profile_kb(lang)
-
-    def back_reply(self, user: dict, text: str):
-        from ..keyboards import back_profile_kb
-        return text, back_profile_kb(user["account"]["language"])

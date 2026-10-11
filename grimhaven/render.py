@@ -19,9 +19,7 @@ from .core.state_machine import (UserStatus, active_debuff, get_status,
 from .engine import items as items_mod
 from .engine.constants import (
     DAO_PATHS,
-    EQUIP_SLOTS,
     REALM_NAMES,
-    REALM_STAGES,
     SPIRIT_STONES,
     TIER_KEYS,
 )
@@ -31,7 +29,7 @@ from .engine.models import (
     afk_hourly_rate,
     comprehension,
     crit_chance,
-    in_seclusion,
+    gear_specials,
     item_capacity,
     item_count,
     lifespan_years,
@@ -39,7 +37,6 @@ from .engine.models import (
     meridians_sealed,
     parse_iso,
     qi_purity,
-    stage_cost,
     utcnow,
 )
 from .localization import t
@@ -98,7 +95,7 @@ def catalyst_text(lang: str, user: dict, now: dt.datetime | None = None) -> str:
     now = now or utcnow()
     parts = []
     stone = user["cultivation"].get("active_stone")
-    if stone:
+    if isinstance(stone, str) and stone in SPIRIT_STONES:
         parts.append(f"🪨 +{int(SPIRIT_STONES[stone]['boost'] * 100)}%")
     for buff in active_buffs(user, now):
         rate_mult = buff.get("rate_mult")
@@ -176,7 +173,8 @@ def hud_text(storage, user: dict, world_boost: float = 1.0,
             eq_lines.append(f"{icon} {t(lang, key)}: {gear_label(lang, g)}")
     sect = _sect_name(lang, user, storage)
     align_key = ("ALIGN_ORTHODOX_NAME" if cul["alignment"] == "orthodox" else "ALIGN_DEMONIC_NAME")
-    dao_key = DAO_PATHS[cul["dao_path"]]["key"] if cul.get("dao_path") else None
+    _dao = cul.get("dao_path")
+    dao_key = DAO_PATHS[_dao]["key"] if isinstance(_dao, str) and _dao in DAO_PATHS else None
 
     out = [t(lang, "HUD_TITLE", name=user["account"]["username"])]
     out.append(t(lang, "HUD_RANK", realm=t(lang, REALM_NAMES[realm]),
@@ -194,11 +192,89 @@ def hud_text(storage, user: dict, world_boost: float = 1.0,
     out.append(t(lang, "HUD_SPEED", speed=prof["meridian_speed"]))
     out.extend(eq_lines)
     out.append(t(lang, "HUD_SECT", sect=sect or t(lang, "HUD_NO_SECT")))
+    corr = int(user["stats"]["hidden"].get("demonic_corruption", 0) or 0)
+    if corr >= CORRUPTION_AURA_AT:
+        # doc §4.2: corruption stays hidden until 30, then shows as a purple aura
+        out.append(t(lang, "CORRUPTION_AURA", value=corr))
     sl = status_line(lang, user, now)
     if sl:
         out.append(DIV)
         out.append(sl)
     return "\n".join(out)
+
+
+# Doc §4.2 — the reveal conditions for the four hidden attributes.  The locale
+# carried the whole panel (HIDDEN_*/STAT_LOCKED + LUCK_NEED/CHARISMA_NEED/
+# DAOHEART_NEED) while both profile screens printed the raw numbers to *everyone*,
+# so "hidden" stats leaked from the first render and the reveal gear (reveal_luck)
+# changed nothing a player could see.
+STARGAZING_METHOD_ID = "method_star_field"     # "میدان ستارگان" / Star Field Codex
+CHARISMA_REVEAL_REALM = 4                      # Nascent Soul (روح نوزاد)
+DAOHEART_REVEAL_REALM = 5                      # Spirit Severing (انشعاب روح)
+DAOHEART_REVEAL_RISK = 15.0                    # "or deviation risk above 15%"
+CORRUPTION_AURA_AT = 30                        # purple aura threshold
+
+
+def hidden_reveal_state(user: dict) -> dict[str, bool]:
+    """Which hidden attributes this player may see (doc §4.2 table)."""
+    from .engine.models import combat_profile
+    cul = user["cultivation"]
+    hidden = user["stats"]["hidden"]
+    realm = int(cul.get("current_realm_index", 1))
+    specs = gear_specials(user)
+    risk = float(combat_profile(user).get("qi_deviation_risk", 0.0))
+    return {
+        "luck": (realm >= CHARISMA_REVEAL_REALM or "reveal_luck" in specs
+                 or cul.get("active_method_id") == STARGAZING_METHOD_ID),
+        "charisma": realm >= CHARISMA_REVEAL_REALM,
+        "daoheart": realm >= DAOHEART_REVEAL_REALM or risk > DAOHEART_REVEAL_RISK,
+        "corruption": int(hidden.get("demonic_corruption", 0)) >= CORRUPTION_AURA_AT,
+    }
+
+
+REVEAL_KEYS = {"luck": "REVEAL_LUCK", "charisma": "REVEAL_CHARISMA",
+               "daoheart": "REVEAL_DAOHEART"}
+
+
+def claim_new_reveals(lang: str, user: dict) -> list[str]:
+    """REVEAL_* lines for hidden attributes unlocked since the last look.
+
+    The locale shipped REVEAL_LUCK / REVEAL_CHARISMA / REVEAL_DAOHEART but no code
+    path ever fired them: a stat simply appeared in the panel with no notice.
+    Marks each reveal as announced in ``progress.stat_reveals_seen``.
+    """
+    hidden = user["stats"]["hidden"]
+    state = hidden_reveal_state(user)
+    seen = user["progress"].setdefault("stat_reveals_seen", {})
+    values = {"luck": hidden.get("karmic_luck", 0),
+              "charisma": hidden.get("dao_affinity_charisma", 0),
+              "daoheart": hidden.get("dao_heart_stability", 0)}
+    out = []
+    for stat, key in REVEAL_KEYS.items():
+        if state.get(stat) and not seen.get(stat):
+            seen[stat] = True
+            out.append(t(lang, key, value=values[stat]))
+    return out
+
+
+def hidden_panel_lines(lang: str, user: dict) -> list[str]:
+    """Hidden-attribute block: value when revealed, requirement when not."""
+    hidden = user["stats"]["hidden"]
+    state = hidden_reveal_state(user)
+    from .engine.models import combat_profile
+    risk = round(float(combat_profile(user).get("qi_deviation_risk", 0.0)), 1)
+    out: list[str] = []
+    if not any(state.values()):
+        out.append(t(lang, "HIDDEN_LOCKED"))
+    out.append(t(lang, "HIDDEN_LUCK", value=hidden["karmic_luck"]) if state["luck"]
+               else t(lang, "STAT_LOCKED", need=t(lang, "LUCK_NEED")))
+    out.append(t(lang, "HIDDEN_CHARISMA", value=hidden.get("dao_affinity_charisma", 0))
+               if state["charisma"] else t(lang, "STAT_LOCKED", need=t(lang, "CHARISMA_NEED")))
+    out.append(t(lang, "STAT_DAOHEART", value=hidden["dao_heart_stability"], risk=risk)
+               if state["daoheart"] else t(lang, "STAT_LOCKED", need=t(lang, "DAOHEART_NEED")))
+    out.append(t(lang, "HIDDEN_CORRUPTION", value=hidden["demonic_corruption"])
+               if state["corruption"] else t(lang, "STAT_LOCKED", need=t(lang, "CORRUPTION_NEED")))
+    return out
 
 
 def meridians_text(lang: str, user: dict) -> str:
@@ -212,14 +288,20 @@ def meridians_text(lang: str, user: dict) -> str:
         t(lang, "MER_TITLE"),
         t(lang, "MER_SENSE", sense=prof["divine_sense"]),
         t(lang, "MER_CRIT_LINE", crit=round(crit_chance(user), 1), comp=comprehension(user)),
-        t(lang, "MER_DAO", value=hidden["dao_heart_stability"]),
+        t(lang, "MER_DAO", value=hidden["dao_heart_stability"])
+        if hidden_reveal_state(user)["daoheart"]
+        else t(lang, "STAT_LOCKED", need=t(lang, "DAOHEART_NEED")),
         t(lang, "MER_DEV", risk=round(prof["qi_deviation_risk"], 1)),
-        t(lang, "MER_FORTUNE", fortune=hidden["karmic_luck"]),
+        t(lang, "MER_FORTUNE", fortune=hidden["karmic_luck"])
+        if hidden_reveal_state(user)["luck"]
+        else t(lang, "STAT_LOCKED", need=t(lang, "LUCK_NEED")),
         t(lang, "MER_PURITY", purity=qi_purity(user)),
         t(lang, "MER_MERIDIANS", opened=meridians_opened(user)),
         t(lang, "MER_LIFESPAN", years=lifespan_years(user)),
         "",
-        t(lang, "MER_ALIGN", align=align, karma=hidden["karmic_luck"]),
+        t(lang, "MER_ALIGN", align=align,
+          karma=hidden["karmic_luck"] if hidden_reveal_state(user)["luck"]
+          else t(lang, "HIDDEN_LOCKED")),
     ]
     return "\n".join(lines)
 
@@ -231,13 +313,12 @@ def karma_text(lang: str, user: dict) -> str:
     alignment = cul["alignment"]
     align_key = {"orthodox": "ALIGN_ORTHODOX_NAME", "demonic": "ALIGN_DEMONIC_NAME"}.get(
         alignment, "ALIGN_NEUTRAL_NAME")
-    dao_key = DAO_PATHS[cul["dao_path"]]["key"] if cul.get("dao_path") else None
+    _dao = cul.get("dao_path")
+    dao_key = DAO_PATHS[_dao]["key"] if isinstance(_dao, str) and _dao in DAO_PATHS else None
     prog = user["progress"]
     lines = [
         t(lang, "KARMA_TITLE"),
         t(lang, "KARMA_ALIGN", align=t(lang, align_key)),
-        t(lang, "KARMA_POINTS", points=hidden["karmic_luck"]),
-        t(lang, "KARMA_CORRUPT", index=hidden["demonic_corruption"]),
         "",
         t(lang, "KARMA_RECORD", wins=user["combat"]["wins"], losses=user["combat"]["losses"],
           deaths=prog.get("deaths", 0), miracles=prog.get("miracle_escapes", 0)),
@@ -247,19 +328,11 @@ def karma_text(lang: str, user: dict) -> str:
           realm=t(lang, REALM_NAMES[cul["current_realm_index"]]),
           attempts=prog["breakthrough_attempts"], successes=prog["breakthrough_successes"]),
     ]
-    if hidden["demonic_corruption"] >= 30:
-        lines.append(t(lang, "HIDDEN_AURA"))
+    # Hidden attributes (doc §4.2). The panel is the only place these numbers
+    # may appear: each row is either the revealed value or its unlock hint.
+    lines.append("")
+    lines.extend(hidden_panel_lines(lang, user))
     return "\n".join(lines)
-
-
-# legacy API kept for admin/other screens
-def profile_text(storage, user: dict, world_boost: float = 1.0,
-                 now: dt.datetime | None = None) -> str:
-    return hud_text(storage, user, world_boost=world_boost, now=now)
-
-
-def deep_profile_text(lang: str, user: dict) -> str:
-    return meridians_text(lang, user)
 
 
 # ═══════════════════════════════════ bag (P2) ═════════════════════════════════
@@ -274,9 +347,6 @@ def _bag_rows(lang: str, user: dict, tab: str) -> list[tuple[str, str]]:
     inv = user["inventory"]
     if tab == "gear":
         for gid, g in sorted((inv.get("gear") or {}).items()):
-            if any(gg and gg.get("id") == gid and gd == g for gg, gd in
-                   ((None, None),)):  # placeholder; identity handled below
-                pass
             item = data_registry.get_equipment(gid)
             if not item:
                 continue
@@ -412,25 +482,29 @@ def _item_effect_lines(lang: str, obj) -> list[str]:
         # gear specials are stored as internal keys (leech_qi_percent_3, stun_10, …)
         # and localized via EFF_SPECIAL_<KEY>
         out.append(f"• {t(lang, 'EFF_SPECIAL_' + special.upper())}")
-    action = getattr(obj, "action", "")
-    if action in ("heal", "restore_hp"):
-        out.append(f"• {t(lang, 'EFF_HEAL')}: +{getattr(obj, 'value', 0)}")
-    elif action in ("restore_qi",):
-        out.append(f"• {t(lang, 'EFF_QI')}: +{getattr(obj, 'value', 0)}")
-    elif action == "breakthrough_bonus":
-        out.append(f"• {t(lang, 'EFF_PILL_BONUS')}: +{getattr(obj, 'value', 0)}%")
-    elif action == "instant_damage":
-        out.append(f"• {t(lang, 'EFF_ITEM_DMG')}: {getattr(obj, 'fixed_damage', 0)}")
-    elif action == "shield":
-        out.append(f"• {t(lang, 'EFF_SHIELD')}: {getattr(obj, 'shield_value', 0)}")
-    elif action == "enemy_debuff":
-        out.append(f"• {t(lang, 'EFF_DEBUFF')}: −{getattr(obj, 'atk_cut_percent', 20)}% ({getattr(obj, 'turns', 3)}⏳)")
+    action = getattr(obj, "action", "") or ""
+    if action:
+        # the identity card names the effect with the data-driven action key
+        # (ITEM_ACTION_<ACTION>); the previous chain only handled a subset with
+        # hand-written labels, so herbs like the lotus showed no effect at all
+        action_key = "ITEM_ACTION_" + action.upper()
+        line = t(lang, action_key)
+        if line == action_key:                     # unknown action — keep it honest
+            line = t(lang, "ITEM_ACTION_VALUE", value=action)
+        out.append(f"• {line}")
+        value = None
+        if action == "instant_damage":
+            value = getattr(obj, "fixed_damage", None)
+        elif action == "shield":
+            value = getattr(obj, "shield_value", None)
+        elif action == "enemy_debuff":
+            cut = getattr(obj, "atk_cut_percent", None)
+            value = f"−{cut}%" if cut else None
+        else:
+            value = getattr(obj, "value", None)
+        if value:
+            out.append(f"   {t(lang, 'ITEM_ACTION_VALUE', value=value)}")
     return out
-
-
-# legacy signature used by older screens/tests
-def bag_item_text(lang: str, user: dict, kind: str, item_id: str) -> str:
-    return bag_inspect_text(lang, user, item_id)
 
 
 # ═══════════════════════════════ world map (P3) ═══════════════════════════════
@@ -473,26 +547,6 @@ def zone_hub_text(lang: str, user: dict, zone_id: str) -> str:
     return "\n".join(lines)
 
 
-# legacy compat
-def zone_text(lang: str, zone: dict, storage, viewer_id: int | None) -> str:
-    z = data_registry.get_zone(zone.get("zone_id", ""))
-    if not z:
-        return t(lang, "ERR_UNKNOWN")
-    owner_txt = t(lang, "OWNER_NONE")
-    if zone.get("owner"):
-        if zone.get("owner_kind") == "sect":
-            sect = storage.get_sect(zone["owner"]) if storage else None
-            owner_txt = (t(lang, sect["key"]) if sect and sect.get("key") else (sect or {}).get("name", "")) if sect else "—"
-        elif zone.get("owner_kind") == "user" and zone["owner"] == viewer_id:
-            owner_txt = t(lang, "OWNER_YOU")
-        else:
-            owner_txt = f"tg:{zone['owner']}"
-    return t(lang, "ZONE_INFO_OLD", zone=z.name_for(lang), density=z.density,
-             realm=t(lang, REALM_NAMES[z.min_realm]), owner=owner_txt,
-             beasts=_list_sep(lang).join(
-                 e.name_for(lang) for e in data_registry.enemies_by_zone_list(z.zone_id)))
-
-
 # ═══════════════════════════════ combat (P4) ══════════════════════════════════
 
 def combat_hud_text(lang: str, user: dict, session: dict,
@@ -531,11 +585,6 @@ def combat_hud_text(lang: str, user: dict, session: dict,
     out.append(DIV)
     out.append(t(lang, "COMBAT_PROMPT"))
     return "\n".join(out)
-
-
-# older signature — the round message keeps the same builder
-def combat_view_text(lang: str, user: dict, session: dict, round_lines: list[str]) -> str:
-    return combat_hud_text(lang, user, session)
 
 
 def _status_summary(lang: str, statuses: list[dict]) -> str:
@@ -577,18 +626,6 @@ def flee_card_text(lang: str, user: dict, session: dict) -> str:
     return t(lang, "FLEE_CARD", enemy=enemy_name(session["enemy"], lang))
 
 
-def outcome_text(lang: str, user: dict, outcome: str, session: dict) -> str:
-    """Cards for non-victory terminations (flee / miracle / true death)."""
-    if outcome == "FLED":
-        return flee_card_text(lang, user, session)
-    if outcome == "MIRACLE_ESCAPE":
-        return t(lang, "MIRACLE_CARD")
-    if outcome == "TRUE_DEATH":
-        rep = _death_summary(user)
-        return t(lang, "DEATH_CARD", **rep)
-    return t(lang, "ERR_UNKNOWN")
-
-
 def _death_summary(user: dict) -> dict:
     from .core.state_machine import PARALYSIS_MINUTES
     return {"minutes": PARALYSIS_MINUTES}
@@ -616,14 +653,13 @@ def meditate_hub_text(lang: str, user: dict, world_boost: float = 1.0,
     return "\n".join(out)
 
 
-def chronicle_text(lang: str, report: str) -> str:
-    return report  # engine-rendered chronicle keeps its own template
-
-
 def catalyst_menu_text(lang: str, user: dict) -> str:
     stones = user["inventory"]["spirit_stones"]
     lines = [t(lang, "CAT_TITLE")]
-    for grade, key in (("low", "STONE_LOW"), ("mid", "STONE_MID"), ("high", "STONE_HIGH")):
+    # every grade the catalyst keyboard offers must have a row here — heavenly
+    # stones were clickable but invisible in the menu text
+    for grade, key in (("low", "STONE_LOW"), ("mid", "STONE_MID"),
+                       ("high", "STONE_HIGH"), ("heavenly", "STONE_HEAVENLY")):
         sdef = SPIRIT_STONES.get(grade, {})
         if sdef:
             lines.append(t(lang, "CAT_ROW", icon=sdef.get("icon", "🪨"),
@@ -638,7 +674,6 @@ def catalyst_menu_text(lang: str, user: dict) -> str:
 
 def martial_text(lang: str, user: dict, max_slots_val: int | None = None) -> str:
     from .engine.models import max_slots as max_slots_fn
-    from .engine.models import gear_specials
     cap = max_slots_val or max_slots_fn(user)
     cul = user["cultivation"]
     m = data_registry.get_method(cul.get("active_method_id") or "")
@@ -744,9 +779,10 @@ def arts_catalog_text(lang: str, user: dict, page: int = 1) -> str:
     page = max(1, min(page, pages))
     chunk = arts[(page - 1) * ARTS_PER_PAGE: page * ARTS_PER_PAGE]
     owned = set(user["inventory"].get("arts") or [])
+    realm = user["cultivation"]["current_realm_index"]
     lines = [t(lang, "SHOP_ARTS_TITLE", n=len(arts))]
     for a in chunk:
-        mark = "✅" if a.art_id in owned else "📜"
+        mark = "✅" if a.art_id in owned else ("🔒" if a.required_realm > realm else "📜")
         el = a.element_en if (lang == "en" and a.element_en) else a.element
         lines.append(f"{mark} {a.name_for(lang)} ({el})")
     lines.append(DIV)
@@ -763,8 +799,13 @@ def art_inspect_text(lang: str, user: dict, art_id: str) -> str:
     lines = [
         t(lang, "ARTCARD_TITLE", name=art.name_for(lang)),
         t(lang, "ARTCARD_ELEMENT", element=el),
-        t(lang, "ARTCARD_SUBS"),
     ]
+    if art.required_realm > user["cultivation"]["current_realm_index"]:
+        # the card never said why the free claim refused — now the engine refuses
+        # for a stated reason (SHOP_REALM_LOCKED) and the card states it too
+        from .engine.constants import REALM_NAMES
+        lines.append(t(lang, "SHOP_REALM_LOCKED", realm=t(lang, REALM_NAMES[art.required_realm])))
+    lines.append(t(lang, "ARTCARD_SUBS"))
     for i, tech in enumerate(art.techniques[:3], start=1):
         nm = tech.name if lang != "en" else (tech.name_en or tech.name)
         lines.append(t(lang, "ARTCARD_TECH", n=i, name=nm, qi=tech.qi_cost, cd=tech.cooldown))
@@ -860,26 +901,42 @@ def breakthrough_win_text(lang: str, user: dict, res: dict) -> str:
 
 
 def breakthrough_fail_text(lang: str, res: dict) -> str:
-    return "\n".join([
+    lines = [
         t(lang, "BT_FAIL_TITLE"),
         "",
         t(lang, "BT_FAIL_FLAVOR"),
         t(lang, "BT_FAIL_HDR"),
         t(lang, "BT_FAIL_QI"),
         t(lang, "BT_FAIL_HP", hp=res.get("remaining_hp", 1), max=res.get("max_hp", 1)),
-        t(lang, "BT_FAIL_DEBUFF", minutes=res.get("debuff_minutes", 120)),
-        DIV,
-    ])
+    ]
+    if res.get("lightning"):
+        # TRIB_BOLT carried the bolt damage but no card ever printed it
+        lines.insert(4, t(lang, "TRIB_BOLT", lightning=res["lightning"]))
+    if res.get("mitigation"):
+        lines.append(t(lang, "BT_FAIL_MITIGATION", value=res["mitigation"]))
+    if res.get("saved_by_doll"):
+        # _apply_failure consumed the doll and spared the body — say it here
+        lines.append(t(lang, "SAVED_BY_DOLL"))
+    fallen = res.get("fallen_to")
+    if fallen:
+        # target_label names realm *and* stage ("Golden Core [Early]");
+        # realm_stage_label alone reads like a bare "Early".
+        lines.append(t(lang, "BT_FAIL_FALL",
+                       realm=target_label(lang, fallen[0], fallen[1])))
+    if res.get("shattered"):
+        lines.append(t(lang, "SHATTER_NOTE", item=item_name(res["shattered"], lang)))
+    lost = sum(v for v in (res.get("stones_lost") or {}).values())
+    if lost:
+        lines.append(t(lang, "BT_FAIL_STONES", stones=lost))
+    lines.append(t(lang, "BT_FAIL_DEBUFF", minutes=res.get("debuff_minutes", 120)))
+    lines.append(DIV)
+    return "\n".join(lines)
 
 
 # ══════════════════════════ onboarding & panel (P1) ═══════════════════════════
 
 def start_text(lang: str) -> str:
     return t(lang, "START_NARRATIVE")
-
-
-DOCK_LANDED = "DOCK_LANDED"
-PANEL_RESTORED = "PANEL_RESTORED"
 
 
 # ═══════════════════════════════ admin (unchanged) ════════════════════════════

@@ -9,19 +9,7 @@ from __future__ import annotations
 import random
 
 from ..core import combat_engine as engine
-from ..core.data_loader import data_registry
-from ..engine import models
-from .constants import BLOOD_DAO_QI_STEAL
-
-# legacy locale-keyed names still referenced by the map screens
-MONSTER_NAMES = {b.enemy_id: f"MONSTER_{b.enemy_id.upper()}" for b in data_registry.beasts.values()}
-
-
-def player_combat_stats(user: dict) -> dict:
-    prof = models.combat_profile(user)
-    return {"atk": prof["spiritual_atk"], "def": prof["physical_def"],
-            "crit": 0.1, "hp": prof["hp"], "max_hp": prof["max_hp"],
-            "speed": prof["meridian_speed"]}
+from .constants import KARMA_MODIFIERS, BLOOD_DAO_QI_STEAL
 
 
 def make_beast(monster_key: str, rng: random.Random | None = None) -> dict:
@@ -51,10 +39,12 @@ def mercy_or_plunder(user: dict, choice: str, rng: random.Random | None = None) 
     rng = rng or random
     hidden = user["stats"]["hidden"]
     if choice == "mercy":
-        hidden["karmic_luck"] = min(100, hidden["karmic_luck"] + 1)
+        karma = KARMA_MODIFIERS["mercy_in_battle"]
+        hidden["karmic_luck"] = min(100, hidden["karmic_luck"] + karma)
         hidden["dao_heart_stability"] = min(100, hidden["dao_heart_stability"] + 1)
-        return {"status": "MERCY", "karma": +1}
-    hidden["karmic_luck"] = max(0, hidden["karmic_luck"] - 5)
+        return {"status": "MERCY", "karma": karma}
+    plunder_karma = KARMA_MODIFIERS["plunder"]
+    hidden["karmic_luck"] = max(0, hidden["karmic_luck"] + plunder_karma)
     stolen_qi = int(rng.randint(50, 200) * (user["cultivation"]["current_realm_index"] ** 2))
     stones = rng.randint(2, 8)
     cul = user["cultivation"]
@@ -66,4 +56,4 @@ def mercy_or_plunder(user: dict, choice: str, rng: random.Random | None = None) 
         qi_gain = int(qi_gain * (1 + BLOOD_DAO_QI_STEAL * 10))
         cul["qi_current"] = min(cul["qi_capacity"], cul["qi_current"] + qi_gain)
         hidden["demonic_corruption"] = min(100, hidden["demonic_corruption"] + 2)
-    return {"status": "PLUNDER", "karma": -5, "qi": qi_gain, "stones": stones}
+    return {"status": "PLUNDER", "karma": plunder_karma, "qi": qi_gain, "stones": stones}

@@ -5,22 +5,11 @@ import datetime as dt
 
 from .constants import (
     CORRUPTION_VISIBLE_AT,
-    DEFAULT_ZONE,
-    NPC_SECTS,
     SACRIFICES,
     SECT_FOUND_REALM,
     ZONES,
 )
-from .models import as_list, in_seclusion, iso, meridians_sealed, parse_iso, utcnow
-
-MONSTERS_PER_GUARD = {
-    1: ["wild_boar", "hungry_wolf"],
-    2: ["rock_serpent", "mist_panther"],
-    3: ["blood_croc", "marsh_wraith"],
-    4: ["spring_serpent_king", "jade_guardian"],
-    7: ["thunder_roc", "storm_qilin"],
-}
-
+from .models import as_list, in_seclusion, iso, parse_iso, utcnow
 
 def zone_doc(storage, zone_id: str) -> dict:
     doc = storage.get_zone(zone_id)
@@ -50,29 +39,6 @@ def travel(storage, user: dict, zone_id: str, now: dt.datetime | None = None) ->
     user["location"]["vein_density"] = zone["vein_density"]
     user["location"]["density"] = zone["vein_density"]
     return {"status": "OK", "zone": zone}
-
-
-def zone_owner_label(zone: dict, user_id: int | None, storage) -> tuple[str, str | None]:
-    """Returns (kind, sect_key_or_None); kind in: none|you|user|sect."""
-    if not zone.get("owner"):
-        return "none", None
-    if zone["owner_kind"] == "user" and zone["owner"] == user_id:
-        return "you", None
-    if zone["owner_kind"] == "sect":
-        sect = storage.get_sect(zone["owner"])
-        if sect:
-            return "sect", sect.get("key") or sect["sect_id"]
-    return "user", None
-
-
-def conquest_battle_power(guard_level: int) -> dict:
-    """Guardian stat block — scales with zone tier."""
-    return {
-        "hp": 90 * guard_level * guard_level + 60,
-        "atk": 14 * guard_level + 6,
-        "def": 6 * guard_level,
-        "name_key": f"GUARDIAN_{guard_level}",
-    }
 
 
 def apply_conquest_result(storage, user: dict, zone_id: str, won: bool,

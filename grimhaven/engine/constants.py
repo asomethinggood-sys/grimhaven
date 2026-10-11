@@ -141,7 +141,6 @@ ITEM_TIERS = ("mortal", "earth", "heaven", "spirit", "saint", "ancient", "divine
 # locale files define the keys with a lowercase suffix: TIER_mortal, TIER_earth, …
 TIER_KEYS = {t: f"TIER_{t}" for t in ITEM_TIERS}
 TIER_POWER = {t: i for i, t in enumerate(ITEM_TIERS)}   # 0..6
-TIER_STAT_MULT = {t: 1.0 + i * 0.75 for i, t in enumerate(ITEM_TIERS)}
 
 EQUIP_SLOTS = ("weapon", "robe", "ring", "accessory", "companion", "natal")
 
@@ -240,15 +239,4 @@ PILLS: dict[str, dict] = {
     "pill_foundation": {"key": "ITEM_PILL_FOUNDATION", "bonus": 20.0},
     "pill_guardian":   {"key": "ITEM_PILL_GUARDIAN",   "bonus": 20.0},
     "pill_spirit":     {"key": "ITEM_PILL_SPIRIT",     "bonus": 30.0},
-}
-
-STARTING_ITEMS = {
-    # a cultivator begins with empty sleeves: spirit stones are earned as
-    # monster loot (they fuel the catalyst boosts, nothing is free)
-    "spirit_stones": {"low": 0, "mid": 0, "high": 0, "heavenly": 0},
-    "herbs": {},
-    "pills": {"pill_guardian": 1},
-    "methods": ["method_breath_mortal", "method_sky_cleaving"],
-    "techniques": ["basic_strike", "iron_guard", "element_burst"],
-    "gear": {},  # gear_id -> {"slot","tier","key"}
 }

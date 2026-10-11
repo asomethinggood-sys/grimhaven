@@ -11,7 +11,7 @@ import random
 from typing import Any
 
 from ..core.data_loader import OfflineEvent, data_registry
-from ..engine.models import add_item, parse_iso, ring_has_room, stage_cost
+from ..engine.models import add_item, parse_iso, ring_has_room
 from ..localization import t
 
 
@@ -35,12 +35,16 @@ class OfflineAdventureEngine:
 
     @staticmethod
     def generate_simulated_timeline(start: dt.datetime, end: dt.datetime,
-                                    count: int) -> list[dt.datetime]:
+                                    count: int,
+                                    rng: random.Random | None = None) -> list[dt.datetime]:
+        """Spread ``count`` log stamps across the session. ``rng`` is honoured so
+        a seeded run (tests, replay) produces the same chronicle."""
+        rng = rng or random
         total_seconds = max(120.0, (end - start).total_seconds())
         slice_len = total_seconds / max(1, count)
         stamps = []
         for i in range(count):
-            offset = random.uniform(0.1, 0.9) * slice_len if count > 1 else random.uniform(0.25, 0.75) * slice_len
+            offset = rng.uniform(0.1, 0.9) * slice_len if count > 1 else rng.uniform(0.25, 0.75) * slice_len
             stamps.append(start + dt.timedelta(seconds=i * slice_len + offset))
         return sorted(stamps)
 
@@ -64,7 +68,7 @@ class OfflineAdventureEngine:
 
         count = cls.calculate_event_count(elapsed)
         events = cls.sample_events(count, rng)
-        timestamps = cls.generate_simulated_timeline(start, end, len(events))
+        timestamps = cls.generate_simulated_timeline(start, end, len(events), rng)
 
         hidden = user["stats"]["hidden"]
         luck = hidden["karmic_luck"]
@@ -73,7 +77,6 @@ class OfflineAdventureEngine:
         bonus_stones = 0
         dao_delta = 0
         hp_delta = 0
-        loot: list[str] = []
         lost_to_ring = 0
         log_lines: list[str] = []
 
@@ -110,7 +113,6 @@ class OfflineAdventureEngine:
 
         # apply the harvest atomically to the document
         gained_details: dict[str, Any] = {"events": [e.id for e in events]}
-        cap = stage_cost(user)
         if bonus_qi:
             room = max(0, cul["qi_capacity"] - cul["qi_current"])
             added = min(max(0, bonus_qi), room)
@@ -134,12 +136,12 @@ class OfflineAdventureEngine:
 
         hours = int((end - start).total_seconds() // 3600)
         minutes = int((end - start).total_seconds() % 3600 // 60)
-        report = cls._format_report(lang, hours, minutes, log_lines, base_report, gained_details, loot)
+        report = cls._format_report(lang, hours, minutes, log_lines, base_report, gained_details)
         return report, gained_details
 
     @staticmethod
     def _format_report(lang: str, hours: int, minutes: int, log_lines: list[str],
-                       base_report: dict, gained: dict, loot: list[str]) -> str:
+                       base_report: dict, gained: dict) -> str:
         qi_total = int(base_report.get("gained", 0)) + int(gained.get("bonus_qi", 0))
         stones = int(base_report.get("stones_found", 0)) + int(gained.get("bonus_stones", 0))
         dao = gained.get("dao_delta", 0)

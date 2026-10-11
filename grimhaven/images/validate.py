@@ -44,6 +44,7 @@ class ValidatedImage:
 
     @property
     def content_hash(self) -> str:
+        """Stable content address of the validated bytes (sha256)."""
         return self.sha256
 
 

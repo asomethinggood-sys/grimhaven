@@ -19,7 +19,7 @@ from typing import Any
 
 from telegram.error import BadRequest, TelegramError as PtbTelegramError
 
-from ...errors import (Category, GrimhavenError, classify, incident_id,
+from ...errors import (REPORTED, Category, GrimhavenError, classify, incident_id,
                        is_message_gone, is_not_modified, is_query_expired,
                        summarize)
 from ...localization import t
@@ -29,8 +29,6 @@ logger = logging.getLogger("grimhaven.bot")
 #: handler families, for the log line
 PATH_MESSAGE = "message"      # guard_update → on_reply_button → commands._run
 PATH_CALLBACK = "callback"    # guard_update → on_callback
-PATH_ADMIN = "admin"
-PATH_LIFECYCLE = "lifecycle"  # root-message bookkeeping outside a route
 
 
 def log_line(*, stage: str, path: str, category: Category, ref: str,
@@ -62,9 +60,8 @@ async def notify_failure(update, context, exc: BaseException, *, stage: str,
     so a caller can attach it to a further log line.
     """
     category, key, text = describe(exc)
-    reported = category in (Category.STORAGE, Category.TELEGRAM,
-                            Category.CONTENT, Category.INTERNAL)
-    ref = incident_id() if reported else ""
+    # errors.REPORTED is the single definition of "this needs an incident id"
+    ref = incident_id() if category in REPORTED else ""
     summary = summarize(exc)
     logger.exception("%s | %s", log_line(stage=stage, path=path, category=category,
                                          ref=ref or "-", update_id=getattr(update, "update_id", None),

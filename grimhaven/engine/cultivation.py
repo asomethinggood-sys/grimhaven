@@ -14,7 +14,6 @@ from .constants import (
     FAILURE_WEIGHTS,
     MAX_REALM,
     MIRACLE_LUCK_COST,
-    PILLS,
     REALM_PENALTIES,
     REALM_STAGES,
     SECLUSION_MINUTES_REALM,
@@ -23,6 +22,9 @@ from .constants import (
     SUCCESS_CLAMP_MAX,
     SUCCESS_CLAMP_MIN,
     TRIBULATION_DAMAGE_RANGE,
+    AMBUSH_THRESHOLD,
+    LUCKY_ENCOUNT_CHANCE,
+    LUCKY_ENCOUNT_THRESHOLD,
 )
 from .models import tribulation_mitigation
 from .models import (
@@ -104,11 +106,6 @@ class CultivationEngine:
         return {"status": "OK", "continuous": True}
 
     @staticmethod
-    def stop_meditation(user: dict, now: dt.datetime | None = None) -> dict:
-        """Legacy alias: stopping == claiming the pending yield."""
-        result = CultivationEngine.claim(user, now=now)
-        result["status"] = "STOPPED"
-        return result
 
     @staticmethod
     def _seclusion_remaining(user: dict, now: dt.datetime) -> bool:
@@ -136,7 +133,7 @@ class CultivationEngine:
         # grade now burns from the carried balance.
         consumed_stones: dict[str, float] = {}
         stone = cul.get("active_stone")
-        if stone and stone in SPIRIT_STONES:
+        if isinstance(stone, str) and stone in SPIRIT_STONES:
             need = SPIRIT_STONES[stone]["per_hour"] * elapsed_hours
             have = user["inventory"]["spirit_stones"].get(stone, 0)
             if have >= need:
@@ -155,17 +152,20 @@ class CultivationEngine:
         user["progress"]["qi_total_accumulated"] += added
 
         events: list[dict] = []
+        stones_found = 0
         # lucky encounters per full hour of absence (doc §3.3.2)
         luck = user["stats"]["hidden"]["karmic_luck"]
         full_hours = int(elapsed_hours)
+        chance = LUCKY_ENCOUNT_CHANCE * 100
         for _ in range(min(full_hours, 24)):  # cap event rolls at 24 per settle
             roll = rng.uniform(0, 100)
-            if luck > 70 and roll < 5:
+            if luck > LUCKY_ENCOUNT_THRESHOLD and roll < chance:
                 stones = rng.randint(1, 5)
                 user["inventory"]["spirit_stones"]["low"] += stones
                 user["progress"]["encounters_found"] += 1
+                stones_found += stones
                 events.append({"type": "TREASURE", "stones": stones})
-            elif luck < 20 and roll < 5:
+            elif luck < AMBUSH_THRESHOLD and roll < chance:
                 stolen = int(cul["qi_current"] * 0.05)
                 cul["qi_current"] -= stolen
                 user["progress"]["encounters_found"] += 1
@@ -173,6 +173,7 @@ class CultivationEngine:
         return {
             "status": "SEALED" if sealed else "OK",
             "gained": added,
+            "stones_found": stones_found,
             "overflow": gained - added,
             "elapsed_hours": round(elapsed_hours, 3),
             "rate": round(rate, 1),
@@ -198,11 +199,11 @@ class CultivationEngine:
         pill_bonus = 0.0
         active_pill = cul.get("active_pill")
         if active_pill:
+            # any armed stabiliser counts (breakthrough pills AND the
+            # seven-coloured lotus, whose card promises exactly this)
             item = data_registry.get_consumable(active_pill)
-            if item and item.action == "breakthrough_bonus":
+            if item and item.action in ("breakthrough_bonus", "core_stability"):
                 pill_bonus = float(item.value)
-        if user["inventory"].get("items", {}).get("lotus_seven") and realm == 3:
-            pill_bonus += 20.0
         fortune = hidden["karmic_luck"]
         deviation = combat_profile(user)["qi_deviation_risk"]
         penalty = REALM_PENALTIES.get(realm, 10)
@@ -268,9 +269,16 @@ class CultivationEngine:
         if consumed_pill:
             items_mod_consume(user, consumed_pill)
             cul["active_pill"] = None
+        # Robes/bells advertise "lightning mitigation (%)" on their identity
+        # cards and models.tribulation_mitigation() was only ever consumed by the
+        # legacy seclusion path — the live trial ignored it completely, so a
+        # 25%-mitigation natal bell bought for 9,000 stones did nothing here.
+        mitigation = tribulation_mitigation(user)
         lightning = int(rng.uniform(*TRIBULATION_DAMAGE_RANGE))
         if cul["alignment"] == "demonic":
             lightning = int(lightning * 1.5)
+        if mitigation:
+            lightning = max(1, int(lightning * (1.0 - mitigation)))
         if roll <= rate:
             CultivationEngine._apply_advance(user, target)
             cul["qi_current"] = 0
@@ -299,9 +307,14 @@ class CultivationEngine:
                     "lifespan_increase": models_lifespan(user) - lifespan_before,
                     "slot_unlocked": slots_after - slots_before}
         # ── failure, exactly per spec P6 §4.2 ──
-        cul["qi_current"] = int(cul["qi_current"] * 0.5)
+        # mitigated cultivators keep more of themselves: the gear that absorbs
+        # the bolt also blunts the backlash (linear between the base penalty and
+        # a fully-mitigated one).
+        qi_kept = 0.5 + 0.5 * mitigation
+        hp_kept = 0.20 + 0.60 * mitigation
+        cul["qi_current"] = int(cul["qi_current"] * qi_kept)
         vis = user["stats"]["visible"]
-        vis["physique_hp"] = max(1, int(vis["max_hp"] * 0.20))
+        vis["physique_hp"] = max(1, int(vis["max_hp"] * hp_kept))
         user["buffs"] = [b for b in as_list(user.get("buffs"))
                          if isinstance(b, dict) and b.get("id") != "inner_demon_deviation"]
         user["buffs"].append({"id": "inner_demon_deviation", "kind": "rate_debuff",
@@ -313,7 +326,7 @@ class CultivationEngine:
         hidden["dao_heart_stability"] = max(0, hidden["dao_heart_stability"] - 3)
         user["progress"]["failures_minor"] += 1
         return {"status": "FAILED", "rate": round(rate, 1), "roll": round(roll, 1),
-                "lightning": lightning,
+                "lightning": lightning, "mitigation": int(round(mitigation * 100)),
                 "remaining_hp": vis["physique_hp"], "max_hp": vis["max_hp"],
                 "qi": cul["qi_current"], "debuff_minutes": 120}
 
@@ -381,37 +394,31 @@ class CultivationEngine:
 
     @staticmethod
     def success_rate(user: dict) -> float:
-        """Doc §3.1 formula (clamped 5–95%)."""
-        cul = user["cultivation"]
-        hidden = user["stats"]["hidden"]
-        realm = cul["current_realm_index"]
-        stages = REALM_STAGES[realm]
-        is_realm_jump = cul["current_stage"] >= len(stages) - 1
-        base = BASE_CHANCE_REALM_JUMP if is_realm_jump else BASE_CHANCE_LAYER
-        dao_heart_bonus = hidden["dao_heart_stability"] * 0.3
-        pill_bonus = 0.0
-        from ..core.data_loader import data_registry
-        active_pill = cul.get("active_pill")
-        if active_pill:
-            item = data_registry.get_consumable(active_pill)
-            if item and item.action == "breakthrough_bonus":
-                pill_bonus = float(item.value)
-        if user["inventory"].get("items", {}).get("lotus_seven") and realm == 3:
-            pill_bonus += 20.0  # seven-colour lotus stabilises the Golden Core
-        luck_bonus = hidden["karmic_luck"] * 0.2
-        corruption_penalty = hidden["demonic_corruption"] * 0.5
-        penalty = REALM_PENALTIES.get(realm, 10)
-        if cul["alignment"] == "demonic":
-            penalty += 5.0  # black lightning & karmic fire make it deadlier
-        rate = base + dao_heart_bonus + pill_bonus + luck_bonus - corruption_penalty - penalty
+        """Legacy entry point for the doc §3.1 formula (clamped 5–95%).
+
+        Deprecated: every live screen and both live rolls call
+        :meth:`spec_success_rate` (P6 §3.2, clamped 10–90). This used to carry a
+        second, quietly different implementation of the same probability
+        (dao-heart ×0.3, corruption ×0.5, +5 demonic …) that could drift away
+        from what the preparation screen actually rolled. It now derives from
+        the single implementation and only widens the clamp to the range the
+        legacy contract documents.
+        """
+        rate = CultivationEngine.spec_success_rate(user)
         return max(SUCCESS_CLAMP_MIN, min(SUCCESS_CLAMP_MAX, rate))
 
     @staticmethod
     def resolve_breakthrough(user: dict, now: dt.datetime | None = None,
                              rng: random.Random | None = None) -> dict:
-        """Run when seclusion ends — the tribulation roll of doc §3 & §10.2."""
+        """Run when seclusion ends — the tribulation roll of doc §3 & §10.2.
+
+        Legacy seclusion flow (nothing in the bot starts a seclusion any more —
+        the live trial is tribulation_prep → confirm_tribulation); kept for old
+        documents/tests. The default generator is a private Random so a call
+        without an explicit rng stays isolated from module-level global state.
+        """
         now = now or utcnow()
-        rng = rng or random
+        rng = rng or random.Random()
         cul = user["cultivation"]
         finish = parse_iso(cul.get("seclusion_finish_time"))
         if not finish:
@@ -427,9 +434,6 @@ class CultivationEngine:
         roll = rng.uniform(0, 100)
         consumed_pill = cul.get("active_pill")
         cul["active_pill"] = None
-        if user["inventory"].get("items", {}).get("lotus_seven") and \
-                cul["current_realm_index"] == 3:
-            user["inventory"]["items"].pop("lotus_seven", None)
 
         lightning = int(rng.uniform(*TRIBULATION_DAMAGE_RANGE))
         if cul["alignment"] == "demonic":
@@ -509,18 +513,20 @@ class CultivationEngine:
             hidden["dao_heart_stability"] = max(0, hidden["dao_heart_stability"] - 5)
             user["progress"]["failures_deviation"] += 1
             recompute_visible_stats(user)
-            detail = {"stones_lost": lost}
+            detail = {"stones_lost": lost,
+                      "fallen_to": (cul["current_realm_index"], cul["current_stage"])}
         else:  # ANNIHILATION — Golden Core+ only, else degrades to deviation
             if cul["current_realm_index"] < 3:
                 return CultivationEngine._apply_failure(user, "DEVIATION", rng)
             has_defense = any(
                 user["equipment"].get(slot) for slot in ("robe", "companion")
             )
-            has_doll = user["inventory"].get("gear", {}).get("doll_substitute") or \
-                user["inventory"].get("doll_substitute")
-            if has_doll:
-                if isinstance(user["inventory"].get("gear"), dict):
-                    user["inventory"]["gear"].pop("doll_substitute", None)
+            # The Substitute Death Doll is a consumable, i.e. it lives in the
+            # unified item ledger — not in the gear dict and not at the
+            # inventory root. The old lookup searched those two phantom places,
+            # so the doll could never save anyone from annihilation (combat
+            # death already consumes it correctly via consume_item()).
+            if items_mod_consume(user, "doll_substitute"):
                 user["progress"]["failures_minor"] += 1
                 return {"saved_by_doll": True}
             # fall to layer 1 of the previous realm; equipped artifact shatters
@@ -533,13 +539,16 @@ class CultivationEngine:
             if not has_defense:
                 for slot in ("weapon", "accessory", "ring"):
                     if user["equipment"].get(slot):
-                        shattered = user["equipment"].pop(slot)
+                        # pop returns the slot dict ({id, dur, tier}) — the
+                        # *id* is what every consumer and the shatter note need
+                        piece = user["equipment"].pop(slot)
+                        shattered = piece.get("id") if isinstance(piece, dict) else piece
                         break
             vis = user["stats"]["visible"]
             vis["physique_hp"] = max(1, vis["max_hp"] // 4)
             user["progress"]["failures_annihilation"] += 1
             recompute_visible_stats(user)
-            detail = {"shattered": shattered}
+            detail = {"shattered": shattered, "fallen_to": (prev_realm, 0)}
         return detail
 
     @staticmethod
