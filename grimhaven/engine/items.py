@@ -47,9 +47,20 @@ def pay_low_stones(user: dict, amount: int) -> bool:
     return True
 
 
-def shop_locked(user: dict) -> bool:
-    """The Pavilion opens at Foundation Establishment (doc §2.3)."""
-    return user["cultivation"]["current_realm_index"] < 2
+# The only consumable actions the combat engine can actually execute. Both the
+# battle keyboard (which items may be assigned to a battle slot / shown in the
+# battle row) and combat_engine._use_combat_item consult this one list, so the
+# UI can never offer an item the engine will refuse (that mismatch used to burn
+# the player's whole turn on an ERR_UNKNOWN stub while the pill stayed unused).
+BATTLE_ACTIONS: tuple[str, ...] = (
+    "instant_damage", "shield", "enemy_debuff",
+    "heal_hp", "heal_and_cure", "restore_qi", "combat_damage_buff",
+)
+
+
+def battle_usable(item) -> bool:
+    """True when ``item`` (a ConsumableItem) can be spent during a battle."""
+    return bool(item) and getattr(item, "action", "") in BATTLE_ACTIONS
 
 
 # ── shop ─────────────────────────────────────────────────────────────────────
@@ -110,17 +121,28 @@ def buy(user: dict, shop_id: str) -> dict:
         item = data_registry.get_consumable(ref)
         if not item or item.price_stones is None:
             return {"status": "UNKNOWN_ITEM"}
+        # the ring-capacity check MUST come before the debit: add_item refuses a
+        # new stack on a full ring, and the old order took the stones anyway and
+        # dropped the purchase on the floor (pay-without-item).
+        if not ring_has_room(user, ref):
+            return {"status": "RING_FULL", "label": item.name_for(lang)}
         if not pay_low_stones(user, int(item.price_stones)):
             return {"status": "NOT_ENOUGH_STONES", "price": int(item.price_stones)}
-        add_item(user, ref)
+        if not add_item(user, ref):
+            pay_low_stones(user, -int(item.price_stones))   # refund, never lose stones
+            return {"status": "RING_FULL", "label": item.name_for(lang)}
         return {"status": "OK", "price": int(item.price_stones), "label": item.name_for(lang)}
     if kind == "equip":
         item = data_registry.get_equipment(ref)
         if not item or item.price_stones is None:
             return {"status": "UNKNOWN_ITEM"}
+        if not ring_has_room(user, ref):
+            return {"status": "RING_FULL", "label": item.name_for(lang)}
         if not pay_low_stones(user, int(item.price_stones)):
             return {"status": "NOT_ENOUGH_STONES", "price": int(item.price_stones)}
-        add_item(user, ref, is_gear=True)
+        if not add_item(user, ref, is_gear=True):
+            pay_low_stones(user, -int(item.price_stones))
+            return {"status": "RING_FULL", "label": item.name_for(lang)}
         return {"status": "OK", "price": int(item.price_stones), "label": item.name_for(lang)}
     if kind == "method":
         from ..engine.constants import PAVILION_PRICES
@@ -252,7 +274,12 @@ def use_item(user: dict, item_id: str, now: dt.datetime | None = None) -> dict:
     if action == "core_stability":
         if cul["current_realm_index"] != 3:
             return {"status": "WRONG_REALM", "label": item.name_for(lang)}
-        return ok("USE_LOTUS")
+        # The lotus stabilises the NEXT tribulation (that is what its card says),
+        # so using it *arms* the attempt. It used to consume one copy and do
+        # literally nothing — while the breakthrough chance came from merely
+        # owning it, so "using" it silently destroyed the bonus.
+        cul["active_pill"] = item_id
+        return ok("USE_LOTUS", item.value)
     if action == "permanent_qi_rate":
         if user["progress"].get("root_ancient_used"):
             return {"status": "ALREADY_USED"}
@@ -267,8 +294,12 @@ def use_item(user: dict, item_id: str, now: dt.datetime | None = None) -> dict:
         return ok("USE_CURE")
     if action in ("combat_damage_buff", "instant_damage", "shield", "enemy_debuff"):
         return {"status": "COMBAT_ONLY", "label": item.name_for(lang)}
-    if action in ("sell_only", "auto_revive"):
-        return {"status": "NOT_USABLE", "label": item.name_for(lang)}
+    if action == "sell_only":
+        return {"status": "SELL_ONLY", "label": item.name_for(lang)}
+    if action == "auto_revive":
+        # the Substitute Death Doll is a passive relic — it cannot be swallowed,
+        # it burns itself when annihilation or true death reaches its owner
+        return {"status": "PASSIVE", "label": item.name_for(lang)}
     return {"status": "UNKNOWN_ACTION"}
 
 
@@ -282,8 +313,12 @@ def equip(user: dict, gear_id: str) -> dict:
         return {"status": "NOT_EQUIPPABLE"}
     slot = item.slot
     current = user["equipment"].get(slot)
-    if current:
-        inv["gear"][current["id"]] = {"dur": current.get("dur", 100)}
+    if isinstance(current, dict) and current.get("id"):
+        inv.setdefault("gear", {})[current["id"]] = {"dur": current.get("dur", 100)}
+    elif current:
+        # a piece without an id can never be identified again — it must not
+        # block the swap (and must not raise trying to name it)
+        user["equipment"][slot] = None
     user["equipment"][slot] = {"id": gear_id, "dur": inv["gear"][gear_id].get("dur", 100),
                                 "tier": item.tier}
     del inv["gear"][gear_id]
@@ -295,14 +330,24 @@ def equip(user: dict, gear_id: str) -> dict:
 
 def unequip(user: dict, slot: str) -> dict:
     current = user["equipment"].get(slot)
-    if not current:
+    if not isinstance(current, dict) or not current:
+        if current:
+            # scalar/empty junk in a slot: clear it instead of exploding on it
+            user["equipment"][slot] = None
+            return {"status": "OK"}
         return {"status": "EMPTY_SLOT"}
     if slot == "natal":
         return {"status": "SOUL_BOUND"}
-    item = data_registry.get_equipment(current["id"])
+    gear_id = current.get("id")
+    if not gear_id:
+        # nothing identifiable to hand back to the ring — drop the stale piece
+        user["equipment"][slot] = None
+        recompute_visible_stats(user)
+        return {"status": "OK"}
+    item = data_registry.get_equipment(gear_id)
     if item and item.slot == "natal":
         return {"status": "SOUL_BOUND"}
-    user["inventory"]["gear"][current["id"]] = {"dur": current.get("dur", 100)}
+    user["inventory"].setdefault("gear", {})[gear_id] = {"dur": current.get("dur", 100)}
     user["equipment"][slot] = None
     recompute_visible_stats(user)
     return {"status": "OK"}
@@ -339,14 +384,6 @@ def activate_stone(user: dict, grade: str) -> dict:
         return {"status": "NO_STONES"}
     user["cultivation"]["active_stone"] = grade
     return {"status": "OK", "boost": SPIRIT_STONES[grade]["boost"]}
-
-
-def activate_method(user: dict, method_id: str) -> dict:
-    if method_id not in user["inventory"]["methods"]:
-        return {"status": "NOT_LEARNED"}
-    user["cultivation"]["active_method_id"] = method_id
-    recompute_visible_stats(user)
-    return {"status": "OK", "tech_mult": METHODS[method_id]["tech_mult"]}
 
 
 # ── deck builder (Part 2 §2, Part 3 §4) ─────────────────────────────────────
@@ -410,11 +447,19 @@ def auto_fit_deck(user: dict) -> None:
     _compact(user)
 
 
-def learn_art(user: dict, art_id: str) -> dict:
-    """Free-claim a manual: register ownership + auto-fit the deck."""
+def learn_art(user: dict, art_id: str, enforce_realm: bool = True) -> dict:
+    """Free-claim a manual: register ownership + auto-fit the deck.
+
+    The realm gate is the same rule the priced shop applies (``buy(kind="art")``):
+    without it a realm-1 player could claim the realm-7 manual from the free
+    booth and skip the whole progression, while ``SHOP_REALM_LOCKED`` told
+    nobody anything.
+    """
     art = data_registry.get_martial_art(art_id)
     if not art:
         return {"status": "UNKNOWN"}
+    if enforce_realm and art.required_realm > user["cultivation"]["current_realm_index"]:
+        return {"status": "REALM_LOCKED", "realm": art.required_realm, "art": art.name_for(user["account"]["language"])}
     arts = user["inventory"].setdefault("arts", [])
     if art_id in arts:
         return {"status": "ALREADY_LEARNED"}
@@ -460,11 +505,11 @@ def gear_label(user: dict, gear: dict | None) -> tuple[str, str]:
     return item.name_for(lang), TIER_KEYS.get(item.tier, "")
 
 
-def tier_power(tier: str) -> int:
-    return TIER_POWER.get(tier, 0)
-
-
 # ── liberated pavilion free booths & battle slots (spec P5 §4.4–4.6 / P2) ────
+# NOTE: the free booths above are the *live* shop (the pavilion was liberated for
+# the trial period: `shop_entries` prices are 0 / `booth_claim` grants free).
+# `shop_entries()` + `buy()` + `PAVILION_PRICES` are the dormant *priced* path,
+# kept for the post-trial pavilion; no live payload reaches them today.
 
 BOOTH_CAP_PER_CLAIM = 5
 BOOTH_CATALOGS = {
@@ -507,10 +552,12 @@ def booth_claim(user: dict, item_id: str, cap: int = BOOTH_CAP_PER_CLAIM,
         return 0
     if data_registry.get_equipment(item_id):
         gear = user["inventory"].setdefault("gear", {})
-        if item_id not in gear:
-            gear[item_id] = {"dur": 100}
-            return 1
-        return 0
+        if item_id in gear:
+            return 0
+        if not ring_has_room(user, item_id):
+            return 0        # a full spatial ring refuses even a free claim
+        gear[item_id] = {"dur": 100}
+        return 1
     have = int(user["inventory"].get("items", {}).get(item_id, 0))
     granted = max(0, min(cap, cap * 2 - have))  # top-up to 2×cap ceiling
     if granted:
@@ -524,6 +571,8 @@ def set_battle_item(user: dict, item_id: str) -> str:
     item = data_registry.get_consumable(item_id)
     if not item:
         return "ERR_UNKNOWN"
+    if not battle_usable(item):
+        return "NOT_BATTLE"
     if not user["combat"].get("item_slots"):
         user["combat"]["item_slots"] = []
     slots = user["combat"]["item_slots"]

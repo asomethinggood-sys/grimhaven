@@ -15,7 +15,6 @@ from __future__ import annotations
 import datetime as dt
 import random
 import uuid
-from typing import Any
 
 from ..core.data_loader import data_registry
 from ..core.state_machine import (
@@ -151,13 +150,17 @@ def _status_mod(statuses: list[dict], kind: str, field: str, default: float = 0.
     return value
 
 
-def _has_status(statuses: list[dict], kind: str) -> bool:
-    return any(st["kind"] == kind for st in statuses)
-
-
-def _tick_statuses(session: dict, side: str, lang: str, lines: list[str]) -> bool:
+def _tick_statuses(session: dict, side: str, lang: str, lines: list[str],
+                   rng: random.Random | None = None) -> bool:
     """Apply damage-over-time / heals; decrement turns. Returns True if the actor
-    is stunned or confused this round (action skipped)."""
+    is stunned or confused this round (action skipped).
+
+    ``rng`` is the round's injected generator: the confuse roll used to draw from
+    the module-level ``random``, so a seeded battle (``simulate``, tests, the
+    deterministic replay in ``resolve_round``) could still flip a coin that the
+    caller had no control over.
+    """
+    rng = rng or random.Random()
     st_list: list[dict] = session["statuses"][side]
     blocked = False
     p = session["player"]
@@ -174,11 +177,13 @@ def _tick_statuses(session: dict, side: str, lang: str, lines: list[str]) -> boo
         elif kind == "regen":
             heal = max(1, int(p["max_hp"] * float(st.get("heal_pct", 0.05))))
             p["hp"] = min(p["max_hp"], p["hp"] + heal)
-            if side == "p":
-                lines.append(f"🌿 {t_side(lang, side)} +{heal}")
+            # log the heal whichever side owns the status: the enemy-side line
+            # used to be dropped while the healing still happened, so the HP bar
+            # moved with nothing in the combat log to explain it
+            lines.append(f"🌿 {t_side(lang, side)} +{heal}")
         elif kind == "stun":
             blocked = True
-        elif kind == "confuse" and random.uniform(0, 1) < 0.5:
+        elif kind == "confuse" and rng.uniform(0, 1) < 0.5:
             blocked = True
         st["turns"] -= 1
         if st["turns"] <= 0:
@@ -214,8 +219,10 @@ def resolve_round(user: dict, action: str, action_id: str | None = None,
     """Execute one combat round. Mutates the user document (session + stats).
 
     Round order: cooldowns → player status ticks (DoT / stun / regen) →
-    player action → enemy status ticks → enemy strikes → lethal judgement.
-    Returns (outcome, round_log_lines).
+    the initiative order → lethal judgement. Whichever side is faster (per the
+    design doc: meridian-circulation speed decides the attack turn, i.e.
+    ``session["player_first"]``) resolves its phase first; on a tie the player
+    keeps the first strike. Returns (outcome, round_log_lines).
     """
     from ..localization import t
     rng = rng or random.Random()
@@ -229,6 +236,15 @@ def resolve_round(user: dict, action: str, action_id: str | None = None,
     lines: list[str] = []
     enemy = enemy_name(e, lang)
 
+    # ── pre-flight: a tap that cannot do anything must not buy the enemy a
+    # free round, and must say why in the HUD instead of failing silently
+    # (cooldown / Qi / item gates used to be discovered *after* the status and
+    # enemy phases, so the player lost a round and saw the previous log line) ──
+    refusal = _action_refusal(user, session, action, action_id, lang)
+    if refusal:
+        _log_player(session, [refusal])
+        return OUT_CONTINUE, lines
+
     # cooldowns tick down at round start
     for k in list(session["cooldowns"].keys()):
         session["cooldowns"][k] -= 1
@@ -236,10 +252,20 @@ def resolve_round(user: dict, action: str, action_id: str | None = None,
             session["cooldowns"].pop(k)
 
     # ── player status tick (burn/poison may kill you!) ──
-    skip_player = _tick_statuses(session, "p", lang, lines)
+    skip_player = _tick_statuses(session, "p", lang, lines, rng)
     if "regen_3" in models.gear_specials(user):
         heal = max(1, int(p["max_hp"] * 0.03))
         p["hp"] = min(p["max_hp"], p["hp"] + heal)
+
+    # ── initiative: the faster side acts first (missing entirely before) ──
+    player_first = session.get("player_first")
+    if player_first is None:
+        player_first = prof["meridian_speed"] >= e["speed"]
+
+    if not player_first:
+        outcome = _enemy_phase(user, session, prof, rng, lines, lang)
+        if outcome is not None:
+            return outcome, lines
 
     # ── player action ──
     if p["hp"] > 0 and not skip_player:
@@ -284,11 +310,37 @@ def resolve_round(user: dict, action: str, action_id: str | None = None,
     if e["hp"] <= 0:
         return _judge_victory(user, session, lines, rng)
 
+    if player_first:
+        outcome = _enemy_phase(user, session, prof, rng, lines, lang)
+        if outcome is not None:
+            return outcome, lines
+
+    if not session["finished"]:
+        session["log"].setdefault("p", "")
+        session["log"].setdefault("e", "")
+        session["round"] += 1
+        session["updated_at"] = iso()
+        _sync_hp(user, session)
+    return OUT_CONTINUE, lines
+
+
+def _enemy_phase(user, session, prof, rng, lines, lang) -> str | None:
+    """The enemy's half of a round: status ticks, then (maybe twice) a strike.
+
+    Extracted from ``resolve_round`` so the initiative order can run it before
+    *or* after the player's action. Returns an outcome string when the round
+    ended (death judged inside), otherwise ``None``.
+    """
+    from ..localization import t
+    p = session["player"]
+    e = session["enemy"]
+    enemy = enemy_name(e, lang)
+
     # ── enemy status tick (burn can finish it first) ──
-    skip_enemy = _tick_statuses(session, "e", lang, lines)
+    skip_enemy = _tick_statuses(session, "e", lang, lines, rng)
     if e["hp"] <= 0:
         lines.append("🔥")
-        return _judge_victory(user, session, lines, rng)
+        return _judge_victory(user, session, lines, rng)[0]
 
     # ── enemy turn (dataset action pool + hit/crit/miss narratives, P4 §3.2) ──
     if skip_enemy:
@@ -347,15 +399,8 @@ def resolve_round(user: dict, action: str, action_id: str | None = None,
 
     # ── lethal check → miracle escape or true death ──
     if p["hp"] <= 0 and not session["finished"]:
-        return _judge_death(user, session, lines, prof, rng)
-
-    if not session["finished"]:
-        session["log"].setdefault("p", "")
-        session["log"].setdefault("e", "")
-        session["round"] += 1
-        session["updated_at"] = iso()
-        _sync_hp(user, session)
-    return OUT_CONTINUE, lines
+        return _judge_death(user, session, lines, prof, rng)[0]
+    return None
 
 
 def _judge_victory(user, session, lines, rng):
@@ -385,17 +430,89 @@ def _judge_death(user, session, lines, prof, rng):
         return OUT_MIRACLE, lines
     session["outcome"] = OUT_DEATH
     lines.append("☠️ " + t(lang, "COMBAT_DEATH"))
-    _apply_death(user, now=dt.datetime.now(dt.timezone.utc))
+    info = _apply_death(user, now=dt.datetime.now(dt.timezone.utc))
+    session["gear_damaged"] = info.get("gear_damaged") or []
+    if info.get("doll_saved"):
+        # the doll burned a 10 000-stone relic for this player — the card must
+        # say so (the engine returned doll_saved before, but nobody read it)
+        session["doll_saved"] = True
+        lines.append(t(lang, "SAVED_BY_DOLL"))
+        session.setdefault("log", {})["p"] = t(lang, "SAVED_BY_DOLL")
     _finish(user, session, lines)
     return OUT_DEATH, lines
 
 
 def enemy_traits(user: dict, e: dict, session: dict) -> dict:
+    """Per-round traits of the *enemy*.
+
+    ``double`` answers "is the enemy so much faster than the player that a 15%
+    second strike applies?". It used to be computed from the **player's** speed
+    (``player_speed >= 1.5 * enemy_speed``) — so building a fast cultivator made
+    the *enemy* strike twice, the exact opposite of the design doc, where
+    meridian speed decides the initiative. It is now symmetric with the turn
+    order: the much faster enemy strikes first *and* may strike twice; the much
+    faster player acts first and dodges/flees far more reliably.
+    """
     from ..engine.models import combat_profile
     prof = combat_profile(user)
     slow = 1.0 + max(-0.5, _status_mod(session["statuses"]["e"], "slow", "speed_pct"))
-    return {"double": prof["meridian_speed"] >= 1.5 * e["speed"] * slow,
+    enemy_speed = max(1.0, e["speed"] * slow)
+    player_speed = max(1.0, prof["meridian_speed"])
+    return {"double": enemy_speed >= 1.5 * player_speed,
             "slow_pct": slow}
+
+
+def _action_refusal(user: dict, session: dict, action: str, action_id: str | None,
+                    lang: str) -> str | None:
+    """Why this tap cannot be executed at all (or ``None`` when it should run).
+
+    Shared by :func:`resolve_round`'s pre-flight check and by the executors, so
+    "can this fire?" has exactly one definition per action kind.
+    """
+    from ..localization import t
+    if action == "combat:tech" and action_id:
+        tech = data_registry.get_technique(action_id)
+        if tech is None:
+            return t(lang, "ERR_UNKNOWN")
+        return _tech_block_reason(session, tech, lang)
+    if action.startswith("combat:item:") and len(action) > len("combat:item:"):
+        return _item_block_reason(user, session, action.split(":", 2)[2], lang)
+    return None
+
+
+def _tech_block_reason(session: dict, tech, lang: str) -> str | None:
+    """Cooldown / Qi gate for one technique."""
+    from ..localization import t
+    if tech.id in session["cooldowns"]:
+        return t(lang, "COMBAT_ON_CD", skill=tech.name_en or tech.name)
+    if session["player"]["qi"] < tech.qi_cost:
+        return t(lang, "COMBAT_NO_QI")
+    return None
+
+
+def _item_block_reason(user: dict, session: dict, item_id: str, lang: str) -> str | None:
+    """Everything that makes a battle consumable unusable or a waste right now."""
+    from ..localization import t
+    item = data_registry.get_consumable(item_id)
+    if not item:
+        return t(lang, "ERR_UNKNOWN")
+    label = item.name_for(lang)
+    if not items_mod.battle_usable(item):
+        # honest and never wasted: relics such as the death doll fire by
+        # themselves, materials cannot be spent at all — neither is an
+        # "unknown error" for the player.
+        return t(lang, "COMBAT_ITEM_NO_NEED", item=label)
+    if not items_mod.count_item(user, item_id):
+        return t(lang, "ITEM_NONE_LEFT", item=label)
+    p = session["player"]
+    # never burn a stack on a no-op (full body / full meridian / nothing to cure)
+    if item.action == "heal_hp" and p["hp"] >= p["max_hp"]:
+        return t(lang, "COMBAT_ITEM_NO_NEED", item=label)
+    if item.action == "heal_and_cure" and p["hp"] >= p["max_hp"] and not _curable_count(session):
+        return t(lang, "COMBAT_ITEM_NO_NEED", item=label)
+    if item.action == "restore_qi" and p["qi"] >= p["max_qi"]:
+        return t(lang, "COMBAT_ITEM_NO_NEED", item=label)
+    return None
 
 
 def _player_technique(user, session, tech, prof, rng, enemy_label: str | None = None) -> list[str]:
@@ -404,10 +521,9 @@ def _player_technique(user, session, tech, prof, rng, enemy_label: str | None = 
     lines: list[str] = []
     p = session["player"]
     e = session["enemy"]
-    if tech.id in session["cooldowns"]:
-        return [t(lang, "COMBAT_ON_CD", skill=tech.name_en or tech.name)]
-    if p["qi"] < tech.qi_cost:
-        return [t(lang, "COMBAT_NO_QI")]
+    blocked = _tech_block_reason(session, tech, lang)
+    if blocked:                       # defensive: resolve_round pre-flights this
+        return [blocked]
     p["qi"] -= tech.qi_cost
     if tech.cooldown:
         session["cooldowns"][tech.id] = tech.cooldown + 1  # ticks down at next round start
@@ -417,7 +533,9 @@ def _player_technique(user, session, tech, prof, rng, enemy_label: str | None = 
         backlash = max(5, int(tech.qi_cost * 0.2))
         p["hp"] = max(1, p["hp"] - backlash)
         lines.append(t(lang, "COMBAT_BACKFIRE", damage=backlash))
-        return lines
+        # without this the HUD kept the *previous* round's line and the lost HP
+        # was unexplained ("my skill did nothing and I am hurt").
+        return _log_player(session, lines)
 
     scaling = prof["spiritual_atk"] if tech.scaling_stat != "physical_atk" else prof["physical_atk"]
     atk_buff = _status_mod(session["statuses"]["p"], "atk_buff", "pct")
@@ -483,19 +601,42 @@ def _weapon_specials(user, session, dmg, lines, rng) -> None:
 
 
 def _use_combat_item(user, session, item_id, rng) -> list[str]:
+    """Spend one battle consumable and apply its effect.
+
+    The usable set is ``items.battle_usable`` — the same predicate the battle
+    keyboard uses to decide what to offer. Previously only category
+    ``disposable_weapon`` was accepted here, so a heal pill / relic that the
+    keyboard happily showed (and that the player had assigned to a battle slot)
+    consumed the round, printed ``ERR_UNKNOWN`` and did nothing at all.
+    """
     from ..localization import t
     lang = user["account"]["language"]
+    blocked = _item_block_reason(user, session, item_id, lang)
+    if blocked:
+        return _log_player(session, [blocked])
     item = data_registry.get_consumable(item_id)
-    if not item or item.category != "disposable_weapon":
-        return [t(lang, "ERR_UNKNOWN")]
-    if not items_mod.count_item(user, item_id):
-        return [t(lang, "ITEM_NONE_LEFT", item=item.name_for(lang))]
-    if not items_mod.consume_item(user, item_id):
-        return [t(lang, "ITEM_NONE_LEFT", item=item.name_for(lang))]
-    lines = [t(lang, "COMBAT_ITEM_USED", item=item.name_for(lang))]
-    session.setdefault("log", {})["p"] = lines[-1]
+    p = session["player"]
     e = session["enemy"]
-    if item.action == "instant_damage":
+    label = item.name_for(lang)
+    if not items_mod.consume_item(user, item_id):
+        return _log_player(session, [t(lang, "ITEM_NONE_LEFT", item=label)])
+    lines = [t(lang, "COMBAT_ITEM_USED", item=label)]
+    if item.action in ("heal_hp", "heal_and_cure"):
+        heal = max(0, min(int(item.value), p["max_hp"] - p["hp"]))
+        p["hp"] += heal
+        cured = _cure_player_statuses(session) if item.action == "heal_and_cure" else 0
+        extra = t(lang, "COMBAT_ITEM_CURED", count=cured) if cured else ""
+        lines.append(t(lang, "COMBAT_ITEM_HEAL", item=label, value=heal, extra=extra))
+    elif item.action == "restore_qi":
+        gain = max(0, min(int(item.value), p["max_qi"] - p["qi"]))
+        p["qi"] += gain
+        lines.append(t(lang, "COMBAT_ITEM_QI", item=label, value=gain))
+    elif item.action == "combat_damage_buff":
+        turns = item.turns or 3
+        session["statuses"]["p"].append({"kind": "atk_buff", "turns": turns,
+                                         "pct": (item.value or 20) / 100.0})
+        lines.append(t(lang, "COMBAT_ITEM_BUFF", item=label, value=item.value, turns=turns))
+    elif item.action == "instant_damage":
         raw = item.fixed_damage * (1 - min(1.0, item.bypass_defense_percent / 100.0) *
                                    min(1.0, e["def"] / (e["def"] + 100)))
         dmg = max(1, int(raw))
@@ -513,7 +654,35 @@ def _use_combat_item(user, session, item_id, rng) -> list[str]:
         session["statuses"]["e"].append({"kind": "atk_cut", "turns": item.turns or 3,
                                          "pct": (item.atk_cut_percent or 20) / 100.0})
         lines.append(t(lang, "COMBAT_ENEMY_WEAKENED"))
+    return _log_player(session, lines)
+
+
+# statuses a "heal & cure" consumable (Meridian Restoration Pill) removes
+CURABLE_STATUSES = ("burn", "poison", "bleed", "stun", "confuse")
+
+
+def _log_player(session: dict, lines: list[str]) -> list[str]:
+    """Record what the player's action actually did in the round log line.
+
+    The HUD renders only ``session["log"]["p"]``, so an item whose effect line
+    was appended to ``lines`` without updating the log used to look like it did
+    nothing at all ("you snapped the pill" and the +420 HP was invisible).
+    """
+    session.setdefault("log", {})["p"] = " · ".join(x for x in lines if x)
     return lines
+
+
+def _curable_count(session: dict) -> int:
+    return sum(1 for st in session["statuses"]["p"]
+               if st.get("kind") in CURABLE_STATUSES)
+
+
+def _cure_player_statuses(session: dict) -> int:
+    before = len(session["statuses"]["p"])
+    kept = [st for st in session["statuses"]["p"]
+            if st.get("kind") not in CURABLE_STATUSES]
+    session["statuses"]["p"] = kept
+    return before - len(kept)
 
 
 # ── resolution & consequences ────────────────────────────────────────────────
@@ -597,6 +766,7 @@ def _apply_death(user: dict, now: dt.datetime) -> dict:
     user["progress"]["deaths"] = user["progress"].get("deaths", 0) + 1
 
     doll_saved = False
+    gear_damaged: list[str] = []
     if cul["current_realm_index"] >= 3:
         if items_mod.consume_item(user, "doll_substitute"):
             doll_saved = True
@@ -606,16 +776,13 @@ def _apply_death(user: dict, now: dt.datetime) -> dict:
                 g = user["equipment"].get(slot)
                 if g:
                     g["dur"] = max(20, int(g.get("dur", 100)) - 20)
+                    gear_damaged.append(slot)
     par_until = now + dt.timedelta(minutes=PARALYSIS_MINUTES)
     user["combat"]["paralysis_until"] = iso(par_until)
     set_status(user, UserStatus.HEAVILY_INJURED)
     return {"lost_qi": lost_qi, "lost_stones": lost_low + lost_mid,
-            "doll_saved": doll_saved, "paralysis_until": iso(par_until)}
-
-
-def death_report(user: dict, now: dt.datetime) -> dict:
-    """Used after _apply_death to enrich the UI message."""
-    return {}
+            "doll_saved": doll_saved, "gear_damaged": gear_damaged,
+            "paralysis_until": iso(par_until)}
 
 
 def _finish(user: dict, session: dict, lines: list[str]) -> None:
@@ -641,7 +808,8 @@ def battle_item_sources(user: dict) -> list[str]:
     picked = []
     for iid in slots:
         item = data_registry.get_consumable(iid)
-        if item and (user["inventory"].get("items", {}).get(iid, 0) > 0):
+        if item and items_mod.battle_usable(item) \
+                and user["inventory"].get("items", {}).get(iid, 0) > 0:
             picked.append(iid)
         if len(picked) == 2:
             return picked
@@ -651,8 +819,7 @@ def battle_item_sources(user: dict) -> list[str]:
         item = data_registry.get_consumable(iid)
         if not item or qty <= 0:
             continue
-        if item.category in ("disposable_weapon", "talisman", "relic") or \
-           item.action in ("instant_damage", "shield", "enemy_debuff", "heal_hp"):
+        if items_mod.battle_usable(item):
             picked.append(iid)
         if len(picked) == 2:
             break

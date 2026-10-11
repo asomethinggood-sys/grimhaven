@@ -97,6 +97,12 @@
       "name": "چرم خشن کوهستان",
       "name_en": "Rough Hide",
       "chance_percent": 40
+     },
+     {
+      "item_id": "boar_hide",
+      "name": "پوست کلفت گراز",
+      "name_en": "Boar Hide",
+      "chance_percent": 15
      }
     ]
    },
@@ -166,6 +172,12 @@
       "name": "پولک نرم خاکی",
       "name_en": "Snake Scale",
       "chance_percent": 45
+     },
+     {
+      "item_id": "viper_fang",
+      "name": "نیش افعی",
+      "name_en": "Viper Fang",
+      "chance_percent": 15
      }
     ]
    },
@@ -235,6 +247,12 @@
       "name": "خرده‌منقار محکم",
       "name_en": "Iron Beak Shard",
       "chance_percent": 30
+     },
+     {
+      "item_id": "vulture_talon",
+      "name": "چنگال کرکس",
+      "name_en": "Vulture Talon",
+      "chance_percent": 15
      }
     ]
    },
@@ -304,6 +322,12 @@
       "name": "هسته میوه نیمه‌رسیده",
       "name_en": "Spirit Fruit Core",
       "chance_percent": 50
+     },
+     {
+      "item_id": "ape_stone",
+      "name": "سنگ صیقلی میمون‌صخره",
+      "name_en": "Polished Ape Stone",
+      "chance_percent": 15
      }
     ]
    },
@@ -373,6 +397,18 @@
       "name": "چشم فسفری شب‌نما",
       "name_en": "Phosphor Eye",
       "chance_percent": 30
+     },
+     {
+      "item_id": "mat_wolf_fang",
+      "name": "نیشگرگ یخی",
+      "name_en": "Glacial Wolf Fang",
+      "chance_percent": 14
+     },
+     {
+      "item_id": "cave_wolf_bone",
+      "name": "استخوان گرگ غار",
+      "name_en": "Cave Wolf Bone",
+      "chance_percent": 15
      }
     ]
    },
@@ -442,6 +478,18 @@
       "name": "تار ابریشم چسبنده غار",
       "name_en": "Sticky Web Thread",
       "chance_percent": 65
+     },
+     {
+      "item_id": "web_silk",
+      "name": "ابریشم بلورین",
+      "name_en": "Crystal Web Silk",
+      "chance_percent": 20
+     },
+     {
+      "item_id": "spider_crystal_venom",
+      "name": "زهر شیشه‌ای عنکبوت",
+      "name_en": "Spider Glass-Venom",
+      "chance_percent": 12
      }
     ]
    },
@@ -511,6 +559,12 @@
       "name": "قطره جوهره خون تیره",
       "name_en": "Blood Essence Drop",
       "chance_percent": 35
+     },
+     {
+      "item_id": "bat_fang",
+      "name": "نیش خفاش خون‌آشام",
+      "name_en": "Blood Bat Fang",
+      "chance_percent": 15
      }
     ]
    },
@@ -580,6 +634,12 @@
       "name": "پای نیش‌دار هزارپا",
       "name_en": "Centipede Leg",
       "chance_percent": 60
+     },
+     {
+      "item_id": "centipede_plate",
+      "name": "صفحه آهنین صدپا",
+      "name_en": "Iron Centipede Plate",
+      "chance_percent": 15
      }
     ]
    },
@@ -649,6 +709,12 @@
       "name": "تکه آویز یشم شکسته",
       "name_en": "Broken Jade Pendant",
       "chance_percent": 25
+     },
+     {
+      "item_id": "specter_ectoplasm",
+      "name": "اکتوپلاسم شبح",
+      "name_en": "Specter Ectoplasm",
+      "chance_percent": 15
      }
     ]
    },
@@ -1135,6 +1201,12 @@
       "name": "سنگ صاعقه‌زده",
       "name_en": "Thunder-Forged Stone",
       "chance_percent": 55
+     },
+     {
+      "item_id": "mat_thunder_wood",
+      "name": "چوب صاعقه‌دیده",
+      "name_en": "Storm-Struck Thunderwood",
+      "chance_percent": 22
      }
     ]
    },

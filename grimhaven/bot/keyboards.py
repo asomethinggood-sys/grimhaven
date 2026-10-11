@@ -160,11 +160,6 @@ def start_kb(lang: str) -> InlineKeyboardMarkup:
     return kb([[_btn(t(lang, "BTN_OPEN_SCROLL"), "profile:view:main")]])
 
 
-def language_kb() -> InlineKeyboardMarkup:
-    return kb([[_btn(t("fa", "BTN_LANG_FA"), "setlang:fa"),
-                _btn(t("en", "BTN_LANG_EN"), "setlang:en")]])
-
-
 def settings_kb(lang: str) -> InlineKeyboardMarkup:
     return kb([
         [_btn(t(lang, "SET_MARTIAL"), "martial:view:main")],
@@ -238,12 +233,21 @@ def item_kb(lang: str, user: dict, tab: str, page: int, item_id: str) -> InlineK
             rows.append([_btn(t(lang, "BTN_EQUIP"), f"bag:action:equip:{item_id}")])
         else:
             rows.append([_btn(t(lang, "BTN_UNEQUIP2"), f"bag:action:unequip:{equipped_slot}")])
+        # durability decays on death and directly lowers every stat derived from
+        # the piece; until now nothing in the UI could ever restore it.
+        dur = int(((user["inventory"].get("gear") or {}).get(item_id) or
+                   (equipped_slot and user["equipment"].get(equipped_slot)) or {})
+                  .get("dur", 100))
+        if dur < 100:
+            rows.append([_btn(t(lang, "BTN_REPAIR"), f"bag:action:repair:{item_id}")])
     else:
         action = getattr(item, "action", "") if item else ""
         if item and action not in ("sell_only",) and item.category in ("pill", "herb", "relic"):
             rows.append([_btn(t(lang, "BTN_SWALLOW"), f"bag:action:consume:{item_id}")])
-        if item and (item.category in ("disposable_weapon", "talisman", "relic")
-                     or action in ("instant_damage", "shield", "enemy_debuff", "heal_hp")):
+        # the engine and this button share one predicate: an item offered here
+        # must actually be executable by combat_engine._use_combat_item
+        from ..engine import items as items_mod
+        if item and items_mod.battle_usable(item):
             rows.append([_btn(t(lang, "BTN_ASSIGN_BATTLE"), f"bag:action:assign_battle:{item_id}")])
     sell = int(getattr(gear or item, "sell_price", 0) or 0)
     if sell and not equipped_slot:
@@ -432,7 +436,9 @@ def slot_picker_kb(lang: str, user: dict, slot_idx: int) -> InlineKeyboardMarkup
         mark = "✅ " if tid in equipped else "⚡ "
         rows.append([_btn(f"{mark}{nm[:20]} ({Locale.num(lang, tech.qi_cost)} {t(lang, 'QI_UNIT')})",
                           f"martial:slot:equip:{slot_idx}:{tid}")])
-    rows.append([_btn(t(lang, "BTN_CLEAR_SLOT"), f"martial:slot:clear:{slot_idx}")])
+    loadout = user["combat"]["loadout"]
+    if slot_idx < len(loadout) and loadout[slot_idx]:
+        rows.append([_btn(t(lang, "BTN_CLEAR_SLOT"), f"martial:slot:clear:{slot_idx}")])
     rows.append([_btn(t(lang, "BTN_CANCEL_BACK"), "martial:view:main")])
     return kb(rows)
 
@@ -455,9 +461,10 @@ def arts_kb(lang: str, user: dict, page: int) -> InlineKeyboardMarkup:
     pages = max(1, (len(arts) + ARTS_PER_PAGE - 1) // ARTS_PER_PAGE)
     page = max(1, min(page, pages))
     owned = set(user["inventory"].get("arts") or [])
+    realm = user["cultivation"]["current_realm_index"]
     rows = []
     for a in arts[(page - 1) * ARTS_PER_PAGE: page * ARTS_PER_PAGE]:
-        mark = "✅" if a.art_id in owned else "📜"
+        mark = "✅" if a.art_id in owned else ("🔒" if a.required_realm > realm else "📜")
         el = a.element_en if (lang == "en" and a.element_en) else a.element
         rows.append([_btn(f"{mark} {a.name_for(lang)[:30]} ({el})", f"shop:art:inspect:{a.art_id}:{page}")])
     nav = []
@@ -561,14 +568,6 @@ def dao_kb(lang: str, chosen: bool) -> InlineKeyboardMarkup:
                           f"dao:pick:{dao}:{a}") for a in aligns])
     rows.append([_btn(t(lang, "BACK_PROFILE"), "profile:view:main")])
     return kb(rows)
-
-
-def sacrifice_kb(lang: str) -> InlineKeyboardMarkup:
-    return kb([
-        [_btn(t(lang, "SACRIFICE_BLOOD"), "sect:sacrifice:blood")],
-        [_btn(t(lang, "SACRIFICE_DEVOUR"), "sect:sacrifice:devour")],
-        [_btn(t(lang, "BACK"), "sect:view:main")],
-    ])
 
 
 def admin_kb(lang: str) -> InlineKeyboardMarkup:

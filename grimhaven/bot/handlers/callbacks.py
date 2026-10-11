@@ -22,7 +22,6 @@ import logging
 import random
 
 from telegram import Update
-from telegram.constants import ParseMode
 from telegram.error import BadRequest, TelegramError as PtbTelegramError
 from telegram.ext import ContextTypes
 
@@ -30,14 +29,13 @@ from .. import keyboards as kbs
 from ...core import combat_engine as ce
 from ...core.data_loader import data_registry
 from ...core.middleware import callback_blocked
-from ...core.state_machine import get_status, UserStatus
 from ...engine import items as items_mod
 from ...engine import world as world_mod
 from ...engine.cultivation import CultivationEngine
 from ...engine.models import iso, parse_iso, utcnow
 from ...errors import (TelegramError, is_message_gone, is_not_modified,
                        is_query_expired)
-from ...localization import Locale, t
+from ...localization import t
 from .reporting import PATH_CALLBACK, notify_failure, render_failed, report_stage
 from ... import render as R
 from ...images.delivery import begin_artwork, join_artwork
@@ -147,6 +145,16 @@ def _canon(raw: str, user: dict) -> str:
         return f"map:action:conquer:{parts[1]}" if len(parts) == 2 else "map:view:world"
     if root == "bag":
         rest = parts[1:]
+        if rest and rest[0] == "action":
+            # Canonical v2 payload — bag:action:<verb>:<item_id>. This fell
+            # through to the "unknown bag payload" rewrite below, so EVERY
+            # identity-card action (equip / unequip / consume / sell / repair /
+            # assign-to-battle) was silently converted into "show the gear tab"
+            # on the live callback path and did nothing at all.
+            verb = rest[1] if len(rest) > 1 else ""
+            item_id = ":".join(rest[2:])
+            verb = {"use": "consume", "assign": "assign_battle"}.get(verb, verb)
+            return f"bag:action:{verb}:{item_id}"
         if not rest or rest[0] == "back":
             ui = user.get("ui", {})
             return f"bag:tab:{ui.get('bag_tab', 'gear')}:{ui.get('bag_page', 1)}"
@@ -171,7 +179,7 @@ def _canon(raw: str, user: dict) -> str:
                 return f"bag:inspect:gear:1:{rest[1]}"
         if rest[0] in ("use", "sell", "equip", "unequip", "repair", "assign"):
             act = {"use": "consume", "sell": "sell", "equip": "equip", "unequip": "unequip",
-                   "repair": "consume", "assign": "assign_battle"}[rest[0]]
+                   "repair": "repair", "assign": "assign_battle"}[rest[0]]
             return f"bag:action:{act}:{rest[1] if len(rest) > 1 else ''}"
         return "bag:tab:gear:1"
     return raw
@@ -397,7 +405,6 @@ async def _send_fresh(bot, query, text: str, keyboard):
                             user_key="ERR_DELIVERY") from exc
 
 
-
 # ── combat: the 5-step atomic turn ───────────────────────────────────────────
 
 def _combat_step(ctx, user: dict, data: str, now):
@@ -419,7 +426,6 @@ def _combat_step(ctx, user: dict, data: str, now):
     if rnd != session["round"]:
         return (R.combat_hud_text(lang, user, session), kbs.battle_kb(lang, user, session),
                 {"answer": t(lang, "ALERT_STALE_TURN"), "no_render": True})
-    session["turn_lock"] = rnd
 
     engine_action = {"tech": "combat:tech", "basic": "combat:basic",
                      "flee": "combat:flee"}.get(verb, "combat:basic")
@@ -433,19 +439,28 @@ def _combat_step(ctx, user: dict, data: str, now):
     if verb == "sim":
         outcome, summary, snapshot = ce.simulate(user, rng=random.Random(), max_rounds=40)
         snapshot = snapshot or session
-        text, keyboard, card_opts = _combat_terminal(user, session, snapshot, summary)
+        text, keyboard, card_opts = _combat_terminal(user, session, snapshot, summary,
+                                                     outcome=outcome)
         opts.update(card_opts)
         _terminal_effects(ctx, user, snapshot, now)
         _attach_victory_artwork(ctx, user, outcome, snapshot, opts)
         return text, keyboard, opts
 
+    # keep a handle on the session *object*: a terminal outcome closes the
+    # session (user["combat"]["session"] = None) but the object still carries the
+    # reward/outcome, and it is the only place the Loot Scroll data lives.
+    # Reading it back from the document after the round used to yield {} for
+    # every real victory/death/flee, so the terminal card degraded to
+    # "stalemate" and the reward was never shown.
+    live_session = user["combat"].get("session")
     outcome, lines = ce.resolve_round(user, engine_action, action_id, rng=random.Random())
-    session = user["combat"].get("session")
-    if outcome == ce.OUT_CONTINUE and session:
+    session = user["combat"].get("session") or live_session
+    if outcome == ce.OUT_CONTINUE and user["combat"].get("session"):
         return (R.combat_hud_text(lang, user, session),
                 kbs.battle_kb(lang, user, session), opts)
     snapshot = session or {}
-    text, keyboard, card_opts = _combat_terminal(user, snapshot, snapshot, lines)
+    text, keyboard, card_opts = _combat_terminal(user, snapshot, snapshot, lines,
+                                                 outcome=outcome)
     opts.update(card_opts)
     _terminal_effects(ctx, user, snapshot, now)
     _attach_victory_artwork(ctx, user, outcome, snapshot, opts)
@@ -523,10 +538,12 @@ def _failure_key(exc: BaseException) -> str:
     return USER_KEY[classify(exc)]
 
 
-def _combat_terminal(user: dict, session: dict, snapshot: dict, lines: list[str]):
+def _combat_terminal(user: dict, session: dict, snapshot: dict, lines: list[str],
+                     outcome: str | None = None):
     """Victory loot scroll / flee / miracle / death card (may chain to rival)."""
     lang = user["account"]["language"]
-    outcome = snapshot.get("outcome") or session.get("outcome") or ce.OUT_CONTINUE
+    outcome = (outcome or snapshot.get("outcome") or session.get("outcome")
+               or ce.OUT_CONTINUE)
     zone_id = (snapshot.get("zone_id") or session.get("zone_id")
                or user["location"].get("current_zone_id"))
     kind = snapshot.get("kind") or session.get("kind")
@@ -544,8 +561,15 @@ def _combat_terminal(user: dict, session: dict, snapshot: dict, lines: list[str]
         rep = R._death_summary(user)
         realm_lbl = R.realm_stage_label(lang, user["cultivation"]["current_realm_index"],
                                         user["cultivation"]["current_stage"])
-        return (t(lang, "DEATH_CARD") + "\n" + t(lang, "DEATH_REPORT", minutes=rep["minutes"],
-                realm=realm_lbl), kbs.recovery_kb(lang), {})
+        card = t(lang, "DEATH_CARD") + "\n" + t(lang, "DEATH_REPORT", minutes=rep["minutes"],
+                                                 realm=realm_lbl)
+        if snapshot.get("doll_saved"):
+            card += "\n\n" + t(lang, "SAVED_BY_DOLL")
+        elif snapshot.get("gear_damaged"):
+            # DEATH_REPORT used to claim the gear was damaged *even when the doll
+            # had just burned for the player* — both halves cannot be true.
+            card += "\n" + t(lang, "DEATH_GEAR_DAMAGED")
+        return card, kbs.recovery_kb(lang), {}
     # timeout / stalemate after simulate
     if not user["combat"].get("session"):
         return t(lang, "COMBAT_STALEMATE"), kbs.flee_kb(lang, zone_id), {}
@@ -561,11 +585,6 @@ def _dispatch(ctx, user: dict, action: str, arg: str, settle_res: dict,
     raw = f"{action}:{arg}" if arg else action
     raw = _canon(raw, user)
     return _route(ctx, user, raw, settle_res, now=now)
-
-
-def _dispatch_pair(ctx, user, action, arg, settle_res, now=None):
-    text, kb, _opts = _dispatch(ctx, user, action, arg, settle_res, now=now)
-    return text, kb
 
 
 def _route(ctx, user: dict, data: str, settle_res: dict,
@@ -637,28 +656,53 @@ def _route(ctx, user: dict, data: str, settle_res: dict,
 
 
 def _rival_verdict(user: dict, verdict: str) -> str:
+    """Resolve the mercy / plunder choice with the actual spoils.
+
+    The result used to be thrown away and the card repeated the button label;
+    the player was never told what sparing or robbing actually granted.
+    """
     from ...engine.combat import mercy_or_plunder
     lang = user["account"]["language"]
-    mercy_or_plunder(user, verdict)
-    return t(lang, "RIVAL_JUDGED", verdict=t(lang, "BTN_MERCY" if verdict == "mercy" else "BTN_PLUNDER"))
+    res = mercy_or_plunder(user, verdict)
+    if res.get("status") == "MERCY":
+        return t(lang, "MERCY_DONE", n=abs(int(res.get("karma", 1))))
+    return t(lang, "PLUNDER_DONE", qi=int(res.get("qi", 0)),
+             stones=int(res.get("stones", 0)), n=abs(int(res.get("karma", -5))))
 
 
 # ── screens ───────────────────────────────────────────────────────────────────
 
 def _setlang(ctx, user, args, now):
+    current = user["account"]["language"]
     new_lang = args[0] if args and args[0] in ("fa", "en") else "fa"
+    if new_lang == current:
+        # the "already Farsi" button was a silent no-op (no answer, no change)
+        return (R.hud_text(ctx.storage, user, ctx.world_boost(now), now),
+                kbs.profile_kb(current), {"answer": t(current, "LANG_ALREADY")})
     user["account"]["language"] = new_lang
+    label = t(new_lang, "BTN_LANG_EN" if new_lang == "en" else "BTN_LANG_FA")
+    # LANG_SWITCHED's placeholder is literally named {lang} — t() owns that name,
+    # so this one template must go through t_map (see localization.t_map).
+    from ...localization import t_map
     return (R.hud_text(ctx.storage, user, ctx.world_boost(now), now),
-            kbs.profile_kb(new_lang), {"root": True})
+            kbs.profile_kb(new_lang), {"alert": t_map(new_lang, "LANG_SWITCHED", {"lang": label})})
 
 
 def _profile(ctx, user, args, settle_res, now):
     lang = user["account"]["language"]
+    # canonical payloads spell the screen out as profile:view:<screen>; the
+    # legacy short form is profile:<screen>. Reading args[0] raw made
+    # `profile:view:meridians` and `profile:view:karma` render the *main* profile
+    # again — the Meridian and Karma screens were reachable from no button at all.
+    if args and args[0] == "view":
+        args = args[1:]
     view = args[0] if args else "main"
     if view == "meridians":
         return R.meridians_text(lang, user), kbs.back_profile_kb(lang), {}
     if view == "karma":
-        return R.karma_text(lang, user), kbs.back_profile_kb(lang), {}
+        newly = R.claim_new_reveals(lang, user)
+        opts = {"alert": "\n".join(newly), "no_render": False} if newly else {}
+        return R.karma_text(lang, user), kbs.back_profile_kb(lang), opts
     return (R.hud_text(ctx.storage, user, ctx.world_boost(now), now),
             kbs.profile_kb(lang), {"root": True})
 
@@ -754,6 +798,12 @@ def _map(ctx, user, args, settle_res, now):
             return (t(lang, "ERR_UNKNOWN_OPTION"), kbs.map_kb(lang, user),
                     {"no_render": True, "alert": t(lang, "ERR_UNKNOWN_OPTION")})
         zdef = data_registry.get_zone(zone_id)
+        # Realm gate belongs on the ACTION, not only on the inspect screen: a
+        # button left over from before a rollback (or a forged payload) used to
+        # walk a layer-1 cultivator straight into a realm-7 zone's beasts.
+        if user["cultivation"]["current_realm_index"] < zdef.min_realm:
+            return (R.map_text(lang, user, ctx.storage), kbs.map_kb(lang, user),
+                    {"no_render": True, "alert": t(lang, "ALERT_REALM_GATE", rec=zdef.rec_for(lang))})
         if verb == "settle":
             res = world_mod.travel(ctx.storage, user, zone_id, now=now)
             if res["status"] != "OK":
@@ -786,6 +836,22 @@ def _map(ctx, user, args, settle_res, now):
 
 def _start_hunt(ctx, user, zone_id: str, now, ambush: bool):
     lang = user["account"]["language"]
+    # ── the rival the hunt-victory card announced finally shows up ──
+    # `_apply_victory` sets pending_rival and tells the player a rival saw the
+    # fight, but nothing ever consumed the flag and `make_rival` was dead code —
+    # the mercy/plunder keyboard could never be reached. The next hunt now
+    # spawns that rival instead of a beast.
+    if user.get("pending_rival"):
+        user["pending_rival"] = False
+        rival = ce.make_rival(user["cultivation"]["current_realm_index"], random.Random())
+        ce.start_session(user, rival, "rival", zone_id)
+        session = user["combat"]["session"]
+        rival_opts: dict = {"send": True}
+        spec = _artwork_spec(ctx, user, f"hunt:{zone_id}", once_key=f"rival:{zone_id}")
+        if spec:
+            rival_opts["artwork"] = spec
+        return (t(lang, "RIVAL_FIGHT") + "\n" + R.combat_hud_text(lang, user, session),
+                kbs.battle_kb(lang, user, session), rival_opts)
     proto = data_registry.get_random_enemy_by_zone(zone_id)
     if not proto:
         return (t(lang, "ALERT_NO_BEASTS"), None, {"alert": t(lang, "ALERT_NO_BEASTS")})
@@ -897,10 +963,22 @@ def _bag(ctx, user, args, now):
             else:
                 msg = t(lang, f"USE_{res.get('status')}", item=res.get("label", ""))
             return _back(msg)
+        if act == "repair":
+            res = items_mod.repair_gear(user, item_id)
+            status = res.get("status")
+            if status == "OK":
+                return _back(t(lang, "REPAIR_DONE", price=res.get("price", 0)))
+            if status == "ALREADY_PERFECT":
+                return _back(t(lang, "REPAIR_ALREADY_PERFECT"))
+            if status == "NOT_ENOUGH_STONES":
+                return _back(t(lang, "REPAIR_NOT_ENOUGH_STONES"))
+            return _back(t(lang, "REPAIR_NOT_OWNED"))
         if act == "assign_battle":
-            items_mod.set_battle_item(user, item_id)
+            status = items_mod.set_battle_item(user, item_id)
             nm = R.item_name(item_id, lang)
-            return _back(t(lang, "ASSIGN_BATTLE_OK", item=nm))
+            if status == "OK":
+                return _back(t(lang, "ASSIGN_BATTLE_OK", item=nm))
+            return _back(t(lang, "ASSIGN_BATTLE_FAIL", item=nm))
     return R.bag_text(lang, user, "gear", 1), kbs.bag_kb(lang, user, "gear", 1), {}
 
 
@@ -963,9 +1041,14 @@ def _martial(ctx, user, args, now):
             return (R.martial_text(lang, user), kbs.martial_kb(lang, user),
                     {"answer": t(lang, "SLOT_SET", tech=(tech.name_en if lang == "en" and tech.name_en else tech.name), n=idx + 1)})
         if sub == "clear":
+            # the old branch answered "slot emptied" even on an empty slot
+            had = idx < len(loadout) and bool(loadout[idx])
             res = items_mod.set_loadout(user, None, idx)
+            if res.get("status") != "OK":
+                return (R.martial_text(lang, user), kbs.martial_kb(lang, user),
+                        {"answer": t(lang, "ERR_BAD_SLOT")})
             return (R.martial_text(lang, user), kbs.martial_kb(lang, user),
-                    {"answer": t(lang, "SLOT_CLEARED")})
+                    {"answer": t(lang, "SLOT_CLEARED") if had else t(lang, "ERR_EMPTY_SLOT")})
     return R.martial_text(lang, user), kbs.martial_kb(lang, user), {"root": True}
 
 
@@ -1001,10 +1084,18 @@ def _shop(ctx, user, args, now):
             if not art:
                 return t(lang, "ERR_UNKNOWN_OPTION"), None, {
                     "alert": t(lang, "ERR_UNKNOWN_OPTION")}
-            items_mod.learn_art(user, art_id)
+            res = items_mod.learn_art(user, art_id)
+            status = res.get("status")
+            if status == "OK":
+                alert = t(lang, "ART_CLAIMED", name=res.get("art") or art.name_for(lang))
+            elif status == "REALM_LOCKED":
+                from ...engine.constants import REALM_NAMES
+                alert = t(lang, "SHOP_REALM_LOCKED", realm=t(lang, REALM_NAMES[res["realm"]]))
+            else:                    # UNKNOWN / ALREADY_LEARNED
+                alert = t(lang, "SHOP_ALREADY_OWNED")
             return (R.art_inspect_text(lang, user, art_id),
                     kbs.art_card_kb(lang, user, art_id, page),
-                    {"alert": t(lang, "ART_CLAIMED", name=art.name_for(lang))})
+                    {"alert": alert})
     if verb == "booth" and len(args) >= 4 and args[1] == "claim":
         booth, item_id = args[2], ":".join(args[3:])
         if booth not in items_mod.BOOTH_CATALOGS:

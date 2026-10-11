@@ -715,6 +715,12 @@ def test_zone_and_hunt_attach_artwork_specs(tmp_path):
     ctx._artworks_built = True
 
     user = new_user_doc(101, "map_soul", "en")
+    # zone_mist_peak requires realm 2: the realm gate on the zone screens is
+    # live now (ZoneDef used to silently default min_realm to 1 for every zone),
+    # so a realm-1 visitor is sent back to the map instead of the zone hub.
+    user["cultivation"]["current_realm_index"] = 2
+    from grimhaven.engine.models import recompute_visible_stats
+    recompute_visible_stats(user)
     from grimhaven.bot.handlers.callbacks import _route, _canon
     text, kb, opts = _route(ctx, user, _canon("map:zone:inspect:zone_mist_peak", user), {})
     spec = opts.get("artwork")

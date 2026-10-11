@@ -206,11 +206,6 @@ class Storage:
         rows = self._read("SELECT COUNT(*) c FROM users")
         return int(rows[0]["c"])
 
-    def count_meditating(self) -> int:
-        return sum(1 for doc in self.all_users()
-                   if isinstance(doc.get("cultivation"), dict)
-                   and doc["cultivation"].get("meditating"))
-
     # ── zones & sects ────────────────────────────────────────────────────────
     def get_zone(self, zone_id: str) -> dict | None:
         rows = self._read("SELECT doc FROM zones WHERE zone_id=?", (zone_id,))
@@ -230,10 +225,6 @@ class Storage:
             "ON CONFLICT(zone_id) DO UPDATE SET doc=excluded.doc",
             (doc["zone_id"], _dump(doc)), "save_zone")
 
-    def all_zones(self) -> list[dict]:
-        return [d for d in (_load_doc(r["doc"], None)
-                            for r in self._read("SELECT doc FROM zones")) if d]
-
     def get_sect(self, sect_id: str) -> dict | None:
         rows = self._read("SELECT doc FROM sects WHERE sect_id=?", (sect_id,))
         return _load_doc(rows[0]["doc"], sect_id) if rows else None
@@ -243,10 +234,6 @@ class Storage:
             "INSERT INTO sects(sect_id, doc) VALUES(?,?) "
             "ON CONFLICT(sect_id) DO UPDATE SET doc=excluded.doc",
             (doc["sect_id"], _dump(doc)), "save_sect")
-
-    def all_sects(self) -> list[dict]:
-        return [d for d in (_load_doc(r["doc"], None)
-                            for r in self._read("SELECT doc FROM sects")) if d]
 
     # ── meta (world boost, counters…) ─────────────────────────────────────────
     def get_meta(self, key: str, default: Any = None) -> Any:

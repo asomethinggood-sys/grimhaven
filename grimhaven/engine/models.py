@@ -10,12 +10,17 @@ from typing import Any
 
 from .constants import (
     BASE_RATES,
+    DAO_PATHS,
+    SPIRIT_STONES,
     DEMONIC_AFK_MULT_CAP,
     EQUIP_SLOTS,
+    LUCK_BONUS_FACTOR,
     MAX_REALM,
     METHODS,
     REALM_ENTRY_SPIKES,
     REALM_STAGES,
+    TECH_MULT_RANGE,
+    VEIN_DENSITY_RANGE,
 )
 
 UTC = dt.timezone.utc
@@ -26,7 +31,14 @@ def utcnow() -> dt.datetime:
 
 
 def iso(ts: dt.datetime | None = None) -> str:
-    return (ts or utcnow()).isoformat()
+    ts = ts or utcnow()
+    # keep the storage contract "always RFC3339 with an offset" even when a
+    # caller hands us a naive datetime: a naive string written here would come
+    # back through parse_iso and (before the fix in parse_iso) crash every
+    # comparison against utcnow().
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=UTC)
+    return ts.isoformat()
 
 
 def parse_iso(value: Any) -> dt.datetime | None:
@@ -56,7 +68,13 @@ def parse_iso(value: Any) -> dt.datetime | None:
         parsed = dt.datetime.fromisoformat(value)
     except ValueError:
         return None
-    return parsed
+    # A timestamp stored without an offset ("2025-01-01T00:00:00", or the
+    # `Z`-less form an operator types by hand) is naive. Every caller compares
+    # it against ``utcnow()`` — which IS tz-aware — so returning it as-is made
+    # the comparison itself raise ``TypeError: can't compare offset-naive and
+    # offset-aware datetimes``, bricking settle/hud/tribulation for that player.
+    # The game's storage contract is UTC, so a naive value is read as UTC.
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 def as_iso(value: Any) -> str | None:
@@ -256,6 +274,8 @@ def new_user_doc(user_id: int, username: str = "", language: str = "fa") -> dict
             "miracle_escapes": 0,
             "adventures": 0,
             "last_gather_at": None,
+            # doc §4.2: a hidden attribute announces itself exactly once
+            "stat_reveals_seen": {},
         },
     }
     return doc
@@ -392,7 +412,23 @@ def ensure_v2(doc: dict, changes: list[str] | None = None) -> dict:
         else "orthodox"
     if not isinstance(cul.get("alignment_locked"), bool):
         cul["alignment_locked"] = as_bool(cul.get("alignment_locked"))
-    cul["dao_path"] = cul.get("dao_path") if isinstance(cul.get("dao_path"), str) else None
+    # dao_path is rendered through DAO_PATHS[...] in the HUD, the karma screen and
+    # combat_profile: a stored value that is not a real path (an old key, a typo,
+    # a hand-edited row) used to raise KeyError on EVERY screen that shows the
+    # profile. It is a player choice, so the only safe repair is to unset it.
+    raw_dao = cul.get("dao_path")
+    # NB: the membership test below would raise on a non-hashable stored value
+    # (dict/list), so the type check must come first.
+    if raw_dao is not None and (not isinstance(raw_dao, str) or raw_dao not in DAO_PATHS):
+        note(f"cultivation.dao_path:{raw_dao!r}→null")
+        raw_dao = None
+    cul["dao_path"] = raw_dao
+    raw_align = cul.get("alignment")
+    if raw_align not in _ALIGNMENTS:
+        if raw_align is not None:
+            note(f"cultivation.alignment:{raw_align!r}→orthodox")
+        raw_align = "orthodox"
+    cul["alignment"] = raw_align
     for key, default in (("active_method_id", "method_breath_mortal"),
                          ("active_pill", None), ("active_stone", None)):
         value = cul.get(key)
@@ -538,13 +574,11 @@ def ensure_v2(doc: dict, changes: list[str] | None = None) -> dict:
         cmb["session"] = None
         note("combat.session: scalar → null")
     elif isinstance(session, dict):
-        session["round"] = as_int(session.get("round"), 1, minimum=1)
-        session["turn_lock"] = as_int(session.get("turn_lock"), session["round"] - 1)
-        session["finished"] = as_bool(session.get("finished"))
-        for side in ("player", "enemy"):
-            if session.get(side) is not None and not isinstance(session[side], dict):
-                session[side] = {}
-                note(f"combat.session.{side}: scalar → object")
+        repaired, why = _repair_session(session, note)
+        cmb["session"] = repaired
+        if why:
+            note(why)
+        session = repaired
     injury = cmb.get("injury")
     if injury is not None and not isinstance(injury, dict):
         cmb["injury"] = None
@@ -578,6 +612,10 @@ def ensure_v2(doc: dict, changes: list[str] | None = None) -> dict:
                          ("miracle_escapes", 0), ("adventures", 0)):
         prog[key] = as_int(prog.get(key), default, minimum=0)
     prog["root_ancient_used"] = as_bool(prog.get("root_ancient_used"))
+    seen = prog.get("stat_reveals_seen")
+    prog["stat_reveals_seen"] = ({k: as_bool(v) for k, v in seen.items()
+                                  if k in ("luck", "charisma", "daoheart")}
+                                 if isinstance(seen, dict) else {})
     iso_field(prog, "last_gather_at", label="progress.last_gather_at")
 
     # ── spec P3: zone renames → data/zones.json ids (one-time alias migration)
@@ -638,6 +676,85 @@ def ensure_v2(doc: dict, changes: list[str] | None = None) -> dict:
         doc["status"] = "idle"
     doc["_id"] = as_str(doc.get("_id"), f"tg_user_{doc.get('user_id', 0)}")
     return doc
+
+
+_SESSION_POOLS = ("player", "enemy")   # the two stat pools
+_SESSION_SIDES = ("p", "e")            # the status/log/turn keys
+_SESSION_INT_KEYS = ("hp", "max_hp", "qi", "max_qi", "atk", "def", "sdef", "speed",
+                     "guard_level")
+
+
+def _repair_session(session: dict, note) -> tuple[dict | None, str]:
+    """Normalize a stored battle session, or drop it when it cannot be played.
+
+    A live session is embedded in the player document, so a partial write (a
+    crash between the two saves, an older schema, a hand-edited row) can leave
+    it without ``statuses``/``player``/``enemy``. Every one of those shapes used
+    to raise inside ``resolve_round`` or the battle HUD — the player tapped an
+    attack and got an error card *forever*, because nothing ever rewrote the
+    session. A session that cannot be normalized is therefore discarded (the
+    fight is lost, not the account) and ``True``-style reason is reported.
+    Returns ``(session_or_None, reason_or_"")``.
+    """
+    for side in _SESSION_POOLS:
+        pool = session.get(side)
+        if not isinstance(pool, dict):
+            return None, f"combat.session.{side}: missing → battle dropped"
+        if as_int(pool.get("max_hp"), 0, minimum=0) <= 0:
+            return None, f"combat.session.{side}: unusable hp → battle dropped"
+        for key in _SESSION_INT_KEYS:
+            if key in pool:
+                pool[key] = as_int(pool[key], 0)
+        for key in ("hp", "max_hp", "qi", "max_qi"):
+            if key not in pool:
+                pool[key] = 1 if key in ("max_hp", "max_qi") else 0
+        hp = as_int(pool.get("hp"), 0, minimum=0)
+        pool["hp"] = min(hp, as_int(pool.get("max_hp"), hp, minimum=1))
+        qi = as_int(pool.get("qi"), 0, minimum=0)
+        pool["qi"] = min(qi, as_int(pool.get("max_qi"), qi, minimum=1))
+    session["round"] = as_int(session.get("round"), 1, minimum=1)
+    session["finished"] = as_bool(session.get("finished"))
+    session["shield"] = as_int(session.get("shield"), 0, minimum=0)
+    if "player_first" in session:
+        session["player_first"] = as_bool(session["player_first"])
+    raw_cd = session.get("cooldowns")
+    cooldowns: dict[str, int] = {}
+    if isinstance(raw_cd, dict):
+        for tid, turns in raw_cd.items():
+            if isinstance(tid, str):
+                turns = as_int(turns, 0, minimum=0)
+                if turns > 0:
+                    cooldowns[tid] = turns
+    session["cooldowns"] = cooldowns
+    raw_st = session.get("statuses")
+    statuses: dict[str, list] = {}
+    for side in _SESSION_SIDES:
+        entries = raw_st.get(side) if isinstance(raw_st, dict) else None
+        kept: list[dict] = []
+        for st in (entries if isinstance(entries, list) else []):
+            if not isinstance(st, dict) or not isinstance(st.get("kind"), str):
+                continue
+            st = dict(st)
+            st["turns"] = as_int(st.get("turns"), 1, minimum=1)
+            kept.append(st)
+        statuses[side] = kept
+    session["statuses"] = statuses
+    raw_log = session.get("log")
+    session["log"] = ({side: as_str(raw_log.get(side), "") if isinstance(raw_log, dict) else ""
+                       for side in _SESSION_SIDES})
+    for key in ("started_at", "updated_at"):
+        raw_ts = session.get(key)
+        fixed = as_iso(raw_ts)
+        session[key] = fixed or iso()
+        if raw_ts is not None and fixed is not None and raw_ts != fixed:
+            note(f"combat.session.{key} normalized")
+    if not isinstance(session.get("kind"), str):
+        session["kind"] = "hunt"
+    if "outcome" not in session:
+        session["outcome"] = None
+    if not isinstance(session.get("reward"), (dict, type(None))):
+        session["reward"] = None
+    return session, ""
 
 
 def _ensure_buff(buff: dict, note) -> dict:
@@ -710,7 +827,6 @@ def buff_catalyst(user: dict, now: dt.datetime | None = None) -> float:
     return total
 
 
-
 # ── derived stats ────────────────────────────────────────────────────────────
 
 LIFESPANS: dict[int, int] = {1: 80, 2: 120, 3: 200, 4: 350, 5: 600, 6: 1000, 7: 1800}
@@ -749,7 +865,6 @@ def comprehension(user: dict) -> int:
     hidden = user["stats"]["hidden"]
     return int(vis.get("spiritual_sense", 10) * 1.5 + hidden.get("dao_heart_stability", 50) * 0.2
                + user["cultivation"]["current_realm_index"] * 3)
-
 
 
 def stage_cost(user: dict) -> int:
@@ -810,7 +925,9 @@ def recompute_visible_stats(user: dict) -> None:
         base_hp *= 1.5
     elif dao:
         from .constants import DAO_PATHS
-        base_hp *= DAO_PATHS[dao]["hp"]
+        spec = DAO_PATHS.get(dao)
+        if spec:  # an unknown path is unset by ensure_v2; never KeyError here
+            base_hp *= spec["hp"]
     gear_bonus_hp = 0.0
     for slot, gear in (user.get("equipment") or {}).items():
         if gear and slot in ("robe", "companion", "natal"):
@@ -844,8 +961,7 @@ def afk_hourly_rate(user: dict, world_boost: float = 1.0,
 
     catalyst = 0.0
     stone = cul.get("active_stone")
-    if stone:
-        from .constants import SPIRIT_STONES
+    if isinstance(stone, str) and stone in SPIRIT_STONES:
         catalyst += as_float(SPIRIT_STONES[stone]["boost"], 0.0)
     if user.get("progress", {}).get("root_ancient_used"):
         catalyst += 0.25  # ancient ginseng permanently widens the channels
@@ -853,8 +969,12 @@ def afk_hourly_rate(user: dict, world_boost: float = 1.0,
     if cul["alignment"] == "demonic":
         catalyst = min(1.0 + catalyst, DEMONIC_AFK_MULT_CAP) - 1.0
 
+    # doc §5: vein density 1.0–5.0, technique multiplier 1.0–10.0 — clamp here so
+    # a bad zone row or method row can never multiply the economy
+    tech = max(TECH_MULT_RANGE[0], min(TECH_MULT_RANGE[1], tech))
     vein = as_float(user["location"].get("vein_density", 1.0), 1.0, minimum=0.1)
-    luck_bonus = as_float(user["stats"]["hidden"].get("karmic_luck", 50), 50) * 0.002
+    vein = max(VEIN_DENSITY_RANGE[0], min(VEIN_DENSITY_RANGE[1], vein))
+    luck_bonus = as_float(user["stats"]["hidden"].get("karmic_luck", 50), 50) * LUCK_BONUS_FACTOR
     rate = base * tech * (1.0 + catalyst) * vein * rate_mult
     rate *= (1.0 + luck_bonus) * world_boost
     if _meridians_sealed(user, now):
@@ -876,11 +996,6 @@ def meridians_sealed(user: dict, now: dt.datetime | None = None) -> bool:
 def in_seclusion(user: dict, now: dt.datetime | None = None) -> bool:
     finish = parse_iso(user["cultivation"].get("seclusion_finish_time"))
     return bool(finish and finish > (now or utcnow()))
-
-
-def is_max_realm_final(user: dict) -> bool:
-    cul = user["cultivation"]
-    return cul["current_realm_index"] >= MAX_REALM and cul["current_stage"] >= len(REALM_STAGES[MAX_REALM]) - 1
 
 
 # ── spatial ring capacity ───────────────────────────────────────────────────
@@ -961,8 +1076,10 @@ def combat_profile(user: dict, now: dt.datetime | None = None) -> dict:
     crit_extra = 0.05
     if dao:
         from .constants import DAO_PATHS
-        atk_mult *= DAO_PATHS[dao]["atk"]
-        crit_extra += DAO_PATHS[dao]["crit"]
+        spec = DAO_PATHS.get(dao)
+        if spec:
+            atk_mult *= spec["atk"]
+            crit_extra += spec["crit"]
 
     spiritual_atk = int((8 * (1.7 ** (realm - 1)) + stage * 3) * atk_mult)
     physical_atk = int(spiritual_atk * (1.15 if dao == "body" else 0.95))

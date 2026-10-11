@@ -18,15 +18,33 @@ class UserStatus(str, enum.Enum):
     SECLUSION = "seclusion_tribulation"      # locked in breakthrough seclusion
     HEAVILY_INJURED = "heavily_injured"      # recovery debuff state
 
-
-VALID = {s.value for s in UserStatus}
-
 # severe-meridian-injury debuff duration after a miracle escape (hours)
 INJURY_HOURS = 3
 # coma lock after a true death (minutes)
 PARALYSIS_MINUTES = 45
 # AFK-yield multiplier while injured / during the paralysis coma
 INJURY_QI_MULT = 0.5
+
+
+def _aware(value: Any) -> dt.datetime | None:
+    """Parse a persisted timestamp into an *aware* datetime (UTC).
+
+    ``datetime.fromisoformat`` returns naive values for offset-less strings —
+    and comparing those against the tz-aware ``now`` used here raises
+    ``TypeError``, which the callers below used to swallow as "debuff absent".
+    That silently lifted the injury/paralysis lock for any player whose row held
+    a legacy (offset-less) timestamp. Naive values are treated as UTC because
+    that is what the game's storage contract says they are.
+    """
+    if not value:
+        return None
+    try:
+        parsed = dt.datetime.fromisoformat(value) if isinstance(value, str) else value
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(parsed, dt.datetime):
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.timezone.utc)
 
 
 def get_status(user: dict) -> UserStatus:
@@ -77,12 +95,9 @@ def active_debuff(user: dict, now: dt.datetime | None = None) -> dict | None:
     deb = combat.get("injury")
     if not isinstance(deb, dict) or not deb:
         return None
-    exp = deb.get("expires_at")
-    try:
-        if exp and dt.datetime.fromisoformat(exp) <= now:
-            combat["injury"] = None
-            return None
-    except (TypeError, ValueError):
+    exp = _aware(deb.get("expires_at"))
+    if exp is not None and exp <= now:
+        combat["injury"] = None
         return None
     return deb
 
@@ -92,13 +107,10 @@ def paralysis_active(user: dict, now: dt.datetime | None = None) -> bool:
     combat = user.get("combat")
     if not isinstance(combat, dict):
         return False
-    until = combat.get("paralysis_until")
-    if not until:
+    until = _aware(combat.get("paralysis_until"))
+    if until is None:
         return False
-    try:
-        return dt.datetime.fromisoformat(until) > now
-    except (TypeError, ValueError):
-        return False
+    return until > now
 
 
 def is_injured(user: dict, now: dt.datetime | None = None) -> bool:
