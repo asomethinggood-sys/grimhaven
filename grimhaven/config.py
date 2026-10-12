@@ -75,6 +75,21 @@ class Settings:
     openverse_licenses: str = "cc0,pdm,by,by-sa"
     #: optional — Pixabay provider stays disabled while empty
     pixabay_api_key: str = ""
+    # ── sticker reactions (grimhaven/stickers) ────────────────────────────
+    #: master switch; off → every reaction hook becomes a no-op (text only)
+    sticker_enabled: bool = True
+    #: the moment → pack → emoji map (see docs/STICKERS.md)
+    sticker_map_path: Path = ROOT_DIR / "data" / "sticker_map.json"
+    #: comma-separated pack ids/short names; empty → whatever the map enables
+    sticker_packs: str = ""
+    #: per Telegram call (getStickerSet / sendSticker)
+    sticker_timeout: float = 8.0
+    #: hard ceiling for one background send
+    sticker_task_timeout: float = 20.0
+    #: how long a resolved set may be reused before ids are re-quoted
+    sticker_cache_ttl_minutes: int = 720
+    #: per-chat spacing; 0 disables the cooldown (not recommended)
+    sticker_cooldown_seconds: int = 30
 
     @classmethod
     def load(cls) -> "Settings":
@@ -102,6 +117,13 @@ class Settings:
                 return cast(raw)
             except ValueError:
                 return default
+
+        def _path_or(key: str, default: Path) -> Path:
+            raw = os.environ.get(key, "").strip()
+            if not raw:
+                return default
+            candidate = Path(raw)
+            return candidate if candidate.is_absolute() else ROOT_DIR / candidate
 
         artwork_dir_raw = os.environ.get("ARTWORK_DIR", "").strip()
         artwork_dir = Path(artwork_dir_raw) if artwork_dir_raw else (ROOT_DIR / "assets" / "artwork")
@@ -140,6 +162,15 @@ class Settings:
             openverse_licenses=os.environ.get("OPENVERSE_LICENSES",
                                               "cc0,pdm,by,by-sa").strip(),
             pixabay_api_key=os.environ.get("PIXABAY_API_KEY", "").strip(),
+            # sticker reactions — see docs/STICKERS.md and .env.example
+            sticker_enabled=os.environ.get("STICKER_ENABLED", "1").strip().lower() in truthy,
+            sticker_map_path=_path_or("STICKER_MAP_PATH",
+                                      ROOT_DIR / "data" / "sticker_map.json"),
+            sticker_packs=os.environ.get("STICKER_PACKS", "").strip(),
+            sticker_timeout=_num("STICKER_TIMEOUT", 8.0, float),
+            sticker_task_timeout=_num("STICKER_TASK_TIMEOUT", 20.0, float),
+            sticker_cache_ttl_minutes=_num("STICKER_CACHE_TTL_MINUTES", 720, int),
+            sticker_cooldown_seconds=_num("STICKER_COOLDOWN_SECONDS", 30, int),
         )
 
 

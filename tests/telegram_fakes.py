@@ -32,6 +32,20 @@ class FakeBot:
         #: asserts on this to prove a REAL upload happened
         self.photos: list[tuple[int, object, object]] = []
         self.documents: list[tuple[int, object, object]] = []
+        #: every sticker send: (chat_id, sticker) — the reaction layer asserts
+        #: on this, and on its *absence* when a moment must stay quiet
+        self.stickers: list[tuple[int, object]] = []
+        #: the set the fake hands back for get_sticker_set(); tests override it
+        self.sticker_set = SimpleNamespace(name="fake_set", title="Fake set",
+                                           sticker_type="regular", stickers=[])
+        #: True → send_sticker raises: a dead id must degrade to silence
+        self.fail_sticker = False
+        #: True → send_sticker raises only for these ids (the refresh path)
+        self.stale_sticker_ids: set[str] = set()
+        #: True → get_sticker_set raises: an unknown pack must not break a turn
+        self.fail_sticker_set = False
+        #: how many times each API was called (cache assertions)
+        self.sticker_set_calls = 0
         #: True → Telegram refuses anything carrying a keyboard (a screen), while
         #: plain text (the failure notice) still lands. That is the realistic shape
         #: of a render rejection and it is what the reporter must cope with.
@@ -72,6 +86,20 @@ class FakeBot:
         self.photos.append((chat_id, photo, caption))
         return SimpleNamespace(message_id=mid, chat_id=chat_id,
                                photo=[SimpleNamespace(file_id=f"FAKE_FILE_ID_{mid}")])
+
+    async def get_sticker_set(self, name, **kwargs):
+        self.sticker_set_calls += 1
+        if self.fail_sticker_set:
+            raise BadRequest("Bad Request: STICKERSET_INVALID")
+        return self.sticker_set
+
+    async def send_sticker(self, chat_id, sticker, **kwargs):
+        if self.fail_sticker or sticker in self.stale_sticker_ids:
+            raise BadRequest("Bad Request: can't find file for file_id of type 'Sticker'")
+        mid = self.next_id()
+        self.stickers.append((chat_id, sticker))
+        return SimpleNamespace(message_id=mid, chat_id=chat_id,
+                               sticker=SimpleNamespace(file_id=sticker))
 
     async def send_document(self, chat_id, document, caption=None, **kwargs):
         if self.fail_photo:

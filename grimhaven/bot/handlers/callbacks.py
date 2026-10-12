@@ -39,6 +39,7 @@ from ...localization import t
 from .reporting import PATH_CALLBACK, notify_failure, render_failed, report_stage
 from ... import render as R
 from ...images.delivery import begin_artwork, join_artwork
+from ...stickers.delivery import begin_reaction, join_reaction
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,41 @@ def _apply_artwork(bot, chat_id: int, user: dict, opts: dict, ctx):
         logger.exception("artwork: could not schedule the send for user %s",
                          user.get("user_id"))
         return None
+
+
+# ── sticker reactions (decoration; see docs/STICKERS.md) ─────────────────────
+
+def _sticker_spec(ctx, moment: str, *, once_key: str | None = None) -> dict | None:
+    """Build an ``opts["sticker"]`` spec, or ``None`` when reactions are off.
+
+    The throttle comes from the moment's entry in data/sticker_map.json, so
+    re-tuning how often a moment may react is a data edit, not a code change.
+    """
+    service = getattr(ctx, "stickers", None)
+    if service is None or not moment:
+        return None
+    entry = service.catalog.moment(moment)
+    if entry is None:
+        return None
+    return {"moment": moment, "once_key": once_key or moment,
+            "throttle_minutes": entry.throttle_minutes}
+
+
+def _apply_sticker(bot, chat_id: int, user: dict, opts: dict, ctx):
+    """Start (or skip) the background sticker reaction for a rendered screen."""
+    spec = opts.get("sticker")
+    if not spec:
+        return None
+    try:
+        return begin_reaction(bot, chat_id, user, spec["moment"],
+                              service=ctx.stickers,
+                              once_key=spec.get("once_key"),
+                              throttle_minutes=int(spec.get("throttle_minutes") or 0))
+    except Exception:      # noqa: BLE001 — a sticker can never break gameplay
+        logger.exception("sticker: could not schedule the reaction for user %s",
+                         user.get("user_id"))
+        return None
+
 
 # legacy callback shim → spec namespace (keeps stale messages clickable)
 _ALIAS_EXACT = {
@@ -251,6 +287,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             # event artwork rides alongside the screen as its own message —
             # the tracked root window (and its keyboard) stay untouched
             _apply_artwork(bot, query.message.chat_id, user, opts, ctx)
+            _apply_sticker(bot, query.message.chat_id, user, opts, ctx)
         # persist the (possibly new) root anchor set during the render step
         stage = "persist-render-state"
         ctx.save(user)
@@ -280,6 +317,7 @@ async def _answer(query, text: str | None = None, *, show_alert: bool = False) -
 
 
 ARTWORK_JOIN_SECONDS = 2.5     # max extra wait for the picture inside the drama
+STICKER_JOIN_SECONDS = 1.5     # the reaction is small; it needs less of the scene
 
 
 async def _run_tribulation(bot, query, ctx, user: dict, text: str, keyboard,
@@ -301,6 +339,9 @@ async def _run_tribulation(bot, query, ctx, user: dict, text: str, keyboard,
     if opts.get("artwork"):
         artwork_task = _apply_artwork(bot, chat_id, user, opts, ctx)
         opts["artwork_consumed"] = True
+    # the reaction is fired here (not after the resolution card) for the same
+    # reason the picture is: its network time hides inside the two pauses
+    sticker_task = _apply_sticker(bot, chat_id, user, opts, ctx)
     phases = trib.get("phases", [])[:2]
     for idx, phase in enumerate(phases):
         try:
@@ -313,9 +354,12 @@ async def _run_tribulation(bot, query, ctx, user: dict, text: str, keyboard,
             await asyncio.sleep(2.0)
         except asyncio.CancelledError:  # pragma: no cover — shutdown during the drama
             raise
-        if idx == 0 and artwork_task is not None:
-            # the clouds gathered; let the picture land before the bolt strikes
-            await join_artwork(artwork_task, ARTWORK_JOIN_SECONDS)
+        if idx == 0:
+            if artwork_task is not None:
+                # the clouds gathered; let the picture land before the bolt strikes
+                await join_artwork(artwork_task, ARTWORK_JOIN_SECONDS)
+            if sticker_task is not None:
+                await join_reaction(sticker_task, STICKER_JOIN_SECONDS)
     await _apply_render(bot, query, user, text, keyboard, opts)
     # keep the *next* tribulation's picture warm so it never waits on a CDN
     service = getattr(ctx, "artworks", None)
@@ -476,6 +520,11 @@ def _attach_victory_artwork(ctx, user: dict, outcome: str, snapshot: dict,
     spec = _artwork_spec(ctx, user, "victory", once_key=f"victory:{zone}")
     if spec:
         opts["artwork"] = spec
+    # the sticker shares the zone key: one reaction per zone per window, so a
+    # player farming the same sector is not buried in the same cartoon face
+    sticker = _sticker_spec(ctx, "victory", once_key=f"victory:{zone}")
+    if sticker:
+        opts["sticker"] = sticker
 
 
 def _terminal_effects(ctx, user: dict, session: dict, now) -> None:
@@ -526,6 +575,7 @@ async def _combat_turn(bot, query, ctx, user: dict, data: str, now) -> None:
         # victory vista (if any) claims its throttle key first, then this save
         # persists the marker — a re-sent callback cannot double-post
         _apply_artwork(bot, query.message.chat_id, user, opts, ctx)
+        _apply_sticker(bot, query.message.chat_id, user, opts, ctx)
         ctx.save(user)
     except Exception as exc:  # pragma: no cover — a failed battle tap must be answered
         logger.exception("combat turn failed at action=%r user_id=%s", data,
@@ -1251,6 +1301,14 @@ def _breakthrough(ctx, user, args, now):
             if not won:
                 spec["caption"] = t(lang, "ART_CAP_BREAKTHROUGH_FAIL")
             render_opts["artwork"] = spec
+        # the reaction rides the same attempt key as the artwork: one attempt,
+        # at most one face — and a realm jump gets the grander moment
+        moment = "breakthrough" if won else "breakthrough_fail"
+        if won and prep.get("is_realm_jump"):
+            moment = "milestone_realm"
+        sticker = _sticker_spec(ctx, moment, once_key=f"breakthrough:{attempts}")
+        if sticker is not None:
+            render_opts["sticker"] = sticker
         return text, kb, render_opts
     return (R.hud_text(ctx.storage, user, ctx.world_boost(now), now),
             kbs.profile_kb(lang), {"root": True})

@@ -91,6 +91,26 @@ class FakeBotAPI:
             if echoed:
                 res["reply_markup"] = echoed
             return res
+        if endpoint == "sendSticker":
+            # Sticker sends carry no text and no keyboard; the echo is a bare
+            # message with a Sticker object, exactly as the API returns it.
+            mid = self.s.next_id()
+            fid = d.get("sticker") or "FAKE_STICKER_ID"
+            return {"message_id": mid, "date": 1760000000,
+                    "chat": {"id": chat_id, "type": "private"},
+                    "from": {"id": 7777, "is_bot": True, "first_name": "Grimhaven"},
+                    "sticker": {"file_id": fid, "file_unique_id": "FAKEUNIQUE",
+                                "type": "regular", "width": 512, "height": 512,
+                                "is_animated": False, "is_video": False, "emoji": "🏆"}}
+        if endpoint == "getStickerSet":
+            # Three faces so the emoji-preference and rotation paths both run
+            return {"name": d.get("name") or "fake_set", "title": "Fake set",
+                    "sticker_type": "regular", "contains_masks": False,
+                    "stickers": [
+                        {"file_id": f"FAKE_STICKER_{i}", "file_unique_id": f"FAKEUNIQUE{i}",
+                         "type": "regular", "width": 512, "height": 512,
+                         "is_animated": False, "is_video": False, "emoji": emoji}
+                        for i, emoji in enumerate(("🏆", "😭", "⚡"), start=1)]}
         if endpoint == "deleteMessage":
             mid = d.get("message_id")
             if mid in self.s.deleted or mid not in self.s.messages:

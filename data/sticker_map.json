@@ -1,0 +1,87 @@
+{
+ "_about": "Moment → sticker reaction map for the grimhaven.stickers subsystem. Packs are referenced by their Telegram set short-name only; NO file_id is stored anywhere, because a file_id is bot-specific, can expire, and quoting a foreign one is a guaranteed 400 (see docs/STICKERS.md §Reliability). The bot resolves ids at runtime with getStickerSet and keeps them in memory.",
+ "_licensing": "Only packs approved by the operator live here. The Grimhaven discovery run (2026-10-12) also catalogued xianxia/donghua packs (MDZS, TGCF and manhua character sets) — those are NOT enabled, because they are fan-art of copyrighted commercial works and the operator chose the generic anime-reaction set instead. The full research pool stays at agent/research/sticker-pool.json.",
+ "_selection": "A moment names a category; a category lists emoji in preference order. The service prefers a sticker whose Telegram emoji tag matches, and otherwise rotates deterministically through the pack (so the same picture never repeats twice in a row). Nothing is hard-required: if no pack resolves, the game simply keeps playing with text.",
+ "packs": [
+  {
+   "id": "s_anime_v4_1",
+   "short_name": "anime_v4_1_by_shadowthiefo",
+   "title": "S-Anime v4.1 — 52 anime reaction faces",
+   "format": "static",
+   "enabled": true,
+   "verified_add_link": true,
+   "source": "reddit.com/r/anime (2016, pack author shadowthiefo) and r/TelegramStickersShare; both posts print t.me/addstickers/anime_v4_1_by_shadowthiefo",
+   "note": "The one pack the operator approved: 52 static reaction faces, no single franchise, so it carries the least licensing exposure of the discovered set. Static .WEBP only — no premium animation, which means the bot is not blocked by the Premium send restriction."
+  },
+  {
+   "id": "anime_animated",
+   "short_name": "anianimated",
+   "title": "Anime animated",
+   "format": "mixed",
+   "enabled": false,
+   "verified_add_link": false,
+   "source": "stickers.wiki/telegram/anianimated/ (2026-10-12) — the page did NOT print an add link, so 'anianimated' is a slug guess",
+   "note": "Kept for later evaluation. Enable only after getStickerSet confirms the short name; an unconfirmed name costs one failed API call per moment and nothing else (the failure is silent and logged once)."
+  }
+ ],
+ "categories": {
+  "victory": {
+   "emojis": ["🏆", "😎", "✌️", "😏", "💪", "🥳", "🔥", "😤"],
+   "note": "won a duel, a hunt or a conquest"
+  },
+  "defeat": {
+   "emojis": ["😭", "😢", "😞", "💀", "😵", "😩", "🫠", "😔"],
+   "note": "lost a fight, a hunt or a duel"
+  },
+  "combat": {
+   "emojis": ["⚔️", "🗡", "⚡", "🔥", "😠", "👊", "💥", "😡"],
+   "note": "mid-battle beats"
+  },
+  "triumph": {
+   "emojis": ["⚡", "🌟", "✨", "🔥", "🌈", "🙏", "🎉"],
+   "note": "survived the heavenly tribulation"
+  },
+  "calamity": {
+   "emojis": ["💀", "😵", "🌑", "😰", "⛈", "😱", "😭", "😢", "😩"],
+   "note": "tribulation failure — qi deviation, annihilation. The crying faces are last on purpose: the calamity reads better as shock than as tears, but a pack that only ships tears must still get its best sticker picked rather than a random one."
+  },
+  "milestone": {
+   "emojis": ["👑", "🌟", "✨", "🏔", "🌌", "💫"],
+   "note": "realm jump — the grandest progression step"
+  },
+  "celebration": {
+   "emojis": ["🎉", "🥳", "🎊", "😄", "✨", "🙌"],
+   "note": "festivals, karma blessings, admin kindness"
+  },
+  "rare_reward": {
+   "emojis": ["💎", "🎁", "✨", "🌟", "👑", "🤑"],
+   "note": "treasure encounter / rare drop"
+  },
+  "reflection": {
+   "emojis": ["🤔", "📜", "🗺", "❓", "🧭", "📖"],
+   "note": "quests, study, alchemy, reading a scroll"
+  }
+ },
+ "moments": {
+  "victory": {
+   "category": "victory",
+   "throttle_minutes": 45,
+   "note": "throttled per zone like the victory vista — a sticker on every kill would be spam"
+  },
+  "breakthrough": {
+   "category": "triumph",
+   "throttle_minutes": 0,
+   "note": "once per attempt via the attempt-counter once_key"
+  },
+  "breakthrough_fail": {
+   "category": "calamity",
+   "throttle_minutes": 0,
+   "note": "the same key space as breakthrough: one attempt → at most one reaction"
+  },
+  "milestone_realm": {
+   "category": "milestone",
+   "throttle_minutes": 0,
+   "note": "realm jump rides the breakthrough attempt key, so it can never double-post"
+  }
+ }
+}

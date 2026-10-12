@@ -91,9 +91,13 @@ async def _run(update: Update, context: ContextTypes.DEFAULT_TYPE, data: str) ->
         await _present(bot, update.message, user, text, kb, opts)
         # artwork rides the reply path too, with the same guarantees: a separate
         # background photo that can never delay or break the rendered screen
-        if opts.get("artwork"):
-            from .callbacks import _apply_artwork
-            _apply_artwork(bot, update.message.chat_id, user, opts, ctx)
+        if opts.get("artwork") or opts.get("sticker"):
+            from .callbacks import _apply_artwork, _apply_sticker
+            if opts.get("artwork"):
+                _apply_artwork(bot, update.message.chat_id, user, opts, ctx)
+            # reactions ride the slash-command path too (a /breakthrough that
+            # wins is the same moment as the button that does)
+            _apply_sticker(bot, update.message.chat_id, user, opts, ctx)
         stage = "persist-render-state"
         ctx.save(user)
     except Exception as exc:  # pragma: no cover — safety net, never crash the bot

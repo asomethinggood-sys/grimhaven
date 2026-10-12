@@ -31,6 +31,8 @@ class Ctx:
         self._artworks: object | None = None
         # settings absent (demo/test contexts) → nothing to build, ever
         self._artworks_built = settings is None
+        self._stickers: object | None = None
+        self._stickers_built = settings is None
 
     @property
     def artworks(self):
@@ -55,6 +57,33 @@ class Ctx:
             self._artworks = None
             logger.exception("artwork: service unavailable — the game plays in text only")
         return self._artworks
+
+    @property
+    def stickers(self):
+        """The sticker service, or ``None`` when disabled/unavailable.
+
+        Same contract as :attr:`artworks`: lazy, failure-tolerant, and never
+        allowed to take the bot down. A broken map costs the player a picture,
+        not a turn.
+        """
+        if self._stickers_built:
+            return self._stickers
+        self._stickers_built = True
+        try:
+            s = self.settings
+            if s is not None and getattr(s, "sticker_enabled", False):
+                from ...stickers.catalog import load_catalog
+                from ...stickers.service import StickerService
+                catalog = load_catalog(getattr(s, "sticker_map_path", None))
+                if catalog is not None:
+                    self._stickers = StickerService(s, catalog)
+                    logger.info("sticker: reactions online — packs=%s moments=%d",
+                                ",".join(p.short_name for p in self._stickers.packs())
+                                or "none", len(catalog.moments))
+        except Exception:      # noqa: BLE001 — decoration must never gate the bot
+            self._stickers = None
+            logger.exception("sticker: service unavailable — reactions stay off")
+        return self._stickers
 
     # world boost (admin /world_boost) ─ {rate, until}
     def world_boost(self, now: dt.datetime | None = None) -> float:
